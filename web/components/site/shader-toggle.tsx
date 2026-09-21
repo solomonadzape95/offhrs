@@ -56,7 +56,7 @@ export function ShaderSwatches({ className }: { className?: string }) {
                   : "border-edge/70 text-ink-dim hover:border-ink/30 hover:text-ink"
               }`}
             >
-              <Icon icon={s.id === "warp" ? WaveSine : CirclesFour} size={13} />
+              <Icon icon={s.id === "warp" ? WaveSine : CirclesFour} size={13} dither={false} />
               {s.label}
             </button>
           );

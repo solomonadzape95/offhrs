@@ -10,19 +10,14 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 
 import { AgentCarousel } from "@/components/site/agent-carousel";
-import { DitherBackdrop } from "@/components/site/dither-backdrop";
-import { DitherChart } from "@/components/site/dither-chart";
 import { FaqList } from "@/components/site/faq";
 import { Glyph } from "@/components/site/glyph";
-import { LiveBadge } from "@/components/site/live-badge";
 import { MechanicsGrid } from "@/components/site/mechanics";
 import { Section } from "@/components/site/section";
-import { SessionClock } from "@/components/site/session-clock";
 import { Stat } from "@/components/site/stat";
 import { WarpField } from "@/components/site/warp-field";
 import { Icon } from "@/components/ui/icon";
 import { AGENTS } from "@/lib/agents";
-import { ARBITRAGE, CURVE_FEES, MARK, PAYOUT, REFERENCE } from "@/lib/chart-data";
 import { FAQ } from "@/lib/faq";
 import { usd } from "@/lib/format";
 import { FROZEN_AFTER_SECS, fetchAllPreStocks, readPyth } from "@/lib/market";
@@ -38,8 +33,9 @@ export const revalidate = 60;
  *
  * Below the fold the page deliberately changes shape section by section — a
  * two-column proof, a table, a bento, a carousel, a warp band — so the scroll does
- * not become one repeated card. There are no invented figures anywhere: where a
- * chart would go but no series exists, the space is reserved and labelled.
+ * not become one repeated card. There are no invented figures anywhere: the
+ * numbers are read live, and where a graphic would go it is a diagram or a mark,
+ * not a fake series.
  */
 export default async function Home() {
   const [stocks, regime] = await Promise.all([
@@ -51,10 +47,6 @@ export default async function Home() {
   const dislocated = [...stocks].sort((a, b) => Math.abs(b.premiumBps) - Math.abs(a.premiumBps));
   const widest = dislocated[0];
 
-  const printed = regime
-    ? new Date(regime.publishTime * 1000).toISOString().replace("T", " ").slice(0, 19) + "Z"
-    : "—";
-
   const tracked = usd(stocks.reduce((s, x) => s + x.markValuation, 0), { compact: true });
 
   return (
@@ -63,11 +55,10 @@ export default async function Home() {
       {/* One viewport. The header is fixed over the top, so this is 100svh of
           composition rather than "100svh minus a bar". */}
       <div className="relative flex min-h-svh flex-col">
-        {/* The claim. Centred in what is left of the viewport above the field. */}
-        <section className="relative z-10 flex flex-1 flex-col items-center justify-center px-5 pt-28 pb-6 text-center">
-          <LiveBadge label="Pre-IPO equity · after the bell" />
-
-          <h1 className="font-display text-display mt-7 max-w-4xl text-balance text-ink">
+        {/* The claim. Pushed down from the top and given room below, so it and
+            the field are two separate moments rather than one crowded screen. */}
+        <section className="relative z-10 flex flex-1 flex-col items-center justify-center px-5 pt-40 pb-20 text-center sm:pt-48 sm:pb-24">
+          <h1 className="font-display text-display max-w-4xl text-balance text-ink">
             The market is closed.
             <br />
             <span className="text-signal">But we&apos;re offhrs.</span>
@@ -88,45 +79,10 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* The field. Its own band, so the type and the shader never touch. */}
-        <section className="relative h-[42svh] min-h-[280px] w-full shrink-0">
+        {/* The field. Taller than the read-out band used to be, and now empty:
+            the pattern is the subject, with nothing printed over it. */}
+        <section className="relative h-[52svh] min-h-[340px] w-full shrink-0">
           <WarpField className="absolute inset-0" />
-
-          {/* Melt the dark of the claim into the shader at the top, and darken the
-              bottom where the read-outs sit. The bottom wash is the one that
-              matters: it is what buys the small mono type its contrast. */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-void via-void/60 to-transparent"
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-void via-void/85 to-transparent"
-          />
-
-          {/* Read-outs, sitting in the calm edge of the field. */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-6 p-6 sm:p-9">
-            <div className="pointer-events-auto">
-              <SessionClock variant="compact" />
-              <p className="mt-2 max-w-md font-mono text-xs leading-relaxed text-ink-faint">
-                {frozen ? "Reference frozen" : "Reference live"} · last print {printed}
-              </p>
-            </div>
-
-            {widest && (
-              <div className="pointer-events-auto text-right">
-                <span className="label">Widest dislocation</span>
-                <p className="figure text-3xl leading-none text-ink">
-                  {widest.premiumBps >= 0 ? "+" : ""}
-                  {widest.premiumBps}
-                  <span className="ml-1 text-sm text-ink-faint">bps</span>
-                </p>
-                <p className="mt-1.5 font-mono text-xs text-ink-faint">
-                  {widest.symbol} · {widest.premiumBps >= 0 ? "below" : "above"} mark
-                </p>
-              </div>
-            )}
-          </div>
         </section>
       </div>
 
@@ -168,64 +124,43 @@ export default async function Home() {
             </div>
           </div>
 
-          <div className="panel relative aspect-[5/4] min-h-64 overflow-hidden">
-            <DitherChart
-              className="absolute inset-0 h-full w-full"
-              lines={[
-                { data: MARK, mode: "area", opacity: 0.95 },
-                { data: REFERENCE, mode: "dashed", tone: "dim", opacity: 0.8 },
-              ]}
-            />
-            <div className="pointer-events-none absolute top-4 left-4">
-              <span className="label">Reference vs mark · 24h</span>
+          {/* The four headline readings, as a bordered 2×2 block in the space the
+              chart used to occupy. */}
+          <div className="grid grid-cols-2 gap-px border border-edge bg-edge">
+            <div className="bg-void p-6 sm:p-8">
+              <Stat
+                label="Widest dislocation"
+                value={`${widest?.premiumBps && widest.premiumBps >= 0 ? "+" : ""}${widest?.premiumBps ?? 0}`}
+                unit="bps"
+                tone="signal"
+                hint={widest?.symbol ?? ""}
+              />
             </div>
-            <div className="pointer-events-none absolute bottom-3 left-4 flex items-center gap-4 font-mono text-[0.625rem] tracking-[0.12em] uppercase">
-              <span className="flex items-center gap-1.5 text-signal">
-                <span aria-hidden className="h-px w-4 bg-signal" />
-                Mark
-              </span>
-              <span className="flex items-center gap-1.5 text-ink-faint">
-                <span aria-hidden className="h-px w-4 border-t border-dashed border-ink-faint" />
-                Reference
-              </span>
+            <div className="bg-void p-6 sm:p-8">
+              <Stat label="Pre-IPO tracked" value={tracked} hint={`${stocks.length} assets`} />
+            </div>
+            <div className="bg-void p-6 sm:p-8">
+              <Stat label="Agents staged" value={String(AGENTS.length)} hint="registry seeded" />
+            </div>
+            <div className="bg-void p-6 sm:p-8">
+              <Stat label="Assets with a feed" value={regime ? "1" : "—"} hint="Pyth equity feed" />
             </div>
           </div>
-        </div>
-
-        <div className="mt-14 grid grid-cols-2 gap-10 border-t border-edge pt-10 lg:grid-cols-4">
-          <Stat
-            label="Widest dislocation"
-            value={`${widest?.premiumBps && widest.premiumBps >= 0 ? "+" : ""}${widest?.premiumBps ?? 0}`}
-            unit="bps"
-            tone="signal"
-            hint={widest?.symbol ?? ""}
-          />
-          <Stat label="Pre-IPO tracked" value={tracked} hint={`${stocks.length} assets`} />
-          <Stat label="Agents staged" value={String(AGENTS.length)} hint="registry seeded" />
-          <Stat label="Assets with a feed" value={regime ? "1" : "—"} hint="Pyth equity feed" />
         </div>
       </Section>
 
       {/* ── The dislocation board ────────────────────────────────────── */}
       <Section id="board" label="The board">
-        <div className="relative isolate">
-          <DitherBackdrop
-            className="pointer-events-none absolute -top-24 -right-24 -z-10 hidden h-[24rem] w-[36rem] lg:block"
-            shape="wave"
-            size={3}
-            opacity={0.1}
-          />
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <h2 className="font-display text-statement max-w-3xl text-balance text-ink">
-              Every SPV mark, against its market.
-            </h2>
-            <Link href="/explore" className="nav-item">
-              All agents →
-            </Link>
-          </div>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <h2 className="font-display text-statement max-w-3xl text-balance text-ink">
+            Every SPV mark, against its market.
+          </h2>
+          <Link href="/explore" className="nav-item">
+            All agents →
+          </Link>
         </div>
 
-        <div className="panel mt-10 overflow-x-auto p-2 sm:p-3">
+        <div className="panel mt-10 overflow-x-auto rounded-none p-2 sm:p-3">
           <table className="w-full min-w-160 border-collapse">
             <thead>
               <tr className="border-b border-edge">
@@ -243,7 +178,7 @@ export default async function Home() {
             </thead>
             <tbody>
               {dislocated.map((s) => (
-                <tr key={s.symbol} className="border-b border-edge/50 last:border-0">
+                <tr key={s.symbol} className="even:bg-signal/5">
                   <td className="py-4 pl-4">
                     <span className="font-mono text-sm text-ink">{s.symbol}</span>
                     <span className="ml-3 text-sm text-ink-faint">{s.name}</span>
@@ -277,7 +212,7 @@ export default async function Home() {
         </p>
       </Section>
 
-      {/* ── Mechanics, as a bento ────────────────────────────────────── */}
+      {/* ── Mechanics, as a compact bento ────────────────────────────── */}
       <Section id="mechanics" label="Mechanics">
         <Glyph
           char="↗"
@@ -314,7 +249,7 @@ export default async function Home() {
         <div className="relative flex flex-wrap items-end justify-between gap-6">
           <div>
             <h2 className="font-display text-statement max-w-2xl text-balance text-ink">
-              Eight desks, one thesis each.
+              Four desks, one thesis each.
             </h2>
             <p className="mt-6 max-w-2xl leading-relaxed text-ink-dim">
               Every agent is a wrapper around the same signal with a different risk appetite: what
@@ -324,11 +259,11 @@ export default async function Home() {
             </p>
           </div>
           <Link href="/explore" className="nav-item">
-            All eight →
+            All agents →
           </Link>
         </div>
 
-        <AgentCarousel agents={AGENTS} />
+        <AgentCarousel agents={AGENTS.slice(0, 4)} />
 
         <p className="mt-6 font-mono text-xs leading-relaxed text-ink-faint">
           ⚠ Agent records are seeded configuration. The registry PDA is{" "}
@@ -338,22 +273,15 @@ export default async function Home() {
       </Section>
 
       {/* ── A warp breath, mid-page ──────────────────────────────────── */}
-      {/* The page opens and closes on the warp; this is the same image in the
+      {/* The page opens and closes on the field; this is the same image in the
           middle, used as a change of pace rather than a second hero. */}
       <section className="relative isolate flex min-h-[62svh] items-center overflow-hidden border-t border-edge">
         <WarpField variant="band" lazy className="absolute inset-0 -z-10" />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10"
-          style={{
-            background:
-              "linear-gradient(to bottom, var(--color-void) 0%, color-mix(in srgb, var(--color-void) 55%, transparent) 34%, color-mix(in srgb, var(--color-void) 55%, transparent) 66%, var(--color-void) 100%)",
-          }}
-        />
+        {/* One uniform wash, not a gradient. */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-void/70" />
 
         <div className="relative mx-auto max-w-app px-5 py-24 text-center sm:px-8">
-          <span className="label">After the bell</span>
-          <p className="font-display text-headline mx-auto mt-6 max-w-3xl text-balance text-ink">
+          <p className="font-display text-headline mx-auto max-w-3xl text-balance text-ink">
             The reference market closes.
             <br />
             <span className="text-signal">The basis doesn&apos;t.</span>
@@ -361,7 +289,7 @@ export default async function Home() {
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/explore" className="btn btn-primary btn-lg">
               Explore markets
-              <Icon icon={ArrowRight} size={16} />
+              <Icon icon={ArrowRight} size={16} dither={false} />
             </Link>
             <Link href="/launch" className="btn btn-ghost btn-lg">
               Launch an agent
@@ -390,56 +318,33 @@ export default async function Home() {
               token that tracks it.
             </p>
 
-            <div className="mt-10 space-y-px border border-edge bg-edge">
-              {[
-                { k: "Income", v: "DBC curve fees + basis capture", icon: Coins },
-                { k: "Payout", v: "Streamed pro-rata over time held", icon: Hourglass },
-                { k: "Denomination", v: "wPreStock, redeemable 1:1", icon: LockKey },
-                { k: "Rule", v: "Snapshot-free. No staking deadline.", icon: ArrowsClockwise },
-              ].map((f) => (
-                <div
-                  key={f.k}
-                  className="flex items-center gap-4 bg-void px-5 py-5 sm:justify-between"
-                >
-                  <span className="flex items-center gap-3">
-                    <Icon icon={f.icon} size={16} className="text-signal" />
-                    <span className="label">{f.k}</span>
-                  </span>
-                  <span className="text-sm text-ink-dim sm:text-right">{f.v}</span>
-                </div>
-              ))}
-            </div>
-
             <div className="mt-8 flex items-center gap-3">
-              <Icon icon={Lightning} size={16} className="text-signal" />
+              <Icon icon={Lightning} size={16} className="text-signal" dither={false} />
               <p className="font-mono text-xs leading-relaxed text-ink-faint">
                 Rewards accrue per slot staked, not per epoch snapshot.
               </p>
             </div>
           </div>
 
-          <div className="panel relative aspect-[5/4] min-h-72 overflow-hidden">
-            <DitherChart
-              className="absolute inset-0 h-full w-full"
-              lines={[
-                { data: CURVE_FEES, mode: "area", opacity: 0.95 },
-                { data: ARBITRAGE, mode: "area", opacity: 0.45 },
-                { data: PAYOUT, mode: "line", tone: "dim", opacity: 0.9 },
-              ]}
-            />
-            <div className="pointer-events-none absolute top-4 left-4">
-              <span className="label">Income by source · payout</span>
-            </div>
-            <div className="pointer-events-none absolute bottom-3 left-4 flex flex-wrap items-center gap-4 font-mono text-[0.625rem] tracking-[0.12em] uppercase">
-              <span className="flex items-center gap-1.5 text-signal">
-                <span aria-hidden className="size-2 bg-signal" /> Curve fees
-              </span>
-              <span className="flex items-center gap-1.5 text-signal/60">
-                <span aria-hidden className="size-2 bg-signal/60" /> Arbitrage
-              </span>
-              <span className="flex items-center gap-1.5 text-ink-faint">
-                <span aria-hidden className="h-px w-4 bg-ink-faint" /> Payout
-              </span>
+          {/* The ledger, moved into the space the chart held and enlarged. */}
+          <div className="panel overflow-hidden">
+            <div className="grid gap-px bg-edge">
+              {[
+                { k: "Income", v: "DBC curve fees + basis capture", icon: Coins },
+                { k: "Payout", v: "Streamed pro-rata over time held", icon: Hourglass },
+                { k: "Denomination", v: "wPreStock, redeemable 1:1", icon: LockKey },
+                { k: "Rule", v: "Snapshot-free. No staking deadline.", icon: ArrowsClockwise },
+              ].map((f) => (
+                <div key={f.k} className="flex items-center gap-5 bg-void px-6 py-6">
+                  <span className="flex size-12 shrink-0 items-center justify-center rounded-[14px] bg-signal/8 text-signal">
+                    <Icon icon={f.icon} size={26} dither={false} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <span className="label">{f.k}</span>
+                    <p className="mt-1 text-base leading-snug text-ink-dim">{f.v}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -464,7 +369,7 @@ export default async function Home() {
               wrong.
             </p>
             <div className="mt-8 flex items-center gap-3">
-              <Icon icon={Target} size={16} className="text-signal" />
+              <Icon icon={Target} size={16} className="text-signal" dither={false} />
               <span className="font-mono text-xs text-ink-faint">
                 Everything here is checkable on chain.
               </span>

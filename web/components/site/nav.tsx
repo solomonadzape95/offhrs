@@ -15,25 +15,26 @@ import {
 
 import { Logo } from "@/components/site/logo";
 import { ProfileMenu } from "@/components/site/profile-menu";
-import { ThemeToggle } from "@/components/site/theme-toggle";
-import { ShaderToggle } from "@/components/site/shader-toggle";
 import { DitherIcon } from "@/components/ui/dither-icon";
 import { Icon } from "@/components/ui/icon";
+import { useWalletUi } from "@/lib/wallet";
 
 /**
- * The header, in Owambe's shape: a wordmark on the left, the wallet on the right,
- * and one menu in the middle that *is* its own trigger.
+ * The header.
  *
- * The centre control is not a button that opens a separate panel. The card itself
+ * The centre control is not a button that opens a separate panel: the card itself
  * grows — only its height, never its width — so the trigger and the panel are the
- * same object. Its top is pinned to the bar and it is taken out of flow, so
- * expanding it can never size the header row or shove the wordmark down. On a
- * device with a pointer it grows on hover; on touch it waits to be pressed.
+ * same object. It is taken out of flow and its top edge is pinned, so expanding it
+ * can never size the header row. Centring uses `left-0 right-0 mx-auto w-fit`
+ * rather than a `translate-x` — a transform on a `backdrop-filter`ed element is
+ * what skewed the menu's size on Brave.
  *
- * It is fixed rather than sticky on the landing page. The hero is a full viewport,
- * and a bar that takes 4.75rem out of that viewport is the thing that was pushing
- * the claim down. Over the hero the bar is unbacked, so the shader reads edge to
- * edge; once the page moves it takes a blurred ground so the type never fights it.
+ * Breakpoints differ on purpose. On a pointer it sits centred, with the wallet to
+ * its right. On a phone it moves to the right, the wallet moves *into* the menu,
+ * and the wordmark gets its name back on the left.
+ *
+ * The bar hides on the way down and returns on the way up, so it never covers the
+ * content you are reading. It stays put while the menu is open.
  */
 const ITEMS = [
   {
@@ -73,14 +74,34 @@ export function Nav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
+  // Hover-open only on real pointer devices. Using JS rather than a CSS `:hover`
+  // is what lets a click *close* the menu: `:hover` would keep re-opening it
+  // while the pointer sat on the trigger.
+  const canHover = useRef(false);
+
+  useEffect(() => {
+    canHover.current = window.matchMedia("(hover: hover)").matches;
+  }, []);
 
   // Close on navigation. A menu that survives a route change lands you on a new
   // page with the menu still over it.
   useEffect(() => setOpen(false), [pathname]);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      const delta = y - last;
+      // Ignore sub-pixel jitter; only a real gesture flips the bar.
+      if (Math.abs(delta) > 8) {
+        setHidden(delta > 0 && y > 96);
+        last = y;
+      }
+      if (y <= 8) setHidden(false);
+      setScrolled(y > 24);
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -119,19 +140,29 @@ export function Nav() {
 
   return (
     <header
-      className={`${isHome ? "fixed" : "sticky"} inset-x-0 top-0 z-50 transition-colors duration-300 ${surface}`}
+      className={`${isHome ? "fixed" : "sticky"} inset-x-0 top-0 z-50 transition-[transform,background-color,border-color] duration-300 ${
+        hidden && !open ? "-translate-y-full" : "translate-y-0"
+      } ${surface}`}
     >
-      {/* The menu is absolutely positioned so its growth is invisible to this row:
-          the bar keeps its 4.75rem and never moves. */}
       <div className="relative mx-auto flex h-[4.75rem] max-w-app items-center justify-between gap-2 px-5 sm:px-8">
         <Link href="/" className="brand flex items-center gap-2.5">
           <Logo size={30} cell={1.8} className="brand-mark text-signal" title="Offhrs" />
-          <span className="brand-name font-display hidden text-2xl leading-none tracking-tight sm:inline">
+          <span className="brand-name font-display text-xl leading-none tracking-tight sm:text-2xl">
             offhrs
           </span>
         </Link>
 
-        <div ref={wrap} className="absolute top-4 left-1/2 -translate-x-1/2">
+        {/* Mobile: pinned right. Desktop: centred without a transform. */}
+        <div
+          ref={wrap}
+          className="absolute top-4 right-5 sm:left-0 sm:right-0 sm:mx-auto sm:w-fit"
+          onPointerEnter={() => {
+            if (canHover.current) setOpen(true);
+          }}
+          onPointerLeave={() => {
+            if (canHover.current) setOpen(false);
+          }}
+        >
           <div className="center-menu" data-open={open}>
             <button
               type="button"
@@ -163,7 +194,13 @@ export function Nav() {
                   />
                 ))}
 
-                <div className="mt-1 border-t border-edge px-1 pt-2.5 pb-1">
+                {/* The wallet lives in the header on desktop; on a phone it moves
+                    in here as a button beside the main action. */}
+                <div className="sm:hidden">
+                  <MobileWalletButton onNavigate={() => setOpen(false)} />
+                </div>
+
+                <div className="mt-1 space-y-2 border-t border-edge px-1 pt-2.5 pb-1">
                   <Link
                     href="/explore"
                     role="menuitem"
@@ -178,14 +215,33 @@ export function Nav() {
           </div>
         </div>
 
-        {/* Wallet, right. The palette switch lives in the footer on a phone. */}
+        {/* Desktop control. Hidden on a phone, where the wallet is in the menu. */}
         <div className="flex items-center gap-2">
-          <ShaderToggle className="hidden sm:inline-flex" />
-          <ThemeToggle className="hidden sm:inline-flex" />
-          <ProfileMenu />
+          <span className="hidden sm:contents">
+            <ProfileMenu />
+          </span>
         </div>
       </div>
     </header>
+  );
+}
+
+function MobileWalletButton({ onNavigate }: { onNavigate: () => void }) {
+  const { address, isReady } = useWalletUi();
+  if (!isReady) return null;
+
+  const href = address ? "/dashboard" : "/connect";
+  const label = address ? "Dashboard" : "Connect wallet";
+
+  return (
+    <Link
+      href={href}
+      role="menuitem"
+      onClick={onNavigate}
+      className="btn btn-primary w-full !py-3 !text-sm"
+    >
+      {label}
+    </Link>
   );
 }
 

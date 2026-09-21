@@ -2,8 +2,6 @@ import Link from "next/link";
 import { ArrowUpRight, EnvelopeSimple, GithubLogo, XLogo } from "@phosphor-icons/react/dist/ssr";
 
 import { Icon } from "@/components/ui/icon";
-import { ThemeSwatches } from "@/components/site/theme-toggle";
-import { ShaderSwatches } from "@/components/site/shader-toggle";
 import { WarpField } from "@/components/site/warp-field";
 
 /**
@@ -60,13 +58,13 @@ export function SiteFooter() {
 
       {/* A wash and a bottom fade, so the giant wordmark has something quiet to sit
           on. The top third stays lighter so the footer does not read as a slab. */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-void/55" />
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-void/70" />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10"
         style={{
           background:
-            "linear-gradient(to bottom, transparent 0%, transparent 30%, rgba(11,11,13,0.5) 62%, rgba(11,11,13,0.86) 82%, rgba(11,11,13,0.96) 100%)",
+            "linear-gradient(to bottom, transparent 0%, transparent 28%, rgba(11,11,13,0.6) 60%, rgba(11,11,13,0.9) 82%, rgba(11,11,13,0.98) 100%)",
         }}
       />
 
@@ -100,9 +98,6 @@ export function SiteFooter() {
               Not investment advice. Pre-IPO marks are illiquid, and the reference price they track
               can gap when the real market reopens.
             </p>
-
-            <ThemeSwatches className="mt-10" />
-            <ShaderSwatches className="mt-8" />
           </div>
 
           <nav className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3">

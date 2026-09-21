@@ -74,7 +74,7 @@ export const THEMES: Theme[] = [
   },
 ];
 
-export const DEFAULT_THEME: ThemeId = "ultraviolet";
+export const DEFAULT_THEME: ThemeId = "ion";
 
 /** Storage key. Read by the pre-paint script in the root layout. */
 export const THEME_STORAGE_KEY = "offhours-theme";

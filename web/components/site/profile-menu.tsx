@@ -51,7 +51,7 @@ export function ProfileMenu() {
         aria-label="Connect wallet"
         className="btn btn-primary !px-3.5 !py-2.5 !text-xs sm:!px-4"
       >
-        <Icon icon={Wallet} size={14} />
+        <Icon icon={Wallet} size={14} dither={false} />
         <span className="hidden sm:inline">
           {status === "connecting" ? "Connecting…" : "Connect"}
         </span>
@@ -112,10 +112,10 @@ export function ProfileMenu() {
           </div>
 
           <div className="flex flex-col p-1.5">
-            <MenuLink href="/dashboard" icon={<Icon icon={SquaresFour} size={15} />}>
+            <MenuLink href="/dashboard" icon={<Icon icon={SquaresFour} size={15} dither={false} />}>
               Dashboard
             </MenuLink>
-            <MenuLink href="/dashboard/profile" icon={<Icon icon={User} size={15} />}>
+            <MenuLink href="/dashboard/profile" icon={<Icon icon={User} size={15} dither={false} />}>
               Profile
             </MenuLink>
           </div>
@@ -130,7 +130,7 @@ export function ProfileMenu() {
               }}
               className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left font-mono text-xs tracking-wider text-ink-dim uppercase transition-colors hover:bg-raised hover:text-ember"
             >
-              <Icon icon={SignOut} size={15} />
+              <Icon icon={SignOut} size={15} dither={false} />
               Disconnect
             </button>
           </div>

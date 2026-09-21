@@ -84,16 +84,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col">
-        {/* Resolve the palette before first paint. Without this a returning
-            visitor sees the default palette flash for a frame. `beforeInteractive`
-            is injected into the initial HTML; React never runs an inline script
-            rendered inside a component on the client. */}
+        {/* The palette is fixed (Ion). Set it before first paint so the tokens are
+            right from the first frame; the provider mirrors it. `beforeInteractive`
+            is injected into the initial HTML. */}
         <Script
           id="theme-init"
           strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var k='offhours-theme',ok=['ultraviolet','ion','acid','rose'],t=localStorage.getItem(k);document.documentElement.dataset.theme=ok.indexOf(t)>-1?t:'ultraviolet';}catch(e){document.documentElement.dataset.theme='ultraviolet';}})();`,
-          }}
+          dangerouslySetInnerHTML={{ __html: `document.documentElement.dataset.theme='ion';` }}
         />
         <Providers>{children}</Providers>
       </body>

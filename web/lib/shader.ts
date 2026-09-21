@@ -10,7 +10,7 @@
 export type ShaderKind = "warp" | "voronoi";
 
 export const SHADER_STORAGE_KEY = "offhours-shader";
-export const DEFAULT_SHADER: ShaderKind = "warp";
+export const DEFAULT_SHADER: ShaderKind = "voronoi";
 
 export const SHADERS: { id: ShaderKind; label: string }[] = [
   { id: "warp", label: "Warp" },
