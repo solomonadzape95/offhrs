@@ -26,7 +26,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <footer className="border-t border-edge">
         <div className="mx-auto flex max-w-app flex-col gap-3 px-5 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <span className="font-mono text-xs text-ink-faint">
-            Solana mainnet. The vault program is not deployed yet — see Profile.
+            Market: Solana mainnet. stock_vault: devnet — see Profile.
           </span>
           <div className="flex gap-6">
             <Link

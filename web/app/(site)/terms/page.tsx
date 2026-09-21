@@ -17,7 +17,7 @@ const CLAUSES = [
   },
   {
     h: "Not deployed",
-    p: "The on-chain programs described on this site are written and tested but not deployed to mainnet. Figures that depend on them are shown as em dashes rather than simulated numbers. Do not send funds expecting a vault to hold them.",
+    p: "The on-chain programs described on this site are written and tested, and deployed to the Solana devnet. They are not deployed to mainnet. Figures that depend on them are read from the chain where possible and shown as em dashes where not. Do not send funds expecting a vault to hold them.",
   },
   {
     h: "Your wallet, your keys",

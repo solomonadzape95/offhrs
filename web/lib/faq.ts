@@ -33,7 +33,7 @@ export const FAQ: FaqItem[] = [
   },
   {
     q: "Is the program deployed?",
-    a: "Not yet. The Anchor program is written and tested — 15 unit and 30 integration tests — but deploying it costs roughly 3.86 SOL of mainnet rent. Until that is paid, the dashboard renders balances as em dashes and the launch page cannot submit. We would rather show you an empty state than a plausible number.",
+    a: "On devnet, yes — the program is live, and the dashboard reads real stakes from it. On mainnet, not yet: that deploy costs roughly 2.9 SOL of refundable rent. Until it is paid, mainnet balances render as em dashes rather than plausible numbers.",
   },
   {
     q: "What can go wrong?",

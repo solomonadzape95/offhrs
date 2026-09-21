@@ -71,7 +71,7 @@ export function AgentManage({ agent }: { agent: AgentSeed }) {
           tone="signal"
           hint="your creator fee"
         />
-        <Stat label="Fees earned" value="—" hint="program not deployed" />
+        <Stat label="Fees earned" value="—" hint="not wired yet" />
         <Stat label="Stakers" value="—" hint="no pool yet" />
       </div>
 
@@ -120,8 +120,8 @@ export function AgentManage({ agent }: { agent: AgentSeed }) {
       </div>
 
       <p className="font-mono text-xs leading-relaxed text-ink-faint">
-        The registry program is not deployed, so pause and withdraw are disabled. When it is, this
-        page reads and writes your agent account directly rather than through an API.
+        Pause and withdraw are not wired to a transaction in this build. When they are, this page
+        reads and writes your agent account directly rather than through an API.
       </p>
     </div>
   );

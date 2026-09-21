@@ -262,7 +262,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
               <p className="font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
                 {ready
                   ? "This is as far as the flow has been exercised. The transactions would be built with the DBC SDK and sent from the connected wallet."
-                  : "The first check is the deployment itself and it is the one that fails: the vault program needs roughly 3.86 SOL of mainnet rent before an agent can exist. Nothing above is simulated — the same preflight would pass the moment it is deployed."}
+                  : "The first check is the deployment itself and it is the one that fails: the vault program needs roughly 2.9 SOL of refundable mainnet rent before an agent can exist on mainnet. Nothing above is simulated — the same preflight would pass the moment it is deployed."}
               </p>
             </>
           )}

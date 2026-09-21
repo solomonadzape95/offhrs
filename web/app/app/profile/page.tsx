@@ -23,11 +23,12 @@ const CAPABILITY = [
   { what: "Live DEX pricing", state: "live", note: "Jupiter quote, per asset" },
   { what: "On-chain Pyth reads", state: "live", note: "permissionless, no API key" },
   { what: "Market session clock", state: "live", note: "computed from the exchange calendar" },
-  { what: "PreStock wrapper", state: "written", note: "7 tests; not deployed" },
-  { what: "Dividend vault", state: "written", note: "9 unit + 7 integration tests; not deployed" },
-  { what: "Execution log", state: "written", note: "7 tests; not deployed" },
-  { what: "DBC pool creation", state: "blocked", note: "needs the wrapper deployed first" },
-  { what: "Vault staking & claims", state: "blocked", note: "needs the program deployed" },
+  { what: "stock_vault program", state: "live", note: "deployed on devnet · FoVBZ…VLw" },
+  { what: "PreStock wrapper", state: "live", note: "on-chain; delta-minted, 7 tests" },
+  { what: "Dividend vault", state: "live", note: "streams per slot · 9 unit + 7 integration tests" },
+  { what: "Execution log", state: "live", note: "Pyth-attested, 7 tests" },
+  { what: "Mainnet deploy", state: "blocked", note: "~2.9 SOL of refundable rent" },
+  { what: "Staking & claims", state: "blocked", note: "reads the chain; not yet wired to a tx" },
 ] as const;
 
 const TONE = {
@@ -119,9 +120,9 @@ export default function ProfilePage() {
             </div>
 
             <p className="max-w-2xl font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
-              &ldquo;Written&rdquo; means the code exists and is covered by tests. &ldquo;Blocked&rdquo;
-              means it depends on a deployment that needs roughly 3.86 SOL of mainnet rent, which we
-              have not had.
+              &ldquo;Live&rdquo; means it runs on chain or against a live source now.
+              &ldquo;Blocked&rdquo; means it depends on the mainnet deploy (~2.9 SOL of refundable
+              rent) or on wiring a transaction to this UI.
             </p>
           </div>
 
@@ -133,11 +134,11 @@ export default function ProfilePage() {
 
             <div className="panel flex flex-col gap-3 p-6">
               <span className="label">Network</span>
-              <p className="font-mono text-sm text-ink">Solana mainnet</p>
+              <p className="font-mono text-sm text-ink">Market: Solana mainnet · Program: devnet</p>
               <p className="text-sm leading-relaxed text-ink-dim">
-                The client runs against mainnet because every market input this product uses —
-                PreStocks tokens, Jupiter routes, Pyth accounts — only exists there. The vault
-                program is the exception, and it is not deployed.
+                Every market input this product uses — PreStocks tokens, Jupiter routes, Pyth
+                accounts — only exists on mainnet. The <span className="font-mono">stock_vault</span>{" "}
+                program is deployed to devnet and moves to mainnet with the rest.
               </p>
               <p className="font-mono text-xs text-ink-faint">
                 {process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com"}

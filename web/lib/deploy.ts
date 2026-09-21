@@ -90,7 +90,7 @@ export async function preflight(
     ok: program ? Boolean(program.executable) : false,
     detail: program
       ? `executable at ${PROGRAM_ID}`
-      : `no account at ${PROGRAM_ID} — needs ~3.86 SOL of rent to deploy`,
+      : `no account at ${PROGRAM_ID} — needs ~2.9 SOL of refundable rent to deploy`,
   });
 
   // 2. Is the wrapper for this PreStock already minted?
