@@ -1,0 +1,192 @@
+import Link from "next/link";
+import { ArrowUpRight, EnvelopeSimple, GithubLogo, XLogo } from "@phosphor-icons/react/dist/ssr";
+
+import { Icon } from "@/components/ui/icon";
+import { ThemeSwatches } from "@/components/site/theme-toggle";
+import { ShaderSwatches } from "@/components/site/shader-toggle";
+import { WarpField } from "@/components/site/warp-field";
+
+/**
+ * The closing statement.
+ *
+ * One full-bleed field, the small print and the columns over it, and the brand set
+ * enormous across the bottom edge. The wordmark is just the name — it is already
+ * the page's last sentence, and underlining it with a slogan was one line of type
+ * doing another's job.
+ *
+ * The warp is the *same shader as the hero and the mid-page band*, lazy-mounted.
+ * The page opens, breathes and closes on the same image, which is the cheapest way
+ * to make a long page feel like one object.
+ *
+ * The palette picker lives here, named. This is where the design system is legible
+ * as a system rather than as one person's preference.
+ */
+const COLUMNS = [
+  {
+    title: "Product",
+    links: [
+      { href: "/explore", label: "Markets" },
+      { href: "/launch", label: "Launch an agent" },
+      { href: "/dashboard", label: "Dashboard" },
+      { href: "/agent/orbital", label: "Agent terminal" },
+    ],
+  },
+  {
+    title: "Protocol",
+    links: [
+      { href: "/#reference", label: "The weekend gap" },
+      { href: "/#board", label: "Dislocation board" },
+      { href: "/#mechanics", label: "Mechanics" },
+      { href: "/#agents", label: "The agents" },
+    ],
+  },
+  {
+    title: "Elsewhere",
+    links: [
+      { href: "/#faq", label: "FAQ" },
+      { href: "https://pyth.network", label: "Pyth", external: true },
+      { href: "https://www.meteora.ag", label: "Meteora", external: true },
+      { href: "https://solana.com", label: "Solana", external: true },
+    ],
+  },
+];
+
+export function SiteFooter() {
+  return (
+    <footer className="relative isolate overflow-hidden border-t border-edge">
+      {/* The warp, laid under everything. Lazy so it is not a second live context
+          until the visitor is nearly here. */}
+      <WarpField variant="footer" lazy className="absolute inset-0 -z-10" />
+
+      {/* A wash and a bottom fade, so the giant wordmark has something quiet to sit
+          on. The top third stays lighter so the footer does not read as a slab. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-void/55" />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10"
+        style={{
+          background:
+            "linear-gradient(to bottom, transparent 0%, transparent 30%, rgba(11,11,13,0.5) 62%, rgba(11,11,13,0.86) 82%, rgba(11,11,13,0.96) 100%)",
+        }}
+      />
+
+      <div className="relative mx-auto max-w-app px-5 pt-20 sm:px-8 sm:pt-24">
+        {/* ── Pills ─────────────────────────────────────────────────────── */}
+        <div className="flex flex-wrap items-center gap-3">
+          <Pill href="https://x.com" icon={<XLogo size={16} weight="fill" aria-hidden />} external>
+            @offhours
+          </Pill>
+          <Pill
+            href="https://github.com"
+            icon={<GithubLogo size={16} weight="fill" aria-hidden />}
+            external
+          >
+            GitHub
+          </Pill>
+          <Pill href="mailto:hello@offhours.xyz" icon={<EnvelopeSimple size={16} aria-hidden />}>
+            Email us
+          </Pill>
+        </div>
+
+        {/* ── Small print + columns ─────────────────────────────────────── */}
+        <div className="mt-12 grid gap-12 lg:grid-cols-[1.1fr_1.4fr] lg:gap-20">
+          <div>
+            <p className="max-w-sm font-mono text-xs leading-relaxed text-ink-dim">
+              Offhrs is a hackathon build for Stocklana. Figures are read live from the PreStocks
+              issuer API, Jupiter and Pyth. Agent records are seeded config until the DBC pools
+              exist on chain.
+            </p>
+            <p className="mt-6 max-w-sm font-mono text-xs leading-relaxed text-ink-faint">
+              Not investment advice. Pre-IPO marks are illiquid, and the reference price they track
+              can gap when the real market reopens.
+            </p>
+
+            <ThemeSwatches className="mt-10" />
+            <ShaderSwatches className="mt-8" />
+          </div>
+
+          <nav className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3">
+            {COLUMNS.map((column) => (
+              <div key={column.title}>
+                <span className="label">{column.title}</span>
+                <ul className="mt-5 space-y-3">
+                  {column.links.map((link) => (
+                    <li key={link.label}>
+                      {"external" in link && link.external ? (
+                        <a
+                          href={link.href}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="group inline-flex items-center gap-1.5 text-sm text-ink-dim transition-colors hover:text-signal"
+                        >
+                          {link.label}
+                          <span className="opacity-0 transition-opacity group-hover:opacity-100">
+                            <Icon icon={ArrowUpRight} size={13} dither={false} />
+                          </span>
+                        </a>
+                      ) : (
+                        <Link
+                          href={link.href}
+                          className="text-sm text-ink-dim transition-colors hover:text-signal"
+                        >
+                          {link.label}
+                        </Link>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </nav>
+        </div>
+      </div>
+
+      {/* ── The wordmark, as a picture ──────────────────────────────────── */}
+      <div className="relative mt-20 overflow-hidden px-5 pt-6 sm:mt-24 sm:px-8 sm:pt-8">
+        <h2
+          aria-label="Offhrs"
+          className="font-display mx-auto max-w-app text-ink"
+          style={{
+            fontSize: "clamp(5rem, 24vw, 22rem)",
+            lineHeight: 1.08,
+            letterSpacing: "-0.04em",
+          }}
+        >
+          offhrs
+        </h2>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-void-deep/80 to-transparent"
+        />
+      </div>
+
+      <div className="h-10 sm:h-14" />
+    </footer>
+  );
+}
+
+function Pill({
+  href,
+  icon,
+  children,
+  external,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  external?: boolean;
+}) {
+  const cls =
+    "inline-flex items-center gap-2 rounded-[var(--radius-pill)] border border-ink/15 bg-ink/10 px-4 py-2.5 text-sm font-medium text-ink backdrop-blur-md transition-colors hover:border-signal/60 hover:bg-ink/15 hover:shadow-[0_0_48px_-6px_var(--color-signal)]";
+
+  return (
+    <a
+      href={href}
+      className={cls}
+      {...(external ? { target: "_blank", rel: "noreferrer" } : {})}
+    >
+      {icon}
+      {children}
+    </a>
+  );
+}
