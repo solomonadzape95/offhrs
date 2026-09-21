@@ -182,30 +182,32 @@ export function Nav({ items = SITE_ITEMS }: { items?: NavItem[] }) {
 
             <div id="site-menu" role="menu" className="center-menu-body">
               <div className="center-menu-inner">
-                {items.map((item) => (
-                  <MenuRow
-                    key={item.href}
-                    item={item}
-                    current={active(item.href)}
-                    onNavigate={() => setOpen(false)}
-                  />
-                ))}
+                <div className="center-menu-pad">
+                  {items.map((item) => (
+                    <MenuRow
+                      key={item.href}
+                      item={item}
+                      current={active(item.href)}
+                      onNavigate={() => setOpen(false)}
+                    />
+                  ))}
 
-                {/* The wallet lives in the header on desktop; on a phone it moves
-                    in here as a button beside the main action. */}
-                <div className="sm:hidden">
-                  <MobileWalletButton onNavigate={() => setOpen(false)} />
-                </div>
+                  {/* The wallet lives in the header on desktop; on a phone it moves
+                      in here as a button beside the main action. */}
+                  <div className="sm:hidden">
+                    <MobileWalletButton onNavigate={() => setOpen(false)} />
+                  </div>
 
-                <div className="mt-1 space-y-2 border-t border-edge px-1 pt-2.5 pb-1">
-                  <Link
-                    href="/explore"
-                    role="menuitem"
-                    onClick={() => setOpen(false)}
-                    className="btn btn-primary w-full !py-3 !text-sm"
-                  >
-                    Explore markets
-                  </Link>
+                  <div className="mt-1 space-y-2 border-t border-edge px-1 pt-2.5 pb-1">
+                    <Link
+                      href="/explore"
+                      role="menuitem"
+                      onClick={() => setOpen(false)}
+                      className="btn btn-primary w-full !py-3 !text-sm"
+                    >
+                      Explore markets
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
