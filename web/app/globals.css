@@ -13,7 +13,7 @@
    The system has four parts:
 
      1. Ground      near-black surfaces, ordered by elevation.
-     2. Signal      two purples. `signal` is the light one and means "live,
+     2. Signal      the Ion blues. `signal` is the bright one and means "live,
                     actionable, moving". `violet` is the deep one and carries
                     weight and depth. Nothing else is allowed to be a colour.
      3. Ember       one warm accent, reserved for warnings and "down".
@@ -40,13 +40,14 @@
   --color-ink-dim: #b8b5c2;
   --color-ink-faint: #7e7b89;
 
-  /* ── Signal — #9470ff, the light purple from the shader. ───────────── */
-  --color-signal: #9470ff;
-  --color-signal-bright: #a487ff; /* hover */
-  --color-signal-dim: #6d4fd6;
+  /* ── Signal — #5ad8ff, the Ion palette. This is the default, so the
+     server-rendered page is already Ion and never flashes another hue. ─── */
+  --color-signal: #5ad8ff;
+  --color-signal-bright: #86e6ff; /* hover */
+  --color-signal-dim: #2f9fce;
 
-  /* ── Violet — #8838ff, the deeper purple. Weight, not status. ──────── */
-  --color-violet: #8838ff;
+  /* ── Violet — #3f6dff, the deeper blue. Weight, not status. ────────── */
+  --color-violet: #3f6dff;
 
   /* ── Ember — warnings and "down". Used sparingly. ──────────────────── */
   --color-ember: #f0a868;
@@ -82,12 +83,17 @@
 /* ─────────────────────────────────────────────────────────────────────────
    PALETTES
 
-   The `@theme` block above defines the default (Ultraviolet). These overrides
-   swap only the five colour tokens; ground, ink, radii and type are constant.
-   They are declared here, after `@theme`, and matched pre-paint from
-   `data-theme` on `<html>`, so a returning visitor never flashes the default.
-   Keep this list in step with `lib/theme.ts`.
+   The `@theme` block above defines the default (Ion). These overrides swap only
+   the signal tokens; ground, ink, radii and type are constant. They are declared
+   here, after `@theme`, and matched from `data-theme` on `<html>`. Keep this list
+   in step with `lib/theme.ts`.
    ───────────────────────────────────────────────────────────────────────── */
+:root[data-theme="ultraviolet"] {
+  --color-signal: #9470ff;
+  --color-signal-bright: #a487ff;
+  --color-signal-dim: #6d4fd6;
+  --color-violet: #8838ff;
+}
 :root[data-theme="ion"] {
   --color-signal: #5ad8ff;
   --color-signal-bright: #86e6ff;

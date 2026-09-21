@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import Script from "next/script";
 
 import { Providers } from "./providers";
 import "./globals.css";
@@ -77,21 +76,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="en"
       /* `dark` is fixed, not toggled: there is no light theme — only palettes.
-         The display face is Manosque, bound to `--font-display` in globals.css,
-         so no component ever names a family. `data-theme` is set pre-paint by
-         the script below. */
+         `data-theme="ion"` is written into the server HTML itself, so the first
+         painted frame is already Ion. The palette is fixed; the provider mirrors
+         this on the client rather than deciding it. */
+      data-theme="ion"
       className={`dark ${satoshi.variable} ${geistMono.variable} ${geistPixel.variable} ${manosque.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col">
-        {/* The palette is fixed (Ion). Set it before first paint so the tokens are
-            right from the first frame; the provider mirrors it. `beforeInteractive`
-            is injected into the initial HTML. */}
-        <Script
-          id="theme-init"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{ __html: `document.documentElement.dataset.theme='ion';` }}
-        />
         <Providers>{children}</Providers>
       </body>
     </html>
