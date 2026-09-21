@@ -48,9 +48,9 @@ export function ConnectPanel() {
   return (
     <div className="grid min-h-svh lg:grid-cols-[1.05fr_1fr]">
       {/* ── Aside ─────────────────────────────────────────────────────── */}
-      <aside className="relative hidden overflow-hidden lg:flex lg:flex-col lg:justify-between">
-        {/* The field runs to all four edges; the copy sits on a uniform wash plus
-            a vignette, so it reads over the brightest part of the pattern. */}
+      <aside className="relative hidden overflow-hidden lg:flex lg:flex-col lg:justify-end">
+        {/* The field runs to all four edges; the clock sits on a vignette so it
+            reads over the brightest part of the pattern. */}
         <WarpField shader="voronoi" variant="hero" className="absolute inset-0" />
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-void/55" />
         <div
@@ -61,17 +61,6 @@ export function ConnectPanel() {
               "radial-gradient(ellipse 78% 62% at 50% 46%, transparent 0%, rgba(11,11,13,0.5) 68%, rgba(11,11,13,0.88) 100%)",
           }}
         />
-
-        <div className="relative flex flex-col gap-8 p-10 xl:p-14">
-          <span className="label">Non-custodial</span>
-          <h2 className="font-display max-w-lg text-4xl leading-[1.05] text-balance text-ink xl:text-5xl">
-            No accounts. No passwords. No email.
-          </h2>
-          <p className="max-w-md leading-relaxed text-ink-dim">
-            The vault is non-custodial, so there is nothing to log in to. Your wallet is your
-            identity and your keys never leave it — every stake, claim and trade is signed by you.
-          </p>
-        </div>
 
         <div className="relative p-10 xl:p-14">
           <SessionClock variant="hero" />

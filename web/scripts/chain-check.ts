@@ -12,6 +12,8 @@ import {
   fetchAgents,
   fetchWrappers,
   fetchVaults,
+  fetchLiveAgents,
+  readTokenMetadata,
   programDeployed,
   PROGRAM_ID,
   PROGRAM_RPC_URL,
@@ -40,6 +42,14 @@ async function main() {
   const vaults = await fetchVaults();
   console.log(`\nvaults   ${vaults.length}`);
   console.log(JSON.stringify(vaults, big, 2));
+
+  const live = await fetchLiveAgents();
+  console.log(`\nlive agents ${live.length}`);
+  console.log(JSON.stringify(live, big, 2));
+  for (const l of live) {
+    const m = await readTokenMetadata(l.agentTokenMint).catch(() => null);
+    console.log(`  metadata ${l.ticker}: ${m ? `${m.name} / ${m.symbol}` : "none (plain mint)"}`);
+  }
 }
 
 main().catch((e) => {

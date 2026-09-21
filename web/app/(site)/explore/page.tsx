@@ -1,5 +1,6 @@
 import { ExploreGrid } from "@/components/app/explore-grid";
 import { AGENTS } from "@/lib/agents";
+import { fetchLiveAgents } from "@/lib/chain";
 import { fetchAllPreStocks, readPyth, FROZEN_AFTER_SECS } from "@/lib/market";
 import { LiveBadge } from "@/components/site/live-badge";
 
@@ -12,10 +13,14 @@ export const metadata = {
 
 /** §2 The Marketplace. */
 export default async function ExplorePage() {
-  const [stocks, regime] = await Promise.all([
-    fetchAllPreStocks().catch(() => []),
+  const stocks = await fetchAllPreStocks().catch(() => []);
+  const [regime, live] = await Promise.all([
     readPyth().catch(() => null),
+    fetchLiveAgents(stocks.map((s) => ({ symbol: s.symbol, mint: s.mint }))).catch(() => []),
   ]);
+
+  // Real registrations first; the seeded set stays as an explicit PREVIEW fallback.
+  const agents = [...live, ...AGENTS];
 
   const frozen = regime ? regime.stalenessSecs > FROZEN_AFTER_SECS : false;
   const widest = [...stocks].sort((a, b) => Math.abs(b.premiumBps) - Math.abs(a.premiumBps))[0];
@@ -49,13 +54,14 @@ export default async function ExplorePage() {
       </div>
 
       <div className="mt-14">
-        <ExploreGrid agents={AGENTS} assets={stocks} />
+        <ExploreGrid agents={agents} assets={stocks} />
       </div>
 
       <p className="mt-14 border-t border-edge pt-6 font-mono text-xs leading-relaxed text-ink-faint">
-        Market figures are live from the PreStocks issuer API. Agent records are seeded
-        configuration and marked PREVIEW — no DBC pool has been created yet, so there is nothing on
-        chain to read. `lib/chain.ts` swaps this list for real Agent accounts once pools exist.
+        Market figures are live from the PreStocks issuer API.{" "}
+        {live.length > 0
+          ? `${live.length} agent${live.length === 1 ? "" : "s"} registered on chain; the rest are seeded PREVIEW config.`
+          : "Agent records are seeded PREVIEW config — nothing is registered on chain yet."}
       </p>
     </section>
   );

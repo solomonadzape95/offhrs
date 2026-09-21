@@ -29,6 +29,8 @@ export type AgentSeed = {
   curveProgress: number;
   /** Slots since the agent last traded. Seeded. */
   lastTradeSecsAgo: number;
+  /** True when this record came from the chain, false/undefined for the seed set. */
+  onchain?: boolean;
 };
 
 export const AGENTS: AgentSeed[] = [

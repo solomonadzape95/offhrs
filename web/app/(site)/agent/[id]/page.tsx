@@ -7,8 +7,9 @@ import { MarkVsMarket } from "@/components/app/mark-vs-market";
 import { Swap } from "@/components/app/swap";
 import { Terminal, type TerminalRow } from "@/components/app/terminal";
 import { AGENTS, findAgent } from "@/lib/agents";
+import { fetchLiveAgentByPda } from "@/lib/chain";
 import { shortAddr, usd } from "@/lib/format";
-import { FROZEN_AFTER_SECS, fetchMarket } from "@/lib/market";
+import { FROZEN_AFTER_SECS, fetchAllPreStocks, fetchMarket } from "@/lib/market";
 
 export const revalidate = 30;
 
@@ -16,16 +17,30 @@ export function generateStaticParams() {
   return AGENTS.map((a) => ({ id: a.id }));
 }
 
+/**
+ * A route id is either a seeded agent slug or an on-chain agent PDA. Seeds win so
+ * the staged demo keeps working; anything else is looked up on chain.
+ */
+async function resolveAgent(id: string) {
+  const seed = findAgent(id);
+  if (seed) return seed;
+  const stocks = await fetchAllPreStocks().catch(() => []);
+  return fetchLiveAgentByPda(
+    id,
+    stocks.map((s) => ({ symbol: s.symbol, mint: s.mint })),
+  ).catch(() => null);
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const agent = findAgent(id);
+  const agent = await resolveAgent(id);
   return { title: agent ? `${agent.name} · Offhrs` : "Agent · Offhrs" };
 }
 
 /** §3 Agent Terminal & Detail. */
 export default async function AgentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const agent = findAgent(id);
+  const agent = await resolveAgent(id);
   if (!agent) notFound();
 
   const market = await fetchMarket(agent.asset).catch(() => null);

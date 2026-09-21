@@ -126,6 +126,13 @@ class Reader {
     this.o += n;
     return v;
   }
+  string(): string {
+    const len = this.b.readUInt32LE(this.o);
+    this.o += 4;
+    const s = this.b.subarray(this.o, this.o + len).toString("utf8");
+    this.o += len;
+    return s;
+  }
 }
 
 const hasDisc = (data: Buffer, disc: Uint8Array) =>
@@ -402,17 +409,26 @@ export const fetchWrappers = () =>
 export const fetchVaults = () =>
   fetchAll(SIZE.DividendVault, DISC.DividendVault, decodeVault);
 
-export async function fetchAgent(agent: string | PublicKey) {
-  const info = await connection().getAccountInfo(agentPda(agent));
-  if (!info || !hasDisc(info.data as Buffer, DISC.Agent)) return null;
-  return decodeAgent(agentPda(agent), info.data as Buffer);
+async function decodeAt<T>(
+  key: PublicKey,
+  disc: Uint8Array,
+  decode: (k: PublicKey, d: Buffer) => T,
+): Promise<T | null> {
+  const info = await connection().getAccountInfo(key);
+  if (!info || !hasDisc(info.data as Buffer, disc)) return null;
+  return decode(key, info.data as Buffer);
 }
 
-export async function fetchVault(mint: string | PublicKey) {
-  const info = await connection().getAccountInfo(vaultPda(mint));
-  if (!info || !hasDisc(info.data as Buffer, DISC.DividendVault)) return null;
-  return decodeVault(vaultPda(mint), info.data as Buffer);
-}
+/** By PDA — the agent's own address, which is what the UI routes on. */
+export const fetchAgentByPda = (pda: string | PublicKey) =>
+  decodeAt(new PublicKey(pda), DISC.Agent, decodeAgent);
+/** By the `$AGENT` mint, from which the PDA is derived. */
+export const fetchAgentByMint = (mint: string | PublicKey) =>
+  decodeAt(agentPda(mint), DISC.Agent, decodeAgent);
+export const fetchVaultByPda = (pda: string | PublicKey) =>
+  decodeAt(new PublicKey(pda), DISC.DividendVault, decodeVault);
+export const fetchVaultByMint = (mint: string | PublicKey) =>
+  decodeAt(vaultPda(mint), DISC.DividendVault, decodeVault);
 
 export async function fetchUserStake(vault: string | PublicKey, owner: string | PublicKey) {
   const info = await connection().getAccountInfo(stakePda(vault, owner));
@@ -432,14 +448,14 @@ export async function fetchWrapper(prestockMint: string) {
  * capped at the agent's own counter, so a partial write is impossible to read as
  * a complete one.
  */
-export async function fetchExecutions(agent: string | PublicKey, limit = 20) {
-  const a = await fetchAgent(agent);
+export async function fetchExecutions(agentPda: string | PublicKey, limit = 20) {
+  const a = await fetchAgentByPda(agentPda);
   if (!a) return [];
   const count = Number(a.executionCount);
   const from = Math.max(0, count - limit);
   const out: OnChainExecution[] = [];
   for (let i = from; i < count; i++) {
-    const key = execPda(agentPda(agent), i);
+    const key = execPda(agentPda, i);
     const info = await connection().getAccountInfo(key);
     if (info && hasDisc(info.data as Buffer, DISC.ArbExecution)) {
       out.push(decodeExecution(key, info.data as Buffer));
@@ -461,31 +477,121 @@ export async function programDeployed(): Promise<boolean> {
 export const assetByWrappedMint = (wrappers: OnChainWrapper[]) =>
   new Map(wrappers.map((w) => [w.wrappedMint, w.prestockMint]));
 
+// ---------------------------------------------------------------------------
+// Metaplex token metadata — names and tickers live here, not in the Agent account.
+// ---------------------------------------------------------------------------
+const TOKEN_METADATA_PROGRAM_ID = new PublicKey(
+  "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s",
+);
+
+export type TokenMetadata = { name: string; symbol: string; uri: string };
+
 /**
- * The honest interim display record: on-chain agents have no name/ticker until
- * the DBC token metadata is read, so label them by asset + short mint rather
- * than inventing one. `id` is the agent PDA so `/agent/[id]` can resolve it.
+ * Read a mint's Metaplex metadata. A DBC-created SPL base mint gets its metadata
+ * in the same instruction that creates the pool, so this is where a launched
+ * agent's name and ticker actually live.
  */
-export function describeAgent(
-  agent: OnChainAgent,
-  assetSymbol: string | null,
-): {
+export async function readTokenMetadata(mint: string | PublicKey): Promise<TokenMetadata | null> {
+  const [metadataPda] = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("metadata"),
+      TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+      new PublicKey(mint).toBuffer(),
+    ],
+    TOKEN_METADATA_PROGRAM_ID,
+  );
+  const info = await connection().getAccountInfo(metadataPda);
+  if (!info) return null;
+  // key(1) + update_authority(32) + mint(32), then the Data struct.
+  const r = new Reader(info.data as Buffer, 1 + 32 + 32);
+  return {
+    name: r.string().replace(/\0/g, "").trim(),
+    symbol: r.string().replace(/\0/g, "").trim(),
+    uri: r.string().replace(/\0/g, "").trim(),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Live agents — an on-chain record joined with its asset symbol and its token
+// metadata, shaped to drop into the same UI slot as a seeded `AgentSeed`.
+// ---------------------------------------------------------------------------
+export type LiveAgent = {
   id: string;
   name: string;
   ticker: string;
   asset: string;
+  thesis: string;
   creator: string;
   feeBps: number;
+  curveProgress: number;
+  lastTradeSecsAgo: number;
+  onchain: true;
+  pda: string;
+  agentTokenMint: string;
+  wrappedMint: string;
+  vault: string;
   executionCount: number;
-} {
+};
+
+type UniverseEntry = { symbol: string; mint: string };
+
+export async function toLiveAgent(
+  agent: OnChainAgent,
+  byWrappedMint: Map<string, string>,
+  byPrestockMint: Map<string, UniverseEntry>,
+): Promise<LiveAgent> {
+  const prestockMint = byWrappedMint.get(agent.wrappedMint);
+  const prestock = prestockMint ? byPrestockMint.get(prestockMint) : undefined;
+
+  let meta: TokenMetadata | null = null;
+  try {
+    meta = await readTokenMetadata(agent.agentTokenMint);
+  } catch {
+    // No metadata account — fall back to a derived label rather than inventing one.
+  }
+
   const short = agent.agentTokenMint.slice(0, 4).toUpperCase();
   return {
     id: agent.pda,
-    name: assetSymbol ? `${assetSymbol} desk` : `Agent ${short}`,
-    ticker: short,
-    asset: assetSymbol ?? "—",
+    name: meta?.name || (prestock ? `${prestock.symbol} desk` : `Agent ${short}`),
+    ticker: (meta?.symbol || short).toUpperCase(),
+    asset: prestock?.symbol ?? "—",
+    thesis:
+      "On-chain agent. Its vault streams the wrapped PreStock it was registered against.",
     creator: agent.creator,
     feeBps: agent.dynamicFeeBps,
+    curveProgress: 0,
+    lastTradeSecsAgo: 0,
+    onchain: true,
+    pda: agent.pda,
+    agentTokenMint: agent.agentTokenMint,
+    wrappedMint: agent.wrappedMint,
+    vault: agent.vault,
     executionCount: Number(agent.executionCount),
   };
+}
+
+/**
+ * Every registered agent, joined with its asset symbol and token metadata. Pass
+ * the PreStocks universe (from `market.ts`) to resolve symbols; without it agents
+ * still appear, labelled by mint.
+ */
+export async function fetchLiveAgents(prestocks: UniverseEntry[] = []): Promise<LiveAgent[]> {
+  const [agents, wrappers] = await Promise.all([fetchAgents(), fetchWrappers()]);
+  const byWrappedMint = assetByWrappedMint(wrappers);
+  const byPrestockMint = new Map(prestocks.map((p) => [p.mint, p]));
+  return Promise.all(agents.map((a) => toLiveAgent(a, byWrappedMint, byPrestockMint)));
+}
+
+/** Resolve one agent by its PDA — the `/agent/[id]` route key. */
+export async function fetchLiveAgentByPda(
+  pda: string,
+  prestocks: UniverseEntry[] = [],
+): Promise<LiveAgent | null> {
+  const agent = await fetchAgentByPda(pda);
+  if (!agent) return null;
+  const wrappers = await fetchWrappers();
+  const byWrappedMint = assetByWrappedMint(wrappers);
+  const byPrestockMint = new Map(prestocks.map((p) => [p.mint, p]));
+  return toLiveAgent(agent, byWrappedMint, byPrestockMint);
 }

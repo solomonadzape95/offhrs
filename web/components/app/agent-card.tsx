@@ -89,7 +89,7 @@ export function AgentCard({ agent, asset }: { agent: AgentSeed; asset?: PreStock
 
       <div className="flex items-center justify-between">
         <span className="font-mono text-[0.625rem] tracking-[0.14em] text-ink-faint uppercase">
-          preview · no pool yet
+          {agent.onchain ? "on chain · registered" : "preview · no pool yet"}
         </span>
         <span className="font-mono text-xs tracking-[0.14em] text-signal uppercase">
           Open terminal →
