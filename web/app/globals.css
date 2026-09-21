@@ -1,0 +1,547 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ─────────────────────────────────────────────────────────────────────────
+   OFFHOURS — DESIGN SYSTEM
+
+   This file is the single source of truth for the visual language. Everything
+   below is generated from the Warp shader that fills the hero, so the page and
+   its only animation agree about what colour the product is.
+
+   The system has four parts:
+
+     1. Ground      near-black surfaces, ordered by elevation.
+     2. Signal      two purples. `signal` is the light one and means "live,
+                    actionable, moving". `violet` is the deep one and carries
+                    weight and depth. Nothing else is allowed to be a colour.
+     3. Ember       one warm accent, reserved for warnings and "down".
+     4. Print       every graphic is punched through a halftone lattice, so the
+                    page reads as printed onto the ground rather than assembled
+                    from vectors.
+
+   Shape language is soft: pill controls, generous radii on surfaces, wide
+   low-opacity shadows, hairline borders. Nothing is sharp.
+
+   See DESIGN_SYSTEM.md for the written rules and the component inventory.
+   ───────────────────────────────────────────────────────────────────────── */
+
+@theme {
+  /* ── Ground ────────────────────────────────────────────────────────── */
+  --color-void: #121212; /* page background, the shader's ground */
+  --color-void-deep: #0b0b0d; /* ink that sits ON signal; deepest wells */
+  --color-surface: #1a1a1c; /* panels */
+  --color-raised: #232326; /* hover / nested surfaces */
+  --color-edge: #2e2e33; /* hairlines */
+
+  /* ── Ink ───────────────────────────────────────────────────────────── */
+  --color-ink: #f6f5f8;
+  --color-ink-dim: #b8b5c2;
+  --color-ink-faint: #7e7b89;
+
+  /* ── Signal — #9470ff, the light purple from the shader. ───────────── */
+  --color-signal: #9470ff;
+  --color-signal-bright: #a487ff; /* hover */
+  --color-signal-dim: #6d4fd6;
+
+  /* ── Violet — #8838ff, the deeper purple. Weight, not status. ──────── */
+  --color-violet: #8838ff;
+
+  /* ── Ember — warnings and "down". Used sparingly. ──────────────────── */
+  --color-ember: #f0a868;
+
+  /* Radii. Pill for anything clickable, soft for anything holding content. */
+  --radius-pill: 999px;
+  --radius-card: 20px;
+  --radius-soft: 14px;
+
+  --font-sans: var(--font-satoshi), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  /* Manosque is the display face, full stop. Self-hosted, no toggle. */
+  --font-manosque: var(--font-manosque-face), Georgia, serif;
+
+  --container-app: 84rem;
+
+  --text-display: clamp(2.75rem, 8vw, 7rem);
+  --text-headline: clamp(2.25rem, 5vw, 4rem);
+  --text-statement: clamp(1.75rem, 3.6vw, 3rem);
+
+  /* ── Glow — the phosphor bloom used on hover and on live elements. ─── */
+  --glow-signal: 0 0 34px -6px var(--color-signal);
+  --glow-signal-strong: 0 0 48px -4px var(--color-signal);
+  --glow-violet: 0 0 40px -8px var(--color-violet);
+}
+
+/* The display face. Bound to a variable so a component only ever asks for
+   `.font-display` and never for a family name. */
+:root {
+  --font-display: var(--font-manosque);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   PALETTES
+
+   The `@theme` block above defines the default (Ultraviolet). These overrides
+   swap only the five colour tokens; ground, ink, radii and type are constant.
+   They are declared here, after `@theme`, and matched pre-paint from
+   `data-theme` on `<html>`, so a returning visitor never flashes the default.
+   Keep this list in step with `lib/theme.ts`.
+   ───────────────────────────────────────────────────────────────────────── */
+:root[data-theme="ion"] {
+  --color-signal: #5ad8ff;
+  --color-signal-bright: #86e6ff;
+  --color-signal-dim: #2f9fce;
+  --color-violet: #3f6dff;
+}
+:root[data-theme="acid"] {
+  --color-signal: #c6f24e;
+  --color-signal-bright: #d8ff72;
+  --color-signal-dim: #8fbf2f;
+  --color-violet: #5fd48a;
+}
+:root[data-theme="rose"] {
+  --color-signal: #ff6ea9;
+  --color-signal-bright: #ff92bf;
+  --color-signal-dim: #d1427c;
+  --color-violet: #b44bff;
+}
+
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    background: var(--color-void);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: var(--color-signal);
+    color: var(--color-void-deep);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  summary,
+  a {
+    cursor: pointer;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Display figures. Opt-in per element, because a bitmap face goes faint at
+   table-cell sizes. */
+@utility figure {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.02em;
+}
+
+@layer components {
+  /* ── Display type ─────────────────────────────────────────────────── */
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .text-display {
+    font-size: var(--text-display);
+    line-height: 0.98;
+    letter-spacing: -0.02em;
+    font-weight: 400;
+  }
+
+  .text-headline {
+    font-size: var(--text-headline);
+    line-height: 1.04;
+    letter-spacing: -0.02em;
+    font-weight: 400;
+  }
+
+  .text-statement {
+    font-size: var(--text-statement);
+    line-height: 1.18;
+    letter-spacing: -0.01em;
+    font-weight: 400;
+  }
+
+  .label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.2;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+  }
+
+  /* ── Surfaces — soft, not sharp ───────────────────────────────────── */
+  .panel {
+    background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+    border: 1px solid var(--color-edge);
+    border-radius: var(--radius-card);
+    box-shadow: 0 18px 50px -22px rgb(0 0 0 / 0.75);
+    backdrop-filter: blur(12px);
+  }
+
+  .panel-soft {
+    background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+    border: 1px solid var(--color-edge);
+    border-radius: var(--radius-soft);
+  }
+
+  /* A surface that lights its edge on hover, used for anything that is a
+     destination rather than a container. */
+  .panel-interactive {
+    transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease,
+      background-color 200ms ease;
+  }
+  .panel-interactive:hover {
+    border-color: color-mix(in srgb, var(--color-signal) 45%, var(--color-edge));
+    box-shadow:
+      0 18px 50px -22px rgb(0 0 0 / 0.75),
+      0 0 30px -14px var(--color-signal);
+    transform: translateY(-2px);
+  }
+
+  /* ── Buttons ──────────────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 0.75rem 1.25rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-pill);
+    transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease,
+      border-color 160ms ease, transform 160ms ease;
+    white-space: nowrap;
+  }
+
+  /* The hero's pair. Larger than a chip because the display type above them is
+     enormous, and a small button under a huge claim reads as an accident. */
+  .btn-lg {
+    font-size: 1rem;
+    padding: 1rem 2rem;
+  }
+
+  .btn-primary {
+    background: var(--color-signal);
+    color: var(--color-void-deep);
+  }
+  /* Bloom, like phosphor. The button resolves to near-white and *lights*; it
+     never changes shape. This is the Nebula signature and the page's only hover
+     vocabulary. */
+  .btn-primary:hover {
+    background: var(--color-ink);
+    color: var(--color-void-deep);
+    box-shadow: var(--glow-signal-strong);
+  }
+  .btn-primary:active {
+    transform: translateY(1px);
+  }
+
+  .btn-ghost {
+    border-color: var(--color-edge);
+    color: var(--color-ink);
+    background: color-mix(in srgb, var(--color-raised) 60%, transparent);
+  }
+  .btn-ghost:hover {
+    border-color: color-mix(in srgb, var(--color-signal) 55%, var(--color-edge));
+    background: var(--color-raised);
+    color: var(--color-ink);
+    box-shadow: 0 0 26px -12px var(--color-signal);
+  }
+
+  /* Circular icon button. */
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--color-edge);
+    background: color-mix(in srgb, var(--color-raised) 60%, transparent);
+    color: var(--color-ink);
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease,
+      box-shadow 160ms ease;
+  }
+  .icon-btn:hover {
+    background: var(--color-raised);
+    border-color: color-mix(in srgb, var(--color-signal) 55%, var(--color-edge));
+    color: var(--color-signal);
+    box-shadow: 0 0 24px -12px var(--color-signal);
+  }
+
+  /* ── Header ───────────────────────────────────────────────────────── */
+  .nav-shell {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.375rem;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--color-edge);
+    background: color-mix(in srgb, var(--color-surface) 72%, transparent);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 14px 40px -26px rgb(0 0 0 / 0.9);
+  }
+
+  .nav-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5625rem 1rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--color-ink-dim);
+    transition: background-color 160ms ease, color 160ms ease;
+    white-space: nowrap;
+  }
+  .nav-item:hover {
+    color: var(--color-ink);
+    background: color-mix(in srgb, var(--color-raised) 70%, transparent);
+  }
+  .nav-item-active {
+    color: var(--color-void-deep);
+    background: var(--color-signal);
+  }
+  .nav-item-active:hover {
+    color: var(--color-void-deep);
+    background: var(--color-signal-bright);
+  }
+
+  .brand-mark,
+  .brand-name {
+    transition: color 200ms ease, filter 200ms ease;
+  }
+  .brand:hover .brand-mark {
+    filter: drop-shadow(0 0 16px color-mix(in srgb, var(--color-signal) 70%, transparent));
+  }
+  .brand:hover .brand-name {
+    color: var(--color-signal);
+  }
+
+  /* ── The centre menu ──────────────────────────────────────────────── */
+  /* Only the body animates. The card keeps one width and one radius, and its top
+     edge is pinned, so the trigger never moves and nothing else on the bar
+     reacts — the bottom simply drops open. The body is a grid row going
+     0fr → 1fr, which eases to its own height without measuring it. */
+  .center-menu {
+    position: relative;
+    width: 13.5rem;
+    overflow: hidden;
+    border-radius: var(--radius-card);
+    border: 1px solid var(--color-edge);
+    background: color-mix(in srgb, var(--color-surface) 72%, transparent);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 14px 40px -26px rgb(0 0 0 / 0.9);
+  }
+  @media (min-width: 640px) {
+    .center-menu {
+      width: 18rem;
+    }
+  }
+  .center-menu-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    height: 2.75rem;
+    padding: 0 1rem;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+  .center-menu-caret {
+    color: var(--color-ink-faint);
+  }
+  .center-menu-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 320ms cubic-bezier(0.22, 0.8, 0.24, 1);
+  }
+  .center-menu-inner {
+    overflow: hidden;
+    padding: 0.5rem;
+  }
+
+  .center-menu[data-open="true"] .center-menu-body,
+  .center-menu:focus-within .center-menu-body {
+    grid-template-rows: 1fr;
+  }
+
+  @media (hover: hover) and (min-width: 768px) {
+    .center-menu:hover .center-menu-body {
+      grid-template-rows: 1fr;
+    }
+  }
+
+  /* ── Texture ──────────────────────────────────────────────────────── */
+  .grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.1;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* The halftone lattice, as a reusable mask. Cell size is set per use with
+     `--dither-cell`; the dot takes ~60% of the cell so the silhouette stays
+     readable. Never apply below ~13px of glyph — there is not enough surface
+     to survive the mask. */
+  .dither {
+    -webkit-mask-image: radial-gradient(
+      circle at 1px 1px,
+      #000 var(--dither-dot, 0.95px),
+      transparent 0
+    );
+    mask-image: radial-gradient(
+      circle at 1px 1px,
+      #000 var(--dither-dot, 0.95px),
+      transparent 0
+    );
+    -webkit-mask-size: var(--dither-cell, 3px) var(--dither-cell, 3px);
+    mask-size: var(--dither-cell, 3px) var(--dither-cell, 3px);
+  }
+
+  .dot-grid {
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      color-mix(in srgb, var(--color-ink) 22%, transparent) 0.5px,
+      transparent 0
+    );
+    background-size: 3px 3px;
+  }
+
+  /* ── Graphic slots ────────────────────────────────────────────────── */
+  /* Deliberately empty. Every section that will eventually hold a generated
+     image or chart reserves its space with one of these, so the layout is
+     final before the art exists and dropping the art in does not move
+     anything. See DESIGN_SYSTEM.md § "Graphic slots". */
+  .figure-slot {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-card);
+    border: 1px dashed color-mix(in srgb, var(--color-signal) 28%, var(--color-edge));
+    background:
+      radial-gradient(
+        ellipse 70% 80% at 50% 0%,
+        color-mix(in srgb, var(--color-signal) 10%, transparent),
+        transparent 70%
+      ),
+      color-mix(in srgb, var(--color-void-deep) 55%, transparent);
+  }
+  .figure-slot::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.5;
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      color-mix(in srgb, var(--color-signal) 30%, transparent) 0.5px,
+      transparent 0
+    );
+    background-size: 4px 4px;
+  }
+
+  /* ── Readings ─────────────────────────────────────────────────────── */
+  .basis-up {
+    color: var(--color-signal);
+  }
+  .basis-down {
+    color: var(--color-ember);
+  }
+
+  .curve-track {
+    position: relative;
+    height: 6px;
+    background: var(--color-raised);
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+  }
+  .curve-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: var(--radius-pill);
+    background: linear-gradient(90deg, var(--color-violet), var(--color-signal));
+  }
+
+  .terminal {
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    font-size: 0.75rem;
+    line-height: 1.65;
+    background: color-mix(in srgb, var(--color-void-deep) 80%, transparent);
+    border: 1px solid var(--color-edge);
+    border-radius: var(--radius-soft);
+  }
+
+  /* ── Expand / collapse ────────────────────────────────────────────── */
+  /* Height is animated with a grid row going 0fr -> 1fr, which eases to the
+     content's natural height without measuring it. Used by the nav menu and
+     the FAQ. */
+  .expando {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 300ms cubic-bezier(0.22, 0.8, 0.24, 1);
+  }
+  .expando[data-open="true"] {
+    grid-template-rows: 1fr;
+  }
+  .expando > div {
+    overflow: hidden;
+  }
+}
+
+@keyframes telemetry {
+  0% {
+    opacity: 0.18;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.18;
+  }
+}
+
+@keyframes glyph-drift {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--glyph-rotate, 0deg));
+  }
+  50% {
+    transform: translateY(-14px) rotate(calc(var(--glyph-rotate, 0deg) + 2deg));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
