@@ -1,0 +1,222 @@
+# AGENTS.md — Offhrs
+
+**Read this first.** It is the entry point for a fresh session. It says what the project is, what
+already works, how to run it, and what is broken or blocked.
+
+Last updated: **Mon 21 Sep 2026, ~03:00 UTC.**
+
+---
+
+## 1. What this is
+
+**Offhrs** — an autonomous marketplace where AI trading agents arbitrage tokenized **pre-IPO
+equity** on Solana, and stream the proceeds to holders as the actual shares.
+
+Built for **Stocklana** (`https://hackathons.solana.com/hackathons/stocklana`).
+**Submissions close Fri 25 Sep 2026, 16:00 ET** — that is ~4.5 days from the timestamp above.
+
+The thesis, in one line: *the reference market closes, the tokenized marks keep trading, and that gap
+is the product.* It is measurable — see `day3_results.md`.
+
+> ⚠️ **Naming.** The project was called **Angel** until Sep 20 and was renamed **Offhrs**. The
+> frontend is fully renamed. **The docs, the Rust, the agent runtime and the directory name still say
+> Angel.** See §7.
+
+## 2. Reading order
+
+| # | File | Why |
+|---|---|---|
+| 1 | `AGENTS.md` | this file |
+| 2 | `stocklana_bounty_verification.md` | the bounties, and what disqualifies us |
+| 3 | `angel_source_of_truth.md` | the spec. **§1A overrides everything after it** |
+| 4 | `day0_results.md` | the constraint that shaped the whole architecture |
+| 5 | `day5_results.md` / `day6_results.md` | the frontend, current |
+| 6 | `mvp_plan.md` | day-by-day status and the risk register |
+
+`day1_results.md` … `day4_results.md` are per-day evidence logs. Read them when you need detail on a
+specific subsystem.
+
+## 3. Status
+
+### Works, verified
+
+| Thing | Evidence |
+|---|---|
+| `stock_vault` Anchor program | **15 unit + 30 integration tests**, `anchor test` |
+| Wrapped PreStock (the core unlock) | `day1_results.md` |
+| Streaming dividend vault | `day2_results.md` |
+| Pyth on-chain reads + attestation | `day3_results.md` |
+| Pyth-attested execution log | `day4_results.md` |
+| Frontend, 11 routes | `day6_results.md` |
+| Wallet connect (Wallet Standard) | `/connect`, header menu |
+| **Swap signing** — real Jupiter tx, real signature | `web/scripts/swap-check.ts` |
+
+### Blocked on one number
+
+**~3.86 SOL of mainnet rent to deploy the program.** Every dashboard balance, the Activity feed, and
+the actual deploy transaction in `/launch` are downstream of this. Program is 555 KB; mainnet wallet
+is empty. Faucet address is in `day1_results.md`.
+
+### Open questions
+
+- **Clawpump has not replied.** Their bounty requires *"launch your token with a stock-paired
+  liquidity pool using clawpump and Meteora"*, but their launch paths are pump.fun / Metaplex Genesis
+  / Pons — **no DBC**. Whether "Clawpump agent + our own DBC pool" satisfies it is unresolved. The
+  agent's execution venue is behind a swappable adapter (`agent/src/execution.ts`) so only that file
+  changes when the answer arrives. **The `ClawpumpAdapter` is written against their documented MCP
+  surface but is unverified — no API key.**
+- **Pyth `pyth-indices`** — requested, not granted. `Equity.Index.OPENAI/ANTHROPIC` are gated on
+  Hermes *and* absent on-chain. Not on the critical path; if granted it is a config change.
+
+## 4. Commands
+
+```bash
+# ── program ───────────────────────────────────────────────────────────
+export SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk   # see §6
+anchor build
+anchor test                                  # 30 integration tests (~2m)
+cargo test --manifest-path programs/stock_vault/Cargo.toml   # 15 unit tests
+
+# ── frontend ──────────────────────────────────────────────────────────
+cd web
+pnpm exec next build && pnpm exec next start -p 3939
+
+# ── agent (off-chain runtime) ─────────────────────────────────────────
+ANGEL_ONCE=1 pnpm exec tsx agent/src/index.ts          # one read-only pass
+ANGEL_SYMBOL=OPENAI pnpm exec tsx agent/src/index.ts   # a different asset
+pnpm exec tsx agent/src/index.ts --feeds               # known on-chain feeds
+
+# ── checks ────────────────────────────────────────────────────────────
+pnpm exec tsx web/scripts/session-check.ts   # 8 market-session cases
+pnpm exec tsx web/scripts/swap-check.ts      # decodes a real Jupiter tx
+```
+
+## 5. Layout
+
+```
+angel/                        ← directory still says "angel"; the product is Offhrs
+├── programs/stock_vault/     Anchor program — wrapper + registry + vault + Pyth + exec log
+│   └── src/{wrapper,state,vault,accum,pricing,signal,execution,registry,error,lib}.rs
+├── tests/                    stock_vault.ts · vault.ts · pyth.ts · execution.ts
+├── fixtures/                 real mainnet Pyth accounts, replayed into the local validator
+├── agent/src/                off-chain agent runtime (config, market, signal, execution, chain)
+├── experiments/              day0–day3 probes; the evidence behind the constraints
+├── web/                      Next.js 16 frontend  ← the active work
+│   ├── app/(site)/           marketing: /, /explore, /connect, /launch, /agent/[id]
+│   ├── app/dashboard/        signed-in: Position, Activity, Agents, Profile
+│   ├── components/site/      nav (fixed bar + expanding centre menu), warp-field,
+│   │                         dither-backdrop, theme-provider, theme-toggle, logo,
+│   │                         agent-sigil, mechanics, agent-carousel, section,
+│   │                         figure-slot, glyph, faq, site-footer, session-clock
+│   ├── components/ui/        icon (Phosphor + halftone), dither-icon
+│   ├── DESIGN_SYSTEM.md      the tokens, palettes, rules and component inventory
+│   ├── components/app/       swap (live), app-shell, launch-studio, curve-preview, terminal
+│   └── lib/                  market, session, wallet, deploy, agents, snapshot, format, theme
+└── day*.md                   per-day evidence logs
+```
+
+**Program id:** `FoVBZRFCamH1HNMiVpNZV2QJxk9bSxWtQvKgmqZ1rVLw`
+**DBC program id:** `dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN` (live on mainnet **and** devnet)
+
+## 6. Environment gotchas — these cost real time
+
+1. **`anchor build` fails machine-wide** with `tapi error: malformed file ... unknown architecture
+   arm64e.x1-macos`. The CLT install is self-inconsistent:
+   `/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -> MacOSX27.0.sdk`, and the installed ld-1267
+   cannot parse that SDK's `.tbd` files. Plain `cc` cannot link `int main(){return 0;}` either.
+   **Fix:** `SDKROOT` is pinned in `.cargo/config.toml`. If C compilation fails anywhere on this
+   machine, this is why.
+
+2. **`[test.validator]` in `Anchor.toml` panics agave 3.1.15** with `UnspecifiedIpAddr(0.0.0.0)`.
+   Fixed with `bind_address = "127.0.0.1"` — do not remove it.
+
+3. **Turbopack's root must be the pnpm workspace root**, not `web/`. pnpm hoists to
+   `<root>/node_modules/.pnpm` and leaves `web/node_modules/*` as symlinks pointing out; pinning the
+   root to `web/` makes Turbopack refuse to follow them and it cannot find `next`.
+
+4. **`tsx` resolves `web/` to CommonJS** (nearest `package.json` has no `type`), so scripts under
+   `web/scripts/` cannot use top-level `await`. Use an `async main()`. The same reason `tests/` has
+   its own `package.json` with `{"type":"commonjs"}` — the root is `"type":"module"` for the
+   experiments.
+
+5. **Fonts are self-hosted** (Satoshi, Geist Mono, Geist Pixel, Manosque). `next/font/google` made
+   the build network-dependent and failed on a 429. **Miso is the exception** — it comes from a CDN
+   `<link>` in `app/layout.tsx` because the files were not available locally.
+
+6. **Upstream reads are cached and de-duplicated** in `web/lib/market.ts`. Issued naively, the layout
+   plus 8 agent pages produced a 429 storm that *baked "market data unavailable" into the prerendered
+   HTML of every agent page*. Both the universe and the Pyth read have TTL caches plus a captured
+   fallback. Do not remove them.
+
+7. **`anchor init` shells out to `yarn`**, which is not installed. Scaffolding still succeeds.
+
+## 7. The rename — what still says Angel
+
+The frontend is clean (zero occurrences). Everything else is not:
+
+| Where | Count | Notes |
+|---|---|---|
+| `programs/stock_vault/src/` | ~53 | almost all the **`AngelError`** Rust enum — a real identifier, not a comment |
+| `agent/src/` | ~14 | `ANGEL — Day N` header comments |
+| `experiments/` | ~8 | same |
+| `*.md` docs | ~18 | the spec, the day logs |
+| the directory | — | `Personal/angel/` |
+
+The code identifier and the comments are mechanical and `anchor build` verifies them. The directory
+rename will break open editors and the paths quoted throughout the docs — do it last, or not at all.
+
+## 8. Design decisions worth not undoing
+
+- **PreStocks cannot be a DBC quote mint.** They carry a non-zero Token-2022 transfer fee and the DBC
+  program rejects them with error `6081 QuoteMintHasNonZeroTransferFee` — a badge does **not** help,
+  because a badge cannot authorise a non-zero fee. Hence the zero-fee wrapper. See `day0_results.md`.
+- **`wrap` mints the measured reserve delta, never the requested amount.** The transfer fee means
+  less arrives; minting the request would create unbacked supply on every wrap.
+- **Rewards stream over time, not as a lump sum.** The doc's original formula hands a pro-rata share
+  of a deposit to anyone who stakes immediately before it. Streaming pays for time held and makes the
+  vault solvent by construction.
+- **`log_arb` copies the Pyth fields from the `Signal`** — never from the caller. That is what makes
+  the execution log evidence rather than a claim.
+- **The market-session clock is computed from the calendar, not from a price feed.** If Pyth were the
+  only source, a Pyth outage would look like an open market.
+- **The mark is quoted unscaled; the DEX price is not.** Always apply the `scaledUiAmount` multiplier
+  before comparing them. Skipping this produced `Gap -74.77%` sitting next to `+2433bps below mark` —
+  the same fact with opposite signs.
+- **Empty states stay empty.** Balances render as em dashes with an explanation. Do not fill them
+  with plausible numbers; the program is not deployed and that is the honest state.
+
+## 9. What to do next
+
+1. **Deploy the program** (~3.86 SOL). That single action unblocks the dashboard, the Activity feed
+   and the `/launch` deploy path.
+2. **Chase Clawpump.** The only open bounty question.
+3. **Day 7 — demo + submission:** record the end-to-end journey, write the submission, name the
+   open-source components. See `mvp_plan.md`.
+4. Optional: propagate the rename (§7).
+
+## 9A. Frontend design system (added Sep 21, revised)
+
+The landing page is now the design system. `web/DESIGN_SYSTEM.md` is the written version and
+`web/app/globals.css` is the machine version. The load-bearing changes:
+
+- **A palette system, not one purple.** `lib/theme.ts` declares Ultraviolet (default), Ion, Acid
+  and Rose; `:root[data-theme="…"]` in `globals.css` mirrors the tokens and a pre-paint script in the
+  root layout resolves the stored choice before the first frame. The Warp shader reads its stops
+  from the theme too, so nothing is left pointing at the old hue. Ember stays warnings-only in every
+  palette.
+- **Manosque is the display face.** The Miso toggle, the CDN link and `data-display` are removed.
+- **Phosphor icons**, dithered through a halftone mask (`components/ui/icon.tsx`). Lucide is gone.
+- **The header is fixed and three-tracked** — wordmark left, an expanding centre menu, controls
+  right — so the hero is a true 100svh and no chrome takes a strip out of it. The centre menu *is* its
+  own trigger: `max-height`/`width` animate so the pill grows into a card. Hover/focus opens it on
+  pointer devices, `[data-open]` on touch. The `doodle-cue` was retired, and the **mobile bottom tab
+  bar stays deleted** — do not reintroduce either.
+- **Layout variety is a rule.** Mechanics is a bento (`components/site/mechanics.tsx`, drawn
+  diagrams); agents is a snap carousel (`components/site/agent-carousel.tsx`, generated
+  `agent-sigil` marks); a full-bleed warp band breaks the page mid-scroll. A card carries one
+  graphic, never an icon and a chart at once.
+- **Graphic slots.** The reference and vault sections still reserve art with
+  `components/site/figure-slot.tsx` and name the brief. Replace the slot with the real asset as
+  `children`; nothing moves.
+- **The footer** is a full-bleed warp with the wordmark set as just `offhrs`, plus the named
+  palette picker.
