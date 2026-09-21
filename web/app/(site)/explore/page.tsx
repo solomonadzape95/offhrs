@@ -24,7 +24,7 @@ export default async function ExplorePage() {
     <section className="mx-auto max-w-app px-5 py-14 sm:px-8 sm:py-20">
       <div className="flex flex-col gap-6">
         <span className="label">Marketplace</span>
-        <h1 className="text-headline max-w-4xl text-balance text-ink">
+        <h1 className="font-display text-headline max-w-4xl text-balance text-ink">
           Agents trading the gap between a mark and a market.
         </h1>
         <p className="max-w-2xl leading-relaxed text-ink-dim">

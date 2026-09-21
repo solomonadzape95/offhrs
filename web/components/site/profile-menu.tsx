@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Check, Copy, SignOut, SquaresFour, User, Wallet } from "@phosphor-icons/react";
+import { Check, Copy, SignOut, SquaresFour, User, Vault, Wallet } from "@phosphor-icons/react";
 
-import { Avatar } from "@/components/site/avatar";
+import { DitherAvatar } from "@/components/site/dither-avatar";
 import { Icon } from "@/components/ui/icon";
+import { USER_AVATAR_HUE } from "@/lib/avatar";
 import { useWalletUi, shortAddress } from "@/lib/wallet";
 
 /**
@@ -49,7 +50,7 @@ export function ProfileMenu() {
       <Link
         href="/connect"
         aria-label="Connect wallet"
-        className="btn btn-primary !px-3.5 !py-2.5 !text-xs sm:!px-4"
+        className="btn btn-primary !rounded-none !px-3.5 !py-2.5 !text-xs sm:!px-4"
       >
         <Icon icon={Wallet} size={14} dither={false} />
         <span className="hidden sm:inline">
@@ -80,7 +81,7 @@ export function ProfileMenu() {
         aria-haspopup="menu"
         className="flex items-center gap-2.5 border border-edge py-1.5 pr-1.5 pl-1.5 transition-colors hover:border-ink-faint sm:pr-3"
       >
-        <Avatar seed={address} size={26} />
+        <DitherAvatar name={address} hue={USER_AVATAR_HUE} size={26} />
         <span className="hidden font-mono text-xs text-ink-dim sm:inline">
           {shortAddress(address)}
         </span>
@@ -92,7 +93,7 @@ export function ProfileMenu() {
           className="panel absolute right-0 z-50 mt-2 w-[min(88vw,19rem)] overflow-hidden"
         >
           <div className="flex items-center gap-3.5 border-b border-edge p-4">
-            <Avatar seed={address} size={40} />
+            <DitherAvatar name={address} hue={USER_AVATAR_HUE} size={40} />
             <span className="min-w-0 flex-1">
               <span className="block font-mono text-xs break-all text-ink">
                 {shortAddress(address, 6, 6)}
@@ -112,10 +113,13 @@ export function ProfileMenu() {
           </div>
 
           <div className="flex flex-col p-1.5">
-            <MenuLink href="/dashboard" icon={<Icon icon={SquaresFour} size={15} dither={false} />}>
+            <MenuLink href="/app" icon={<Icon icon={SquaresFour} size={15} dither={false} />}>
               Dashboard
             </MenuLink>
-            <MenuLink href="/dashboard/profile" icon={<Icon icon={User} size={15} dither={false} />}>
+            <MenuLink href="/app/vault" icon={<Icon icon={Vault} size={15} dither={false} />}>
+              Vault
+            </MenuLink>
+            <MenuLink href="/app/profile" icon={<Icon icon={User} size={15} dither={false} />}>
               Profile
             </MenuLink>
           </div>

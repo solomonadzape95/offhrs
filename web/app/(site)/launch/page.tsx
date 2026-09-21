@@ -15,7 +15,7 @@ export default async function LaunchPage() {
   return (
     <section className="mx-auto max-w-app px-5 py-14 sm:px-8 sm:py-20">
       <span className="label">Creator studio</span>
-      <h1 className="text-headline mt-6 max-w-3xl text-balance text-ink">
+      <h1 className="font-display text-headline mt-6 max-w-3xl text-balance text-ink">
         Give a strategy a market, a fee and a dividend.
       </h1>
       <p className="mt-6 max-w-2xl leading-relaxed text-ink-dim">

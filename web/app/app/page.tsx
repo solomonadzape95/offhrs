@@ -41,7 +41,7 @@ function Position() {
       <div className="flex flex-wrap items-end justify-between gap-8">
         <div className="flex flex-col gap-3">
           <span className="label">Position</span>
-          <h1 className="text-3xl leading-none font-medium text-ink sm:text-4xl">Net wealth</h1>
+          <h1 className="font-display text-3xl leading-none text-ink sm:text-4xl">Net wealth</h1>
           <p className="max-w-lg text-sm leading-relaxed text-ink-dim">
             Agent tokens plus the pre-IPO equity accumulated behind them. Both sides move: the tokens
             trade, the equity accrues.
@@ -135,7 +135,7 @@ function Position() {
             simulated — an em dash is what an unavailable reading looks like.
           </p>
           <Link
-            href="/dashboard/profile"
+            href="/app/profile"
             className="font-mono text-xs tracking-wider text-signal uppercase"
           >
             Deployment status →

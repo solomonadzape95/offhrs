@@ -3,14 +3,20 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import {
   CaretDown,
   ChartLineUp,
+  ClockCounterClockwise,
   GearSix,
   Question,
+  Robot,
   RocketLaunch,
   SquaresFour,
+  Storefront,
   Table,
+  User,
+  Vault,
 } from "@phosphor-icons/react";
 
 import { Logo } from "@/components/site/logo";
@@ -20,7 +26,7 @@ import { Icon } from "@/components/ui/icon";
 import { useWalletUi } from "@/lib/wallet";
 
 /**
- * The header.
+ * The header, shared by the public and signed-in surfaces.
  *
  * The centre control is not a button that opens a separate panel: the card itself
  * grows — only its height, never its width — so the trigger and the panel are the
@@ -29,48 +35,43 @@ import { useWalletUi } from "@/lib/wallet";
  * rather than a `translate-x` — a transform on a `backdrop-filter`ed element is
  * what skewed the menu's size on Brave.
  *
- * Breakpoints differ on purpose. On a pointer it sits centred, with the wallet to
- * its right. On a phone it moves to the right, the wallet moves *into* the menu,
- * and the wordmark gets its name back on the left.
+ * What changes between surfaces is only the item list: `SITE_ITEMS` on the public
+ * pages, `APP_ITEMS` behind the wallet gate. The lockup, the menu mechanics and the
+ * account control are identical, so moving between the marketing site and the app
+ * feels like the same product. The account control resolves to a connect button
+ * when no wallet is present and to the account panel once one is.
  *
  * The bar hides on the way down and returns on the way up, so it never covers the
  * content you are reading. It stays put while the menu is open.
  */
-const ITEMS = [
-  {
-    href: "/explore",
-    label: "Markets",
-    hint: "Pre-IPO marks against their feeds",
-    icon: ChartLineUp,
-  },
-  {
-    href: "/#board",
-    label: "Dislocation board",
-    hint: "Every SPV mark, live",
-    icon: Table,
-  },
-  {
-    href: "/#mechanics",
-    label: "Mechanics",
-    hint: "How the gap gets traded",
-    icon: GearSix,
-  },
-  { href: "/#faq", label: "FAQ", hint: "The short answers", icon: Question },
-  {
-    href: "/launch",
-    label: "Launch an agent",
-    hint: "Four steps to a live pool",
-    icon: RocketLaunch,
-  },
-  {
-    href: "/dashboard",
-    label: "Dashboard",
-    hint: "Your position and payouts",
-    icon: SquaresFour,
-  },
-] as const;
+export interface NavItem {
+  href: string;
+  label: string;
+  hint: string;
+  icon: PhosphorIcon;
+}
 
-export function Nav() {
+export const SITE_ITEMS: NavItem[] = [
+  { href: "/explore", label: "Markets", hint: "Pre-IPO marks against their feeds", icon: ChartLineUp },
+  { href: "/#board", label: "Dislocation board", hint: "Every SPV mark, live", icon: Table },
+  { href: "/#mechanics", label: "Mechanics", hint: "How the gap gets traded", icon: GearSix },
+  { href: "/vault", label: "Vault", hint: "Stake and claim dividends", icon: Vault },
+  { href: "/#faq", label: "FAQ", hint: "The short answers", icon: Question },
+  { href: "/launch", label: "Launch an agent", hint: "Four steps to a live pool", icon: RocketLaunch },
+  { href: "/app", label: "Dashboard", hint: "Your position and payouts", icon: SquaresFour },
+];
+
+export const APP_ITEMS: NavItem[] = [
+  { href: "/app", label: "Position", hint: "Stake and accrued equity", icon: SquaresFour },
+  { href: "/app/vault", label: "Vault", hint: "Stake and claim dividends", icon: Vault },
+  { href: "/app/activity", label: "Activity", hint: "Agent executions", icon: ClockCounterClockwise },
+  { href: "/app/agents", label: "Agents", hint: "Agents you launched", icon: Robot },
+  { href: "/app/profile", label: "Profile", hint: "Wallet and deployment status", icon: User },
+  { href: "/explore", label: "Market", hint: "Browse every agent", icon: Storefront },
+  { href: "/launch", label: "Launch an agent", hint: "Deploy a new desk", icon: RocketLaunch },
+];
+
+export function Nav({ items = SITE_ITEMS }: { items?: NavItem[] }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -121,12 +122,8 @@ export function Nav() {
     };
   }, [open]);
 
-  const active = (href: string) =>
-    href.startsWith("/#")
-      ? false
-      : href === "/dashboard"
-        ? pathname.startsWith("/dashboard")
-        : pathname === href;
+  // Exact match: `/app` must not stay lit on `/app/vault`.
+  const active = (href: string) => !href.startsWith("/#") && pathname === href;
 
   // Only the landing page has a full-viewport hero for the bar to float over. Every
   // other route starts with content, so the bar stays in flow there and takes its
@@ -185,7 +182,7 @@ export function Nav() {
 
             <div id="site-menu" role="menu" className="center-menu-body">
               <div className="center-menu-inner">
-                {ITEMS.map((item) => (
+                {items.map((item) => (
                   <MenuRow
                     key={item.href}
                     item={item}
@@ -230,7 +227,7 @@ function MobileWalletButton({ onNavigate }: { onNavigate: () => void }) {
   const { address, isReady } = useWalletUi();
   if (!isReady) return null;
 
-  const href = address ? "/dashboard" : "/connect";
+  const href = address ? "/app" : "/connect";
   const label = address ? "Dashboard" : "Connect wallet";
 
   return (
@@ -250,7 +247,7 @@ function MenuRow({
   current,
   onNavigate,
 }: {
-  item: (typeof ITEMS)[number];
+  item: NavItem;
   current: boolean;
   onNavigate: () => void;
 }) {
@@ -262,10 +259,15 @@ function MenuRow({
 
   const inner = (
     <>
-      {/* Resting: a dim, dithered mark. Hover resolves it to solid signal. */}
-      <span className="relative flex size-8 shrink-0 items-center justify-center text-ink-faint transition-colors group-hover:text-signal">
+      {/* Resting: a dim, dithered mark. Hover resolves it to solid signal, and an
+          active item is already resolved. */}
+      <span
+        className={`relative flex size-8 shrink-0 items-center justify-center transition-colors ${
+          current ? "text-signal" : "text-ink-faint group-hover:text-signal"
+        }`}
+      >
         <span className="group-hover:hidden">
-          <DitherIcon icon={Glyph} size={22} tone="ink" />
+          <DitherIcon icon={Glyph} size={22} tone={current ? "signal" : "ink"} />
         </span>
         <span className="hidden group-hover:block">
           <Icon icon={Glyph} size={22} dither={false} weight="regular" />
@@ -273,7 +275,11 @@ function MenuRow({
       </span>
 
       <span className="min-w-0 flex-1">
-        <span className="block text-[0.9375rem] text-ink-dim transition-colors group-hover:text-ink">
+        <span
+          className={`block text-[0.9375rem] transition-colors ${
+            current ? "text-signal" : "text-ink-dim group-hover:text-ink"
+          }`}
+        >
           {item.label}
         </span>
         <span className="hidden font-mono text-[0.6875rem] text-ink-faint sm:block">

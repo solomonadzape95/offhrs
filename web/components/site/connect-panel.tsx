@@ -7,20 +7,23 @@ import { ArrowLeft, ArrowUpRight } from "@phosphor-icons/react";
 
 import { Logo } from "@/components/site/logo";
 import { SessionClock } from "@/components/site/session-clock";
+import { WarpField } from "@/components/site/warp-field";
 import { useWalletUi, walletNote, shortAddress } from "@/lib/wallet";
 
 /**
- * Wallet picker.
+ * The auth page: connect a wallet.
  *
  * Structured like Nebula's: a two-column page where the left half argues and the
- * right half does the one thing you came for, with the lockup living on the side
- * you actually act on because that is the only column that exists on a phone.
+ * right half does the one thing you came for. The left half carries the Voronoi
+ * field — the same effect as the landing page, so arriving here feels like the
+ * same product rather than a generic login. It is hidden below `lg` rather than
+ * stacked, because on a phone a decorative panel would push the actual task below
+ * the fold; the lockup therefore lives on the right, the only column a phone has.
  *
- * The difference from Nebula is that Offhrs does not curate the list. Wallet
- * Standard discovery reports what the browser actually has, so the panel shows
- * real availability instead of six rows that each open an install page. Wallets
- * that are not installed are still listed, but as an install link rather than a
- * button that will fail.
+ * Offhrs does not curate the wallet list. Wallet Standard discovery reports what
+ * the browser actually has, so the panel shows real availability instead of six
+ * rows that each open an install page. Wallets that are not installed are still
+ * listed, but as an install link rather than a button that will fail.
  */
 export function ConnectPanel() {
   const router = useRouter();
@@ -30,7 +33,7 @@ export function ConnectPanel() {
   // A restored session never runs `connect`, so landing here already connected
   // used to park you on a dead end. Send people on instead.
   useEffect(() => {
-    if (address) router.replace("/dashboard");
+    if (address) router.replace("/app");
   }, [address, router]);
 
   const onSelect = async (id: string, ready: boolean | undefined, url: string) => {
@@ -39,33 +42,29 @@ export function ConnectPanel() {
       return;
     }
     const next = await connect(id);
-    if (next) router.push("/dashboard");
+    if (next) router.push("/app");
   };
 
   return (
-    <div className="grid min-h-[calc(100svh-4.5rem)] lg:grid-cols-[1.05fr_1fr]">
+    <div className="grid min-h-svh lg:grid-cols-[1.05fr_1fr]">
       {/* ── Aside ─────────────────────────────────────────────────────── */}
-      <aside className="relative hidden flex-col justify-between overflow-hidden border-r border-edge p-10 lg:flex xl:p-14">
+      <aside className="relative hidden overflow-hidden lg:flex lg:flex-col lg:justify-between">
+        {/* The field runs to all four edges; the copy sits on a uniform wash plus
+            a vignette, so it reads over the brightest part of the pattern. */}
+        <WarpField shader="voronoi" variant="hero" className="absolute inset-0" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-void/55" />
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-30"
+          className="pointer-events-none absolute inset-0"
           style={{
-            backgroundImage:
-              "radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--color-signal) 45%, transparent) 0.5px, transparent 0)",
-            backgroundSize: "4px 4px",
-            maskImage: "radial-gradient(ellipse 80% 70% at 30% 35%, #000 0%, transparent 75%)",
-            WebkitMaskImage:
-              "radial-gradient(ellipse 80% 70% at 30% 35%, #000 0%, transparent 75%)",
+            background:
+              "radial-gradient(ellipse 78% 62% at 50% 46%, transparent 0%, rgba(11,11,13,0.5) 68%, rgba(11,11,13,0.88) 100%)",
           }}
         />
 
-        <Link href="/" className="brand relative flex items-center gap-3.5">
-          <Logo size={34} cell={1.8} className="brand-mark text-signal" />
-          <span className="brand-name font-mono text-sm tracking-[0.22em] uppercase">Offhrs</span>
-        </Link>
-
-        <div className="relative flex flex-col gap-8 py-16">
-          <h2 className="text-statement max-w-md text-balance text-ink">
+        <div className="relative flex flex-col gap-8 p-10 xl:p-14">
+          <span className="label">Non-custodial</span>
+          <h2 className="font-display max-w-lg text-4xl leading-[1.05] text-balance text-ink xl:text-5xl">
             No accounts. No passwords. No email.
           </h2>
           <p className="max-w-md leading-relaxed text-ink-dim">
@@ -74,30 +73,30 @@ export function ConnectPanel() {
           </p>
         </div>
 
-        <div className="relative">
+        <div className="relative p-10 xl:p-14">
           <SessionClock variant="hero" />
         </div>
       </aside>
 
       {/* ── The panel ─────────────────────────────────────────────────── */}
-      <main className="flex items-center justify-center px-5 py-12 sm:px-10 lg:py-16">
+      <main className="relative flex items-center justify-center px-5 py-12 sm:px-10 lg:py-16">
         <div className="w-full max-w-md">
           <div className="mb-10 flex items-center justify-between gap-4">
-            <Link href="/" className="brand flex items-center gap-3 lg:hidden">
+            <Link href="/" className="brand flex items-center gap-3">
               <Logo size={30} cell={1.7} className="brand-mark text-signal" />
-              <span className="brand-name font-mono text-sm tracking-[0.2em] uppercase">
-                Offhrs
+              <span className="brand-name font-display text-xl leading-none tracking-tight">
+                offhrs
               </span>
             </Link>
             <Link
               href="/"
-              className="ml-auto inline-flex items-center gap-1.5 font-mono text-xs tracking-wider text-ink-faint uppercase transition-colors hover:text-ink"
+              className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider text-ink-faint uppercase transition-colors hover:text-ink"
             >
               <ArrowLeft size={13} /> Back
             </Link>
           </div>
 
-          <h1 className="text-3xl leading-tight font-medium tracking-tight text-balance text-ink sm:text-4xl">
+          <h1 className="font-display text-3xl leading-tight text-balance text-ink sm:text-4xl">
             {address ? "Wallet connected" : "Connect your wallet"}
           </h1>
           <p className="mt-4 leading-relaxed text-ink-dim">
@@ -113,7 +112,7 @@ export function ConnectPanel() {
                 {shortAddress(address, 8, 8)}
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                <Link href="/dashboard" className="btn btn-primary w-full sm:w-auto">
+                <Link href="/app" className="btn btn-primary w-full sm:w-auto">
                   Go to dashboard
                 </Link>
                 <button type="button" onClick={() => void disconnect()} className="btn btn-ghost">
@@ -127,9 +126,9 @@ export function ConnectPanel() {
                mismatched. */
             <div className="mt-10 space-y-px border border-edge bg-edge">
               {[0, 1, 2].map((i) => (
-                <div key={i} className="skeleton flex items-center gap-4 bg-surface px-5 py-4">
-                  <span className="size-9 bg-raised" />
-                  <span className="h-3 w-32 bg-raised" />
+                <div key={i} className="flex items-center gap-4 bg-surface px-5 py-4">
+                  <span className="size-9 animate-pulse bg-raised" />
+                  <span className="h-3 w-32 animate-pulse bg-raised" />
                 </div>
               ))}
             </div>

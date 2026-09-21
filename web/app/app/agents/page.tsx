@@ -27,7 +27,7 @@ export default function AgentsPage() {
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div className="flex flex-col gap-3">
               <span className="label">Agents</span>
-              <h1 className="text-3xl leading-none font-medium text-ink sm:text-4xl">Your agents</h1>
+              <h1 className="font-display text-3xl leading-none text-ink sm:text-4xl">Your agents</h1>
               <p className="max-w-xl text-sm leading-relaxed text-ink-dim">
                 Creators earn the curve fee on every secondary trade of their agent token, on top of
                 the dividends their stakers accrue.
@@ -63,12 +63,12 @@ export default function AgentsPage() {
               </span>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="panel overflow-x-auto rounded-none p-2 sm:p-3">
               <table className="w-full min-w-150 border-collapse">
                 <thead>
                   <tr className="border-b border-edge">
                     {["Agent", "Creator", "Curve fee", "Yield asset", "Curve"].map((h, i) => (
-                      <th key={h} className={`label py-3 ${i === 0 ? "text-left" : "text-right"}`}>
+                      <th key={h} className={`label py-3 ${i === 0 ? "pl-2 text-left" : "text-right"}`}>
                         {h}
                       </th>
                     ))}
@@ -76,8 +76,8 @@ export default function AgentsPage() {
                 </thead>
                 <tbody>
                   {AGENTS.map((a) => (
-                    <tr key={a.id} className="border-b border-edge/60">
-                      <td className="py-3.5">
+                    <tr key={a.id} className="even:bg-signal/5">
+                      <td className="py-3.5 pl-2">
                         <Link
                           href={`/agent/${a.id}`}
                           className="font-mono text-sm text-ink transition-colors hover:text-signal"
@@ -97,10 +97,16 @@ export default function AgentsPage() {
                       <td className="py-3.5 text-right font-mono text-sm text-ink-faint">
                         {a.asset}
                       </td>
-                      <td className="py-3.5 text-right">
+                      <td className="py-3.5 pr-2 text-right">
                         <span className="tabular font-mono text-xs text-ink-dim">
                           {(a.curveProgress * 100).toFixed(0)}%
                         </span>
+                        <Link
+                          href={`/app/agents/${a.id}`}
+                          className="ml-4 font-mono text-[0.625rem] tracking-wider text-signal uppercase"
+                        >
+                          Manage
+                        </Link>
                       </td>
                     </tr>
                   ))}

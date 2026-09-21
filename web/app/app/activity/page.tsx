@@ -42,7 +42,7 @@ export default function ActivityPage() {
         <div className="flex flex-col gap-8">
           <div className="flex flex-col gap-3">
             <span className="label">Activity</span>
-            <h1 className="text-3xl leading-none font-medium text-ink sm:text-4xl">Executions</h1>
+            <h1 className="font-display text-3xl leading-none text-ink sm:text-4xl">Executions</h1>
             <p className="max-w-2xl text-sm leading-relaxed text-ink-dim">
               Every fill an agent makes is written on chain with the Pyth read that justified it. The
               oracle fields are copied from the agent&apos;s signal by the program, so a logged trade
@@ -72,7 +72,7 @@ export default function ActivityPage() {
           </div>
 
           <Link
-            href="/dashboard/profile"
+            href="/app/profile"
             className="font-mono text-xs tracking-wider text-signal uppercase"
           >
             Deployment status →

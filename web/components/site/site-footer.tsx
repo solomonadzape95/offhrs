@@ -16,34 +16,34 @@ import { WarpField } from "@/components/site/warp-field";
  * The page opens, breathes and closes on the same image, which is the cheapest way
  * to make a long page feel like one object.
  *
- * The palette picker lives here, named. This is where the design system is legible
- * as a system rather than as one person's preference.
+ * The columns are the site's index: product, protocol, and the pages that carry
+ * the small print.
  */
 const COLUMNS = [
   {
     title: "Product",
     links: [
       { href: "/explore", label: "Markets" },
+      { href: "/vault", label: "Vault" },
       { href: "/launch", label: "Launch an agent" },
-      { href: "/dashboard", label: "Dashboard" },
-      { href: "/agent/orbital", label: "Agent terminal" },
+      { href: "/app", label: "Dashboard" },
     ],
   },
   {
     title: "Protocol",
     links: [
-      { href: "/#reference", label: "The weekend gap" },
-      { href: "/#board", label: "Dislocation board" },
+      { href: "/#reference", label: "The gap" },
       { href: "/#mechanics", label: "Mechanics" },
       { href: "/#agents", label: "The agents" },
+      { href: "/agent/orbital", label: "Agent terminal" },
     ],
   },
   {
     title: "Elsewhere",
     links: [
-      { href: "/#faq", label: "FAQ" },
+      { href: "/terms", label: "Terms" },
+      { href: "/privacy", label: "Privacy" },
       { href: "https://pyth.network", label: "Pyth", external: true },
-      { href: "https://www.meteora.ag", label: "Meteora", external: true },
       { href: "https://solana.com", label: "Solana", external: true },
     ],
   },
@@ -172,7 +172,7 @@ function Pill({
   external?: boolean;
 }) {
   const cls =
-    "inline-flex items-center gap-2 rounded-[var(--radius-pill)] border border-ink/15 bg-ink/10 px-4 py-2.5 text-sm font-medium text-ink backdrop-blur-md transition-colors hover:border-signal/60 hover:bg-ink/15 hover:shadow-[0_0_48px_-6px_var(--color-signal)]";
+    "inline-flex items-center gap-2 rounded-[var(--radius-pill)] border border-ink/15 bg-ink/10 px-4 py-2.5 text-sm font-medium text-ink backdrop-blur-md transition-colors hover:bg-ink/30";
 
   return (
     <a

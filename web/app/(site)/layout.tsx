@@ -6,7 +6,7 @@ import { fetchAllPreStocks, universeStatus } from "@/lib/market";
  * Chrome for the public marketing surfaces.
  *
  * This lives in a `(site)` route group rather than the root layout so the
- * signed-in `/dashboard` tree can have its own header. In the App Router every
+ * signed-in `/app` tree can have its own header. In the App Router every
  * parent layout wraps every child, so putting the marketing nav at the root meant
  * the dashboard rendered *both* headers.
  *

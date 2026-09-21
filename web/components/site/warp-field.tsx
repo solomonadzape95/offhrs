@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useShaderChoice } from "@/components/site/shader-provider";
 import { useTheme } from "@/components/site/theme-provider";
+import type { ShaderKind } from "@/lib/shader";
 
 /**
  * The field.
@@ -55,18 +56,22 @@ export function WarpField({
   className,
   variant = "hero",
   lazy = false,
+  shader: shaderProp,
 }: {
   className?: string;
   variant?: "hero" | "footer" | "band";
   /** Defer mounting until the field is near the viewport. */
   lazy?: boolean;
+  /** Pin the field to one shader regardless of the page default. */
+  shader?: ShaderKind;
 }) {
   const host = useRef<HTMLSpanElement>(null);
   const [visible, setVisible] = useState(!lazy);
   // Respect the OS setting. The colour and the pattern stay; the motion stops.
   const [reduced, setReduced] = useState(false);
   const { theme } = useTheme();
-  const { shader } = useShaderChoice();
+  const { shader: chosen } = useShaderChoice();
+  const shader = shaderProp ?? chosen;
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");

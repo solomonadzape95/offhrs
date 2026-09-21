@@ -21,6 +21,7 @@ import { AGENTS } from "@/lib/agents";
 import { FAQ } from "@/lib/faq";
 import { usd } from "@/lib/format";
 import { FROZEN_AFTER_SECS, fetchAllPreStocks, readPyth } from "@/lib/market";
+import { DitherIcon } from "@/components/ui/dither-icon";
 
 export const revalidate = 60;
 
@@ -44,10 +45,15 @@ export default async function Home() {
   ]);
 
   const frozen = regime ? regime.stalenessSecs > FROZEN_AFTER_SECS : false;
-  const dislocated = [...stocks].sort((a, b) => Math.abs(b.premiumBps) - Math.abs(a.premiumBps));
+  const dislocated = [...stocks].sort(
+    (a, b) => Math.abs(b.premiumBps) - Math.abs(a.premiumBps),
+  );
   const widest = dislocated[0];
 
-  const tracked = usd(stocks.reduce((s, x) => s + x.markValuation, 0), { compact: true });
+  const tracked = usd(
+    stocks.reduce((s, x) => s + x.markValuation, 0),
+    { compact: true },
+  );
 
   return (
     <>
@@ -65,15 +71,22 @@ export default async function Home() {
           </h1>
 
           <p className="mt-6 max-w-xl text-base leading-relaxed text-ink-dim text-pretty sm:text-lg">
-            Tokenized pre-IPO equity trades around the clock. The reference price it tracks stops at
-            the closing bell. We run agents on the gap, and pay holders in the shares themselves.
+            Tokenized pre-IPO equity trades around the clock. The reference
+            price it tracks stops at the closing bell. We run agents on the gap,
+            and pay holders in the shares themselves.
           </p>
 
           <div className="mt-9 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
-            <Link href="/explore" className="btn btn-primary btn-lg w-full sm:w-auto">
+            <Link
+              href="/explore"
+              className="btn btn-primary btn-lg w-full sm:w-auto"
+            >
               Explore markets
             </Link>
-            <Link href="/launch" className="btn btn-ghost btn-lg w-full sm:w-auto">
+            <Link
+              href="/launch"
+              className="btn btn-ghost btn-lg w-full sm:w-auto"
+            >
               Launch an agent
             </Link>
           </div>
@@ -102,8 +115,9 @@ export default async function Home() {
             </h2>
             <p className="mt-6 max-w-2xl leading-relaxed text-ink-dim">
               Pyth publishes the Apple equity feed on chain with a{" "}
-              <span className="font-mono text-ink">publish_time</span> anyone can read. When that
-              stops advancing, the reference market is closed — and the tokenized marks drift.
+              <span className="font-mono text-ink">publish_time</span> anyone
+              can read. When that stops advancing, the reference market is
+              closed — and the tokenized marks drift.
             </p>
 
             <div className="mt-10 grid grid-cols-2 gap-8">
@@ -111,15 +125,29 @@ export default async function Home() {
                 label="Reference feed"
                 value={regime ? (frozen ? "Frozen" : "Live") : "—"}
                 tone={regime ? (frozen ? "ember" : "signal") : "default"}
-                hint={regime ? `stale ${Math.floor(regime.stalenessSecs / 3600)}h` : "unavailable"}
+                hint={
+                  regime
+                    ? `stale ${Math.floor(regime.stalenessSecs / 3600)}h`
+                    : "unavailable"
+                }
               />
               <Stat
                 label="Last print"
                 value={
-                  regime ? new Date(regime.publishTime * 1000).toISOString().slice(11, 16) : "—"
+                  regime
+                    ? new Date(regime.publishTime * 1000)
+                        .toISOString()
+                        .slice(11, 16)
+                    : "—"
                 }
                 unit="UTC"
-                hint={regime ? new Date(regime.publishTime * 1000).toISOString().slice(0, 10) : ""}
+                hint={
+                  regime
+                    ? new Date(regime.publishTime * 1000)
+                        .toISOString()
+                        .slice(0, 10)
+                    : ""
+                }
               />
             </div>
           </div>
@@ -137,13 +165,25 @@ export default async function Home() {
               />
             </div>
             <div className="bg-void p-6 sm:p-8">
-              <Stat label="Pre-IPO tracked" value={tracked} hint={`${stocks.length} assets`} />
+              <Stat
+                label="Pre-IPO tracked"
+                value={tracked}
+                hint={`${stocks.length} assets`}
+              />
             </div>
             <div className="bg-void p-6 sm:p-8">
-              <Stat label="Agents staged" value={String(AGENTS.length)} hint="registry seeded" />
+              <Stat
+                label="Agents staged"
+                value={String(AGENTS.length)}
+                hint="registry seeded"
+              />
             </div>
             <div className="bg-void p-6 sm:p-8">
-              <Stat label="Assets with a feed" value={regime ? "1" : "—"} hint="Pyth equity feed" />
+              <Stat
+                label="Assets with a feed"
+                value={regime ? "1" : "—"}
+                hint="Pyth equity feed"
+              />
             </div>
           </div>
         </div>
@@ -164,7 +204,13 @@ export default async function Home() {
           <table className="w-full min-w-160 border-collapse">
             <thead>
               <tr className="border-b border-edge">
-                {["Asset", "SPV mark", "Issuer price", "Basis", "Mark value"].map((h, i) => (
+                {[
+                  "Asset",
+                  "SPV mark",
+                  "Issuer price",
+                  "Basis",
+                  "Mark value",
+                ].map((h, i) => (
                   <th
                     key={h}
                     className={`label py-3.5 ${i === 0 ? "pl-4 text-left" : "text-right"} ${
@@ -180,8 +226,12 @@ export default async function Home() {
               {dislocated.map((s) => (
                 <tr key={s.symbol} className="even:bg-signal/5">
                   <td className="py-4 pl-4">
-                    <span className="font-mono text-sm text-ink">{s.symbol}</span>
-                    <span className="ml-3 text-sm text-ink-faint">{s.name}</span>
+                    <span className="font-mono text-sm text-ink">
+                      {s.symbol}
+                    </span>
+                    <span className="ml-3 text-sm text-ink-faint">
+                      {s.name}
+                    </span>
                   </td>
                   <td className="tabular py-4 text-right font-mono text-sm text-ink">
                     {usd(s.markPrice)}
@@ -206,9 +256,9 @@ export default async function Home() {
         </div>
 
         <p className="mt-6 max-w-3xl font-mono text-xs leading-relaxed text-ink-faint">
-          Basis is PreStocks&apos; own published premium, so it is scale-invariant — the mint&apos;s
-          scaledUiAmount multiplier does not affect it. Positive means the token trades below its
-          mark.
+          Basis is PreStocks&apos; own published premium, so it is
+          scale-invariant — the mint&apos;s scaledUiAmount multiplier does not
+          affect it. Positive means the token trades below its mark.
         </p>
       </Section>
 
@@ -252,10 +302,10 @@ export default async function Home() {
               Four desks, one thesis each.
             </h2>
             <p className="mt-6 max-w-2xl leading-relaxed text-ink-dim">
-              Every agent is a wrapper around the same signal with a different risk appetite: what
-              counts as a wide enough gap, which asset it watches, and how long it is willing to
-              hold through the open. The record below is seeded config until the pools exist on
-              chain.
+              Every agent is a wrapper around the same signal with a different
+              risk appetite: what counts as a wide enough gap, which asset it
+              watches, and how long it is willing to hold through the open. The
+              record below is seeded config until the pools exist on chain.
             </p>
           </div>
           <Link href="/explore" className="nav-item">
@@ -267,8 +317,10 @@ export default async function Home() {
 
         <p className="mt-6 font-mono text-xs leading-relaxed text-ink-faint">
           ⚠ Agent records are seeded configuration. The registry PDA is{" "}
-          <span className="text-ink-dim">[b&quot;agent&quot;, agentTokenMint]</span> and this rail
-          reads real accounts the moment a DBC pool exists.
+          <span className="text-ink-dim">
+            [b&quot;agent&quot;, agentTokenMint]
+          </span>{" "}
+          and this rail reads real accounts the moment a DBC pool exists.
         </p>
       </Section>
 
@@ -278,7 +330,10 @@ export default async function Home() {
       <section className="relative isolate flex min-h-[62svh] items-center overflow-hidden border-t border-edge">
         <WarpField variant="band" lazy className="absolute inset-0 -z-10" />
         {/* One uniform wash, not a gradient. */}
-        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-void/70" />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10 bg-void/70"
+        />
 
         <div className="relative mx-auto max-w-app px-5 py-24 text-center sm:px-8">
           <p className="font-display text-headline mx-auto max-w-3xl text-balance text-ink">
@@ -313,13 +368,18 @@ export default async function Home() {
               Fees and arbitrage, streamed to stakers.
             </h2>
             <p className="mt-6 text-lg leading-relaxed text-ink-dim">
-              Every curve trade pays a fee, and every closing trade books a spread. Both land in the
-              vault, and the vault pays them out over time — in the wrapped share itself, not in a
-              token that tracks it.
+              Every curve trade pays a fee, and every closing trade books a
+              spread. Both land in the vault, and the vault pays them out over
+              time — in the wrapped share itself, not in a token that tracks it.
             </p>
 
             <div className="mt-8 flex items-center gap-3">
-              <Icon icon={Lightning} size={16} className="text-signal" dither={false} />
+              <Icon
+                icon={Lightning}
+                size={16}
+                className="text-signal"
+                dither={false}
+              />
               <p className="font-mono text-xs leading-relaxed text-ink-faint">
                 Rewards accrue per slot staked, not per epoch snapshot.
               </p>
@@ -327,21 +387,42 @@ export default async function Home() {
           </div>
 
           {/* The ledger, moved into the space the chart held and enlarged. */}
-          <div className="panel overflow-hidden">
+          <div className="panel overflow-hidden rounded-none">
             <div className="grid gap-px bg-edge">
               {[
-                { k: "Income", v: "DBC curve fees + basis capture", icon: Coins },
-                { k: "Payout", v: "Streamed pro-rata over time held", icon: Hourglass },
-                { k: "Denomination", v: "wPreStock, redeemable 1:1", icon: LockKey },
-                { k: "Rule", v: "Snapshot-free. No staking deadline.", icon: ArrowsClockwise },
+                {
+                  k: "Income",
+                  v: "DBC curve fees + basis capture",
+                  icon: Coins,
+                },
+                {
+                  k: "Payout",
+                  v: "Streamed pro-rata over time held",
+                  icon: Hourglass,
+                },
+                {
+                  k: "Denomination",
+                  v: "wPreStock, redeemable 1:1",
+                  icon: LockKey,
+                },
+                {
+                  k: "Rule",
+                  v: "Snapshot-free. No staking deadline.",
+                  icon: ArrowsClockwise,
+                },
               ].map((f) => (
-                <div key={f.k} className="flex items-center gap-5 bg-void px-6 py-6">
+                <div
+                  key={f.k}
+                  className="flex items-center gap-5 bg-void px-6 py-6"
+                >
                   <span className="flex size-12 shrink-0 items-center justify-center rounded-[14px] bg-signal/8 text-signal">
-                    <Icon icon={f.icon} size={26} dither={false} />
+                    <Icon icon={f.icon} size={26} dither={true} />
                   </span>
                   <div className="min-w-0 flex-1">
                     <span className="label">{f.k}</span>
-                    <p className="mt-1 text-base leading-snug text-ink-dim">{f.v}</p>
+                    <p className="mt-1 text-base leading-snug text-ink-dim">
+                      {f.v}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -365,11 +446,16 @@ export default async function Home() {
               The short answers.
             </h2>
             <p className="mt-6 text-lg leading-relaxed text-ink-dim">
-              Including the two questions most projects leave out: is it deployed, and what can go
-              wrong.
+              Including the two questions most projects leave out: is it
+              deployed, and what can go wrong.
             </p>
             <div className="mt-8 flex items-center gap-3">
-              <Icon icon={Target} size={16} className="text-signal" dither={false} />
+              <Icon
+                icon={Target}
+                size={16}
+                className="text-signal"
+                dither={false}
+              />
               <span className="font-mono text-xs text-ink-faint">
                 Everything here is checkable on chain.
               </span>

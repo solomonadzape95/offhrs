@@ -1,44 +1,68 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 
 import { Basis } from "@/components/app/basis";
 import { Curve } from "@/components/app/curve";
+import { DitherAvatar } from "@/components/site/dither-avatar";
+import { useTheme } from "@/components/site/theme-provider";
 import { usd } from "@/lib/format";
+import { AGENT_AVATAR_COLOR } from "@/lib/avatar";
 import type { AgentSeed } from "@/lib/agents";
 import type { PreStock } from "@/lib/market";
 
 /**
  * Agent card for the /explore grid.
  *
- * §8 asks for: avatar, name, ticker, a dividend badge naming the asset it pays
- * out in, the bonding-curve progress, a 24h arbitrage signal and a quick buy.
+ * Same standards as the landing carousel: a square card, a generative dithered
+ * avatar in white, and a hover that is only the name and the avatar warming to the
+ * active signal. No lift, no glow, no border change — the card is a document, not
+ * a button that wants attention.
  *
  * The market figures are real. The agent record is seeded — `lib/agents.ts`
- * explains why and the badge at the top says PREVIEW.
+ * explains why, and the badge at the bottom says PREVIEW.
  */
 export function AgentCard({ agent, asset }: { agent: AgentSeed; asset?: PreStock }) {
+  const { theme } = useTheme();
+  const [hover, setHover] = useState(false);
   const premiumBps = asset?.premiumBps ?? 0;
 
   return (
     <Link
       href={`/agent/${agent.id}`}
-      className="panel group relative flex flex-col gap-5 p-5 transition-colors hover:border-ink-faint"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onFocus={() => setHover(true)}
+      onBlur={() => setHover(false)}
+      className="panel flex flex-col gap-5 rounded-none p-5"
     >
-      {/* Header: avatar / name / ticker, then the payout badge */}
-      <div className="flex items-start gap-3.5">
-        <Avatar ticker={agent.ticker} />
+      {/* Header: avatar / name / ticker */}
+      <div className="flex items-start gap-4">
+        <DitherAvatar
+          name={agent.id}
+          color={hover ? theme.signal : AGENT_AVATAR_COLOR}
+          className="size-12 shrink-0"
+        />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="truncate text-lg leading-tight font-medium text-ink">{agent.name}</h3>
+            <h3
+              className={`font-display truncate text-xl leading-none transition-colors duration-200 ${
+                hover ? "text-signal" : "text-ink"
+              }`}
+            >
+              {agent.name}
+            </h3>
             <span className="font-mono text-[0.6875rem] tracking-[0.16em] text-ink-faint uppercase">
               ${agent.ticker}
             </span>
           </div>
-          <p className="mt-1.5 line-clamp-2 text-sm leading-snug text-ink-dim">{agent.thesis}</p>
+          <p className="mt-2 line-clamp-2 text-sm leading-snug text-ink-dim">{agent.thesis}</p>
         </div>
       </div>
 
       {/* Dividend badge — names the exact asset the vault streams */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <span className="border border-signal-dim/60 px-2 py-1 font-mono text-[0.625rem] tracking-[0.14em] text-signal uppercase">
           yields {asset?.symbol ?? agent.asset}
         </span>
@@ -67,30 +91,10 @@ export function AgentCard({ agent, asset }: { agent: AgentSeed; asset?: PreStock
         <span className="font-mono text-[0.625rem] tracking-[0.14em] text-ink-faint uppercase">
           preview · no pool yet
         </span>
-        <span className="font-mono text-xs tracking-[0.14em] text-signal uppercase opacity-70 transition-opacity group-hover:opacity-100">
-          Quick buy →
+        <span className="font-mono text-xs tracking-[0.14em] text-signal uppercase">
+          Open terminal →
         </span>
       </div>
     </Link>
-  );
-}
-
-/**
- * A dithered monogram rather than a logo file.
- *
- * Real launches would carry an image; until then a generated mark keeps the grid
- * from filling with broken-image boxes and reads as intentionally unfinished
- * rather than as a bug.
- */
-function Avatar({ ticker }: { ticker: string }) {
-  return (
-    <span
-      aria-hidden
-      className="dither relative grid size-11 shrink-0 place-items-center border border-edge bg-raised"
-    >
-      <span className="font-mono text-[0.6875rem] tracking-[0.08em] text-ink-dim">
-        {ticker.slice(0, 2)}
-      </span>
-    </span>
   );
 }

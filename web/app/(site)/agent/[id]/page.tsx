@@ -101,7 +101,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl leading-none font-medium text-ink sm:text-4xl">
+              <h1 className="font-display text-3xl leading-none text-ink sm:text-4xl">
                 {agent.name}
               </h1>
               <span className="font-mono text-xs tracking-[0.16em] text-ink-faint uppercase">

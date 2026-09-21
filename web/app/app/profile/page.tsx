@@ -3,7 +3,8 @@
 import Link from "next/link";
 
 import { RequireWallet } from "@/components/app/require-wallet";
-import { Avatar } from "@/components/site/avatar";
+import { DitherAvatar } from "@/components/site/dither-avatar";
+import { USER_AVATAR_HUE } from "@/lib/avatar";
 import { SessionClock } from "@/components/site/session-clock";
 import { useWalletUi, shortAddress, walletNote } from "@/lib/wallet";
 
@@ -50,7 +51,7 @@ export default function ProfilePage() {
         <div className="flex flex-col gap-12">
           <div className="flex flex-col gap-3">
             <span className="label">Profile</span>
-            <h1 className="text-3xl leading-none font-medium text-ink sm:text-4xl">
+            <h1 className="font-display text-3xl leading-none text-ink sm:text-4xl">
               Your wallet is your account
             </h1>
             <p className="max-w-2xl text-sm leading-relaxed text-ink-dim">
@@ -61,7 +62,7 @@ export default function ProfilePage() {
 
           {/* Identity */}
           <div className="panel flex flex-wrap items-center gap-6 p-6">
-            <Avatar seed={address ?? ""} size={64} />
+            <DitherAvatar name={address ?? ""} hue={USER_AVATAR_HUE} size={64} />
             <div className="flex min-w-0 flex-1 flex-col gap-2">
               <span className="label">Address</span>
               <span className="font-mono text-sm break-all text-ink">{address}</span>
