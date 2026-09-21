@@ -1,0 +1,195 @@
+/**
+ * Angel agent runtime.
+ *
+ *   snapshot -> decide -> (attest on-chain) -> execute -> (log on-chain)
+ *
+ * Defaults to dry-run so the signal engine is fully inspectable with no funds
+ * and no keys:
+ *
+ *   pnpm exec tsx agent/src/index.ts                 # one pass, no writes
+ *   ANGEL_ONCE=1 pnpm exec tsx agent/src/index.ts    # same, explicit
+ */
+import { Connection, PublicKey } from "@solana/web3.js";
+
+import { config, FEED_IDS, requireFeedId } from "./config.js";
+import { collectSnapshot, fetchPreStock, type MarketSnapshot } from "./market.js";
+import { decide, shouldExecute, DEFAULT_PARAMS, type Decision } from "./signal.js";
+import { selectAdapter } from "./execution.js";
+import * as chain from "./chain.js";
+
+const c = {
+  dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
+  bold: (s: string) => `\x1b[1m${s}\x1b[0m`,
+  green: (s: string) => `\x1b[32m${s}\x1b[0m`,
+  yellow: (s: string) => `\x1b[33m${s}\x1b[0m`,
+  red: (s: string) => `\x1b[31m${s}\x1b[0m`,
+  cyan: (s: string) => `\x1b[36m${s}\x1b[0m`,
+};
+
+const fmtBps = (bps: number) =>
+  `${bps >= 0 ? "+" : ""}${bps}bps`.padStart(9);
+
+function report(snap: MarketSnapshot, d: Decision) {
+  const reg = d.regime === "frozen" ? c.yellow("FROZEN") : c.green("LIVE  ");
+  console.log(
+    c.bold(`\n${snap.prestock.symbol}`) +
+      c.dim(` (${snap.prestock.name})`) +
+      c.dim(`  ${snap.at}`),
+  );
+  console.log(`  reference ${c.cyan(config.referenceFeed)}  regime ${reg}` +
+    c.dim(`  (${snap.pyth.stalenessSecs}s stale, publish ${new Date(snap.pyth.publishTime * 1000).toISOString()})`));
+  const scaled = snap.pyth.price * 10 ** snap.pyth.exponent;
+  console.log(
+    `  pyth      ${c.cyan("$" + scaled.toLocaleString(undefined, { maximumFractionDigits: 6 }))}` +
+      c.dim(`  raw ${snap.pyth.price}e${snap.pyth.exponent}  conf ±${snap.pyth.conf}`),
+  );
+
+  console.log(
+    `  spv mark  $${snap.prestock.markPrice.toFixed(2)}` +
+      c.dim(`   (markVal $${(snap.prestock.markValuation / 1e9).toFixed(2)}B)`),
+  );
+  console.log(
+    `  api token $${snap.prestock.tokenPrice.toFixed(2)}` +
+      c.dim(`  unscaled`),
+  );
+  console.log(
+    `  dex quote $${snap.dex.priceUsd.toFixed(2)}` +
+      c.dim(`  via ${snap.dex.route.join(" -> ") || "n/a"}, impact ${(snap.dex.priceImpactPct * 100).toFixed(3)}%`),
+  );
+  console.log(
+    `  multiplier ${c.cyan(snap.effectiveMultiplier.toFixed(4) + "x")} derived from quote/API` +
+      c.dim(`  (scaledUiAmount — the API is unscaled)`),
+  );
+
+  const edge = d.edgeBps;
+  const edgeStr = edge > 0 ? c.green(fmtBps(edge)) : edge < 0 ? c.red(fmtBps(edge)) : fmtBps(edge);
+  console.log(`  basis      ${edgeStr}   net ${fmtBps(d.netEdgeBps)} after ~${DEFAULT_PARAMS.costBps}bps costs`);
+  console.log(`  decision   ${c.bold(d.direction)}`);
+
+  if (d.warnings.length) for (const w of d.warnings) console.log(`  ${c.yellow("warn")}       ${w}`);
+  console.log(c.dim(`  reason     ${d.reason}`));
+}
+
+async function onePass(conn: Connection, execute: boolean) {
+  const snap = await collectSnapshot(conn, config.symbol, config.referenceFeed, config.frozenAfterSecs);
+  const decision = decide(snap);
+  report(snap, decision);
+
+  const adapter = selectAdapter();
+  const actionable = shouldExecute(decision);
+
+  if (!actionable) {
+    console.log(c.dim(`  action     none (${adapter.name} backend idle)\n`));
+    return { snap, decision, executed: false };
+  }
+
+  if (!execute) {
+    console.log(
+      c.dim(`  action     actionable but read-only — set --execute to send (backend ${adapter.name})\n`),
+    );
+    return { snap, decision, executed: false };
+  }
+
+  if (!adapter.ready()) {
+    console.log(c.red(`  action     backend ${adapter.name} not ready — skipping\n`));
+    return { snap, decision, executed: false };
+  }
+
+  const { program } = chain.loadProgram();
+  const agent = chain.agentPda(program.programId, new PublicKey(snap.prestock.mint));
+
+  // 1. Attest the Pyth read. `logArb` requires this to exist, so the execution
+  //    record can never be detached from real oracle data.
+  const signalSig = await chain.recordSignal(program, agent, new PublicKey(snap.pyth.account), {
+    feedIdHex: requireFeedId(config.referenceFeed),
+    maxStalenessSecs: config.maxStalenessSecs,
+    frozenAfterSecs: config.frozenAfterSecs,
+  });
+  console.log(c.green(`  attested   record_signal ${signalSig}`));
+
+  // 2. Execute.
+  const result = await adapter.execute(snap, decision, config.notional);
+  console.log(c.dim(`  execute    ${result.backend}: ${result.detail}`));
+
+  // 3. Log it, copying the attestation onto the record.
+  const a: any = await chain.readAgent(program, agent);
+  const sig = await chain.logArb(
+    program,
+    agent,
+    requireFeedId(config.referenceFeed),
+    Number(a.executionCount),
+    result.amountIn,
+    result.amountOut,
+    chain.venueFromAdapter(result.venue),
+  );
+  console.log(c.green(`  logged     log_arb #${a.executionCount} ${sig}\n`));
+
+  return { snap, decision, executed: true, signature: sig };
+}
+
+/** Print the on-chain execution log — the §8 "live terminal" data source. */
+async function showExecutions() {
+  const { program } = chain.loadProgram();
+  const agent = chain.agentPda(program.programId, new PublicKey((await fetchPreStock(config.symbol)).mint));
+  const rows = await chain.readExecutions(program, agent);
+  console.log(c.bold(`\n=== on-chain execution log (${agent.toBase58()}) ===`));
+  if (!rows.length) {
+    console.log(c.dim("  no executions logged yet"));
+    return;
+  }
+  for (const r of rows) {
+    console.log(
+      `  #${String(r.index).padStart(3)}  ${r.venue.padEnd(14)} ` +
+        `in ${r.amountIn.padStart(14)} -> out ${r.amountOut.padStart(14)}  ` +
+        c.green(`profit ${r.profit.padStart(12)}`) +
+        c.dim(`  pyth $${r.pythPrice}e${r.pythExponent} ${r.regime} ${r.stalenessSecs}s`),
+    );
+  }
+}
+
+async function main() {
+  const args = process.argv.slice(2);
+  const execute = args.includes("--execute");
+  const conn = new Connection(config.rpcUrl, "confirmed");
+
+  if (args.includes("--feeds")) {
+    console.log(c.bold("\nKnown permissionless on-chain feeds:"));
+    for (const [sym, id] of Object.entries(FEED_IDS)) console.log(`  ${sym.padEnd(24)} ${c.dim(id)}`);
+    console.log(
+      c.dim("\nEquity.Index.OPENAI/ANTHROPIC are gated on Hermes AND absent on-chain.\n"),
+    );
+    return;
+  }
+
+  if (args.includes("--log")) {
+    await showExecutions();
+    return;
+  }
+
+  console.log(c.bold("\n=== Angel agent ==="));
+  console.log(
+    c.dim(
+      `execution=${config.execution}  symbol=${config.symbol}  reference=${config.referenceFeed}` +
+        `  minEdge=${config.minEdgeBps}bps  mode=${execute ? "EXECUTE" : "read-only"}\n`,
+    ),
+  );
+
+  await onePass(conn, execute);
+  if (config.once || execute) return;
+
+  console.log(c.dim(`\nlooping every ${config.loopSeconds}s — ctrl-c to stop`));
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    await new Promise((r) => setTimeout(r, config.loopSeconds * 1000));
+    try {
+      await onePass(conn, execute);
+    } catch (e: any) {
+      console.log(c.red(`pass failed: ${e?.message ?? e}`));
+    }
+  }
+}
+
+main().catch((e) => {
+  console.error(c.red(`\nfatal: ${e?.message ?? e}`));
+  process.exit(1);
+});

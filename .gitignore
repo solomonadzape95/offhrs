@@ -1,0 +1,14 @@
+# deps / build
+node_modules/
+target/
+.next/
+out/
+*.tsbuildinfo
+
+# secrets / local tooling
+.env
+.env.*
+.devnet-keypair.json
+.anchor/
+.DS_Store
+*.log

@@ -1,0 +1,14 @@
+packages:
+  - "web"
+
+allowBuilds:
+  # tsx needs esbuild's postinstall binary
+  esbuild: true
+  # optional native speedups for web3.js — pure-JS fallbacks are fine
+  bigint-buffer: false
+  bufferutil: false
+  utf-8-validate: false
+  # sharp is only needed by next/image optimisation; not used here
+  sharp: false
+  # eslint's resolver native binding; lint only
+  unrs-resolver: false

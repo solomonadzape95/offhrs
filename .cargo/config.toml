@@ -1,0 +1,8 @@
+# This machine's CommandLineTools install has a mismatched SDK/linker:
+#   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -> MacOSX27.0.sdk
+# whose .tbd files declare an arch token (`arm64e.x1-macos`) that the installed
+# ld-1267 cannot parse, so even `cc` fails to link a trivial C file.
+# MacOSX26.5.sdk links fine. Pin SDKROOT so host build-script linking works.
+# Remove this if you fix the CLT install (or `xcode-select -s` a full Xcode).
+[env]
+SDKROOT = { value = "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk", force = false }
