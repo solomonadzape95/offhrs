@@ -1,31 +1,61 @@
 "use client";
 
 import { ArrowsClockwise, Coins, Hourglass, LockKey, Vault as VaultIcon } from "@phosphor-icons/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { getUserPosition } from "@/app/actions";
+import { buildClaimTx, buildStakeTx, getUserPosition } from "@/app/actions";
 import { Stat } from "@/components/site/stat";
 import { Icon } from "@/components/ui/icon";
 import { useServerData } from "@/lib/use-server-data";
+import { useWriteTx } from "@/lib/use-write-tx";
 import { useWalletUi } from "@/lib/wallet";
+
+/** `$AGENT` base decimals from the DBC config. */
+const AGENT_DECIMALS = 6;
 
 /**
  * The vault: stake, accrue, claim.
  *
- * This is the loop the whole product promises — curve fees and arbitrage spread
- * land in the vault and stream to stakers over time, paid in the wrapped share
- * itself. The surface is built now, in full, so the shape the numbers arrive into
- * is settled; the numbers themselves are em dashes because the program is not
- * deployed, and an em dash is what an unavailable reading honestly looks like.
- *
- * The income ledger on the right is the same four facts the landing page states,
- * restated here because this is where they become actionable.
+ * The figures are read from the chain, and the two buttons are live: they build
+ * an unsigned transaction on the server, have the connected wallet sign it, and
+ * relay it back. Rewards stream per slot held, so the accrued figure grows
+ * between claims without anyone touching the vault.
  */
 export function VaultPanel() {
-  const [amount, setAmount] = useState("");
   const { address } = useWalletUi();
-  const pos = useServerData(address, () => getUserPosition(address as string));
+  const [nonce, setNonce] = useState(0);
+  const [amount, setAmount] = useState("");
+  const [selected, setSelected] = useState("");
+
+  const pos = useServerData(address ? `${address}:${nonce}` : null, () =>
+    getUserPosition(address as string),
+  );
+  const rows = pos.status === "ready" ? pos.data.rows : [];
   const totals = pos.status === "ready" ? pos.data.totals : null;
+
+  const { state, run, reset } = useWriteTx(() => setNonce((n) => n + 1));
+  const busy = state.status === "signing" || state.status === "sending";
+
+  // Default the selector to the first agent once the registry has loaded.
+  useEffect(() => {
+    if (!selected && rows.length > 0) setSelected(rows[0].agentId);
+  }, [rows, selected]);
+
+  const target = selected || rows[0]?.agentId || "";
+
+  const onStake = () => {
+    if (!address || !target) return;
+    const n = Number(amount);
+    if (!Number.isFinite(n) || n <= 0) return;
+    const raw = BigInt(Math.floor(n * 10 ** AGENT_DECIMALS)).toString();
+    void run(() => buildStakeTx(address, target, raw));
+    setAmount("");
+  };
+
+  const onClaim = () => {
+    if (!address || !target) return;
+    void run(() => buildClaimTx(address, target));
+  };
 
   return (
     <div className="flex flex-col gap-10">
@@ -73,45 +103,86 @@ export function VaultPanel() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_1.05fr]">
-        {/* Stake form. Disabled, and says why. */}
+        {/* Stake / claim */}
         <div className="panel flex flex-col p-6 lg:p-7">
           <span className="label">Stake an agent token</span>
 
-          <div className="mt-5 flex items-center gap-3 border border-edge bg-void px-4 py-3.5">
-            <input
-              value={amount}
-              onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
-              inputMode="decimal"
-              placeholder="0.00"
-              aria-label="Amount to stake"
-              className="w-full bg-transparent font-mono text-lg text-ink outline-none placeholder:text-ink-faint"
-            />
-            <span className="shrink-0 font-mono text-xs tracking-wider text-ink-faint uppercase">
-              wPreStock
-            </span>
-          </div>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            {["25%", "50%", "Max"].map((p) => (
-              <button
-                key={p}
-                type="button"
-                disabled
-                className="border border-edge px-3 py-1.5 font-mono text-[0.625rem] tracking-wider text-ink-faint uppercase disabled:opacity-50"
+          {rows.length === 0 ? (
+            <p className="mt-5 text-sm leading-relaxed text-ink-dim">
+              {pos.status === "loading"
+                ? "Reading the registry…"
+                : "No agent is registered on this cluster yet, so there is nothing to stake into."}
+            </p>
+          ) : (
+            <>
+              <select
+                value={target}
+                onChange={(e) => {
+                  setSelected(e.target.value);
+                  reset();
+                }}
+                aria-label="Agent to stake"
+                className="mt-5 w-full border border-edge bg-void px-4 py-3 font-mono text-sm text-ink outline-none"
               >
-                {p}
-              </button>
-            ))}
-          </div>
+                {rows.map((r) => (
+                  <option key={r.agentId} value={r.agentId}>
+                    {r.name} (${r.ticker}) — staked {r.staked}
+                  </option>
+                ))}
+              </select>
 
-          <button type="button" disabled className="btn btn-primary mt-5 w-full disabled:opacity-50">
-            Stake
-          </button>
+              <div className="mt-3 flex items-center gap-3 border border-edge bg-void px-4 py-3.5">
+                <input
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  aria-label="Amount to stake"
+                  className="w-full bg-transparent font-mono text-lg text-ink outline-none placeholder:text-ink-faint"
+                />
+                <span className="shrink-0 font-mono text-xs tracking-wider text-ink-faint uppercase">
+                  $AGENT
+                </span>
+              </div>
 
-          <p className="mt-4 font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
-            The vault is deployed and streams on chain, but this form is not yet wired to a
-            transaction. Rewards accrue per slot staked, not per epoch snapshot.
-          </p>
+              <div className="mt-5 flex gap-3">
+                <button
+                  type="button"
+                  onClick={onStake}
+                  disabled={busy || !amount || Number(amount) <= 0}
+                  className="btn btn-primary flex-1 disabled:opacity-50"
+                >
+                  {state.status === "signing"
+                    ? "Sign…"
+                    : state.status === "sending"
+                      ? "Sending…"
+                      : "Stake"}
+                </button>
+                <button
+                  type="button"
+                  onClick={onClaim}
+                  disabled={busy || !target}
+                  className="btn btn-ghost disabled:opacity-50"
+                >
+                  Claim
+                </button>
+              </div>
+
+              {state.status === "done" && (
+                <p className="mt-3 font-mono text-[0.6875rem] break-all text-signal">
+                  Confirmed: {state.signature}
+                </p>
+              )}
+              {state.status === "error" && (
+                <p className="mt-3 text-xs leading-relaxed text-ember">{state.error}</p>
+              )}
+
+              <p className="mt-4 font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
+                Signed in your wallet; the vault never holds your keys. Rewards accrue per slot
+                staked, not per epoch snapshot.
+              </p>
+            </>
+          )}
         </div>
 
         {/* Income ledger — the four facts, made legible. */}

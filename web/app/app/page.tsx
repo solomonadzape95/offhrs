@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 
+import { buildClaimTx, getUserPosition } from "@/app/actions";
 import { RequireWallet } from "@/components/app/require-wallet";
 import { SessionClock } from "@/components/site/session-clock";
 import { Stat } from "@/components/site/stat";
-import { getUserPosition } from "@/app/actions";
 import { useServerData } from "@/lib/use-server-data";
+import { useWriteTx } from "@/lib/use-write-tx";
 import { useWalletUi, shortAddress } from "@/lib/wallet";
 import { useBalance } from "@solana/react-hooks";
 import { lamportsToSolString } from "@solana/client";
@@ -33,7 +35,12 @@ function Position() {
   const { address } = useWalletUi();
   const { lamports } = useBalance(address as never);
 
-  const pos = useServerData(address, () => getUserPosition(address as string));
+  const [nonce, setNonce] = useState(0);
+  const pos = useServerData(address ? `${address}:${nonce}` : null, () =>
+    getUserPosition(address as string),
+  );
+  const { state: write, run } = useWriteTx(() => setNonce((n) => n + 1));
+  const busy = write.status === "signing" || write.status === "sending";
   const data = pos.status === "ready" ? pos.data : null;
   const sol = lamports != null ? lamportsToSolString(lamports) : null;
 
@@ -148,7 +155,16 @@ function Position() {
                     {r.accrued}
                   </td>
                   <td className="py-3.5 text-right font-mono text-sm text-ink-faint">{r.asset}</td>
-                  <td className="py-3.5 text-right font-mono text-xs text-ink-faint">—</td>
+                  <td className="py-3.5 text-right">
+                    <button
+                      type="button"
+                      disabled={busy || Number(r.staked) <= 0}
+                      onClick={() => address && void run(() => buildClaimTx(address, r.agentId))}
+                      className="font-mono text-[0.625rem] tracking-wider text-signal uppercase disabled:opacity-40"
+                    >
+                      {busy ? "…" : "Claim"}
+                    </button>
+                  </td>
                 </tr>
               ))}
               {data && data.rows.length === 0 && (
@@ -171,6 +187,14 @@ function Position() {
               ? "Read from your UserStake and DividendVault accounts on chain. Accrued rewards stream per slot held, so the figure grows between interactions without anyone claiming."
               : "The stock_vault program is not reachable on the cluster this app is pointed at, so there is nothing for a wallet to stake into. An em dash is what an unavailable reading honestly looks like."}
           </p>
+          {write.status === "done" && (
+            <p className="font-mono text-[0.6875rem] break-all text-signal">
+              Claim confirmed: {write.signature}
+            </p>
+          )}
+          {write.status === "error" && (
+            <p className="text-xs leading-relaxed text-ember">{write.error}</p>
+          )}
           <Link
             href="/app/profile"
             className="font-mono text-xs tracking-wider text-signal uppercase"

@@ -371,6 +371,10 @@ export const stakePda = (vault: string | PublicKey, owner: string | PublicKey) =
     new PublicKey(vault).toBuffer(),
     new PublicKey(owner).toBuffer(),
   ]);
+export const stakeVaultPda = (vault: string | PublicKey) =>
+  pda([Buffer.from("stake_vault"), new PublicKey(vault).toBuffer()]);
+export const rewardVaultPda = (vault: string | PublicKey) =>
+  pda([Buffer.from("reward_vault"), new PublicKey(vault).toBuffer()]);
 export const execPda = (agent: string | PublicKey, index: number) => {
   const b = Buffer.alloc(8);
   b.writeBigUInt64LE(BigInt(index));

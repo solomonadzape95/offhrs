@@ -13,6 +13,8 @@
  * they return empty data rather than throwing, so a page renders an honest empty
  * state instead of an error boundary.
  */
+import { Connection } from "@solana/web3.js";
+
 import {
   fetchAgents,
   fetchExecutions,
@@ -21,10 +23,19 @@ import {
   fetchUserStake,
   fetchVaultByPda,
   fetchWrappers,
+  PROGRAM_RPC_URL,
   type OnChainVault,
 } from "@/lib/chain";
+import { buildClaimTransaction, buildStakeTransaction } from "@/lib/program-tx";
 import { fetchAllPreStocks } from "@/lib/market";
-import type { AgentView, ExecutionView, Portfolio, PositionRow } from "@/lib/portfolio";
+import type {
+  AgentView,
+  BuildTxResult,
+  ExecutionView,
+  Portfolio,
+  PositionRow,
+  SubmitResult,
+} from "@/lib/portfolio";
 
 const PRECISION = 10n ** 12n;
 /** `$AGENT` base decimals from the DBC config; `wPreStock` inherits the PreStock's 9. */
@@ -202,5 +213,56 @@ export async function getUserExecutions(owner: string, limit = 50): Promise<Exec
     return out.sort((a, b) => b.executedAt - a.executedAt).slice(0, limit);
   } catch {
     return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Write path — build unsigned, relay signed. The wallet signs; we never key.
+// ---------------------------------------------------------------------------
+
+const rpc = () => new Connection(PROGRAM_RPC_URL, "confirmed");
+
+const serialize = (tx: Awaited<ReturnType<typeof buildStakeTransaction>>): string =>
+  tx
+    .serialize({ requireAllSignatures: false, verifySignatures: false })
+    .toString("base64");
+
+export async function buildStakeTx(
+  owner: string,
+  agentId: string,
+  amountRaw: string,
+): Promise<BuildTxResult> {
+  try {
+    const { blockhash } = await rpc().getLatestBlockhash("confirmed");
+    const tx = await buildStakeTransaction(owner, agentId, BigInt(amountRaw), blockhash);
+    return { tx: serialize(tx) };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+export async function buildClaimTx(owner: string, agentId: string): Promise<BuildTxResult> {
+  try {
+    const { blockhash } = await rpc().getLatestBlockhash("confirmed");
+    const tx = await buildClaimTransaction(owner, agentId, blockhash);
+    return { tx: serialize(tx) };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Relay a wallet-signed transaction. The server never holds a key. */
+export async function submitTx(signedBase64: string): Promise<SubmitResult> {
+  try {
+    const conn = rpc();
+    const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash("confirmed");
+    const signature = await conn.sendRawTransaction(Buffer.from(signedBase64, "base64"), {
+      skipPreflight: false,
+      maxRetries: 3,
+    });
+    await conn.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
+    return { signature };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
   }
 }

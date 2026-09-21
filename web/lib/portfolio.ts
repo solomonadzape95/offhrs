@@ -64,3 +64,9 @@ export type ExecutionView = {
   stalenessSecs: number;
   executedAt: number;
 };
+
+/** An unsigned, base64 wire transaction, or the reason it could not be built. */
+export type BuildTxResult = { tx: string } | { error: string };
+
+/** The relayed signature, or the reason the send failed. */
+export type SubmitResult = { signature: string } | { error: string };
