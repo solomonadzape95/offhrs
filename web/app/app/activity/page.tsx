@@ -2,23 +2,20 @@
 
 import Link from "next/link";
 
+import { getUserExecutions } from "@/app/actions";
 import { RequireWallet } from "@/components/app/require-wallet";
 import { Terminal, type TerminalRow } from "@/components/app/terminal";
+import { useServerData } from "@/lib/use-server-data";
 import { useWalletUi } from "@/lib/wallet";
 
 /**
  * Activity — the execution log.
  *
- * §8 wants a live terminal of the agent's on-chain arbitrage executions. Those
- * records are `ArbExecution` accounts on the `stock_vault` program, and the
- * program is not deployed, so there are none to read. Rather than fill the
- * terminal with invented fills, this states the schema and shows nothing until
- * there is something true to show.
- *
- * The wiring is `getProgramAccounts` against the program id filtered on the
- * `ArbExecution` discriminator, decoded with the same field order as
- * `programs/stock_vault/src/state.rs`. That is a small amount of code that
- * cannot be written honestly until the program has an address to point at.
+ * Reads the agent's `ArbExecution` accounts on chain through the
+ * `getUserExecutions` server action and renders them in the same terminal the
+ * public agent page uses. Each row carries the Pyth read that justified it,
+ * copied onto the record by the program — so a fill cannot be shown without the
+ * oracle data behind it.
  */
 const SCHEMA = [
   ["index", "u64", "monotonic per agent; also the PDA seed"],
@@ -31,7 +28,16 @@ const SCHEMA = [
 ];
 
 export default function ActivityPage() {
-  const rows: TerminalRow[] = [];
+  const { address } = useWalletUi();
+  const execs = useServerData(address, () => getUserExecutions(address as string));
+
+  const rows: TerminalRow[] = (execs.status === "ready" ? execs.data : []).map((e) => ({
+    t: e.executedAt,
+    kind: "fill",
+    text:
+      `${e.agentName} #${e.index} ${e.venue}  ${e.amountIn} → ${e.amountOut}  profit ${e.profit}` +
+      `  ·  pyth ${e.pythPrice}e${e.pythExponent} ${e.regime} stale ${e.stalenessSecs}s`,
+  }));
 
   return (
     <section className="mx-auto max-w-app px-5 py-10 sm:px-8 sm:py-14">
@@ -53,7 +59,7 @@ export default function ActivityPage() {
           <Terminal rows={rows} title="arb.log" />
 
           <div className="panel flex flex-col gap-5 p-6">
-            <span className="label">What a record will contain</span>
+            <span className="label">What a record contains</span>
             <dl className="flex flex-col divide-y divide-edge/60">
               {SCHEMA.map(([field, type, note]) => (
                 <div key={field} className="grid gap-1 py-3 sm:grid-cols-[14rem_5rem_1fr] sm:gap-4">
@@ -64,10 +70,11 @@ export default function ActivityPage() {
               ))}
             </dl>
             <p className="max-w-2xl font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
-              Written and tested in{" "}
-              <span className="text-ink-dim">programs/stock_vault/src/execution.rs</span>, with 7
-              integration tests covering the attestation copy, the index ordering, and the
-              authorisation. None of it can be read from a browser until the program has an address.
+              {execs.status === "ready" && execs.data.length > 0
+                ? `${execs.data.length} execution${execs.data.length === 1 ? "" : "s"} logged for your agents on this cluster.`
+                : "No executions logged for your agents on this cluster yet. Written and tested in " +
+                  "programs/stock_vault/src/execution.rs, with 7 integration tests covering the " +
+                  "attestation copy, the index ordering and the authorisation."}
             </p>
           </div>
 

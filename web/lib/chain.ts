@@ -470,6 +470,13 @@ export async function programDeployed(): Promise<boolean> {
 }
 
 /**
+ * Current cluster slot. The vault's accumulator only advances when an instruction
+ * settles it, so readers project streaming rewards from the slot delta rather than
+ * showing a stale figure between interactions.
+ */
+export const fetchSlot = () => connection().getSlot("confirmed");
+
+/**
  * Map a `wrapped_mint` back to the raw PreStock it wraps, using the wrapper
  * registry. Callers join the result against the PreStocks universe to recover the
  * symbol (`prestock_mint === PreStock.mint`).
@@ -522,6 +529,7 @@ export type LiveAgent = {
   asset: string;
   thesis: string;
   creator: string;
+  agentSigner: string;
   feeBps: number;
   curveProgress: number;
   lastTradeSecsAgo: number;
@@ -559,6 +567,7 @@ export async function toLiveAgent(
     thesis:
       "On-chain agent. Its vault streams the wrapped PreStock it was registered against.",
     creator: agent.creator,
+    agentSigner: agent.agentSigner,
     feeBps: agent.dynamicFeeBps,
     curveProgress: 0,
     lastTradeSecsAgo: 0,

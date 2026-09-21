@@ -2,20 +2,24 @@
 
 import Link from "next/link";
 
+import { getUserAgents } from "@/app/actions";
 import { RequireWallet } from "@/components/app/require-wallet";
 import { AGENTS } from "@/lib/agents";
+import { useServerData } from "@/lib/use-server-data";
 import { useWalletUi, shortAddress } from "@/lib/wallet";
 
 /**
  * Agents.
  *
- * Splits the seeded launch set from the ones this wallet actually deployed.
- * There are none in the second list because the registry program is not
- * deployed, and showing seeded rows under a "yours" heading would be the one
+ * "Yours" is read from the chain — agents whose `creator` or `agent_signer` is
+ * the connected wallet. The seeded launch set stays below, explicitly labelled,
+ * as the staging list. Listing the seeded rows under "yours" would be the one
  * genuinely misleading thing this page could do.
  */
 export default function AgentsPage() {
   const { address } = useWalletUi();
+  const mine = useServerData(address, () => getUserAgents(address as string));
+  const rows = mine.status === "ready" ? mine.data : [];
 
   return (
     <section className="mx-auto max-w-app px-5 py-10 sm:px-8 sm:py-14">
@@ -41,17 +45,69 @@ export default function AgentsPage() {
           {/* Yours */}
           <div className="flex flex-col gap-5">
             <span className="label">Created by {address ? shortAddress(address) : "you"}</span>
-            <div className="panel flex flex-col gap-4 p-6">
-              <p className="max-w-2xl text-sm leading-relaxed text-ink-dim">
-                None yet. Deploying creates three things: the zero-fee wrapper mint for the PreStock,
-                the agent record, and the dividend vault — then the DBC pool that trades against it.
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <Link href="/launch" className="btn btn-ghost !px-4 !py-2.5 !text-xs">
-                  Open the creator studio
-                </Link>
+
+            {rows.length > 0 ? (
+              <div className="panel overflow-x-auto rounded-none p-2 sm:p-3">
+                <table className="w-full min-w-150 border-collapse">
+                  <thead>
+                    <tr className="border-b border-edge">
+                      {["Agent", "Mint", "Curve fee", "Yield asset", "Executions"].map((h, i) => (
+                        <th key={h} className={`label py-3 ${i === 0 ? "pl-2 text-left" : "text-right"}`}>
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((a) => (
+                      <tr key={a.id} className="even:bg-signal/5">
+                        <td className="py-3.5 pl-2">
+                          <Link
+                            href={`/agent/${a.id}`}
+                            className="font-mono text-sm text-ink transition-colors hover:text-signal"
+                          >
+                            {a.name}
+                          </Link>
+                          <span className="ml-3 font-mono text-[0.625rem] tracking-[0.14em] text-ink-faint uppercase">
+                            ${a.ticker}
+                          </span>
+                        </td>
+                        <td className="py-3.5 text-right font-mono text-xs text-ink-faint">
+                          {shortAddress(a.id, 6, 6)}
+                        </td>
+                        <td className="tabular py-3.5 text-right font-mono text-sm text-ink-dim">
+                          {(a.feeBps / 100).toFixed(1)}%
+                        </td>
+                        <td className="py-3.5 text-right font-mono text-sm text-ink-faint">
+                          {a.asset}
+                        </td>
+                        <td className="py-3.5 pr-2 text-right font-mono text-xs text-ink-dim">
+                          <Link
+                            href={`/app/agents/${a.id}`}
+                            className="font-mono text-[0.625rem] tracking-wider text-signal uppercase"
+                          >
+                            Manage
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
+            ) : (
+              <div className="panel flex flex-col gap-4 p-6">
+                <p className="max-w-2xl text-sm leading-relaxed text-ink-dim">
+                  {mine.status === "loading"
+                    ? "Reading the registry…"
+                    : "None yet. Launching registers an Agent account against your wallet, and the vault that streams its equity to stakers."}
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <Link href="/launch" className="btn btn-ghost !px-4 !py-2.5 !text-xs">
+                    Open the creator studio
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* The seeded set, labelled as such */}

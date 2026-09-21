@@ -3,8 +3,11 @@
 import { ArrowsClockwise, Coins, Hourglass, LockKey, Vault as VaultIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
+import { getUserPosition } from "@/app/actions";
 import { Stat } from "@/components/site/stat";
 import { Icon } from "@/components/ui/icon";
+import { useServerData } from "@/lib/use-server-data";
+import { useWalletUi } from "@/lib/wallet";
 
 /**
  * The vault: stake, accrue, claim.
@@ -20,6 +23,9 @@ import { Icon } from "@/components/ui/icon";
  */
 export function VaultPanel() {
   const [amount, setAmount] = useState("");
+  const { address } = useWalletUi();
+  const pos = useServerData(address, () => getUserPosition(address as string));
+  const totals = pos.status === "ready" ? pos.data.totals : null;
 
   return (
     <div className="flex flex-col gap-10">
@@ -40,10 +46,30 @@ export function VaultPanel() {
       </div>
 
       <div className="grid grid-cols-2 gap-10 border-t border-edge pt-10 lg:grid-cols-4">
-        <Stat label="Staked" value="—" hint="no vault funded" />
-        <Stat label="Accrued" value="—" tone="signal" hint="streams over time" />
-        <Stat label="Claimable" value="—" hint="redeemable 1:1" />
-        <Stat label="Income to date" value="—" hint="fees + spread" />
+        <Stat
+          label="Staked"
+          value={totals?.staked ?? "—"}
+          hint={pos.status === "loading" ? "reading the chain…" : "agent tokens"}
+        />
+        <Stat
+          label="Accrued"
+          value={totals?.accrued ?? "—"}
+          unit="wPreStock"
+          tone="signal"
+          hint="streams over time"
+        />
+        <Stat
+          label="Claimable"
+          value={totals?.claimable ?? "—"}
+          unit="wPreStock"
+          hint="redeemable 1:1"
+        />
+        <Stat
+          label="Income to date"
+          value={totals?.incomeToDate ?? "—"}
+          unit="wPreStock"
+          hint="fees + spread"
+        />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_1.05fr]">
@@ -83,8 +109,8 @@ export function VaultPanel() {
           </button>
 
           <p className="mt-4 font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
-            The vault program is written and tested but not deployed, so staking is disabled.
-            Rewards accrue per slot staked, not per epoch snapshot.
+            The vault is deployed and streams on chain, but this form is not yet wired to a
+            transaction. Rewards accrue per slot staked, not per epoch snapshot.
           </p>
         </div>
 
@@ -112,8 +138,8 @@ export function VaultPanel() {
       </div>
 
       <p className="font-mono text-xs leading-relaxed text-ink-faint">
-        Claims are signed by your wallet; the vault never holds your keys. When the program is
-        deployed, this page reads your position from the chain rather than from an API.
+        Claims are signed by your wallet; the vault never holds your keys. The figures above are read
+        from your on-chain stake rather than from an API.
       </p>
     </div>
   );

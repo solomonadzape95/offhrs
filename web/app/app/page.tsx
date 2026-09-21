@@ -5,20 +5,19 @@ import Link from "next/link";
 import { RequireWallet } from "@/components/app/require-wallet";
 import { SessionClock } from "@/components/site/session-clock";
 import { Stat } from "@/components/site/stat";
+import { getUserPosition } from "@/app/actions";
+import { useServerData } from "@/lib/use-server-data";
 import { useWalletUi, shortAddress } from "@/lib/wallet";
 import { useBalance } from "@solana/react-hooks";
 import { lamportsToSolString } from "@solana/client";
-import { AGENTS } from "@/lib/agents";
 
 /**
  * Position.
  *
- * Three of the four figures here are em dashes, and that is the honest answer:
- * the `stock_vault` program is not deployed, so no wallet can hold a stake or
- * accrue a dividend yet. The SOL balance is real, because that is the one thing
- * a connected Solana wallet genuinely has.
- *
- * The layout is the point — it is the shape the numbers will arrive into.
+ * Every figure here is read from the chain: the stakes and the accrued wrapped
+ * PreStock come from `UserStake` and `DividendVault` accounts via the
+ * `getUserPosition` server action. Where there is genuinely nothing yet — no
+ * stake, no vault — it stays an em dash rather than a reassuring zero.
  */
 export default function DashboardPage() {
   return (
@@ -34,6 +33,8 @@ function Position() {
   const { address } = useWalletUi();
   const { lamports } = useBalance(address as never);
 
+  const pos = useServerData(address, () => getUserPosition(address as string));
+  const data = pos.status === "ready" ? pos.data : null;
   const sol = lamports != null ? lamportsToSolString(lamports) : null;
 
   return (
@@ -51,9 +52,24 @@ function Position() {
       </div>
 
       <div className="grid grid-cols-2 gap-10 border-t border-edge pt-10 lg:grid-cols-4">
-        <Stat label="Agent tokens" value="—" hint="no stake yet" />
-        <Stat label="Equity accrued" value="—" tone="signal" hint="no vault funded" />
-        <Stat label="Claimable" value="—" hint="streams over time" />
+        <Stat
+          label="Agent tokens"
+          value={data?.totals.staked ?? "—"}
+          hint={pos.status === "loading" ? "reading the chain…" : "staked across your desks"}
+        />
+        <Stat
+          label="Equity accrued"
+          value={data?.totals.accrued ?? "—"}
+          unit="wPreStock"
+          tone="signal"
+          hint="streams over time"
+        />
+        <Stat
+          label="Claimable"
+          value={data?.totals.claimable ?? "—"}
+          unit="wPreStock"
+          hint="redeemable 1:1"
+        />
         <Stat
           label="SOL balance"
           value={sol ?? "—"}
@@ -68,19 +84,27 @@ function Position() {
           <span className="label">Real equity inventory</span>
           <span className="font-mono text-xs text-ink-faint">redeemable 1:1 for raw PreStock</span>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {["SPACEX", "OPENAI", "ANTHROPIC", "NEURALINK"].map((sym) => (
-            <div key={sym} className="panel flex flex-col gap-3 p-5">
-              <div className="flex items-baseline justify-between">
-                <span className="font-mono text-sm text-ink">{sym}</span>
-                <span className="font-mono text-[0.625rem] tracking-[0.14em] text-ink-faint uppercase">
-                  w{sym}
-                </span>
+        {data && data.equity.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {data.equity.map((e) => (
+              <div key={e.wrappedMint} className="panel flex flex-col gap-3 p-5">
+                <div className="flex items-baseline justify-between">
+                  <span className="font-mono text-sm text-ink">{e.symbol}</span>
+                  <span className="font-mono text-[0.625rem] tracking-[0.14em] text-ink-faint uppercase">
+                    w{e.symbol}
+                  </span>
+                </div>
+                <span className="tabular font-mono text-lg text-ink-dim">{e.claimable}</span>
               </div>
-              <span className="tabular font-mono text-lg text-ink-dim">—</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p className="font-mono text-sm text-ink-faint">
+            {pos.status === "loading"
+              ? "Reading the chain…"
+              : "No wrapped equity accrued behind your stakes yet."}
+          </p>
+        )}
       </div>
 
       {/* Holdings table */}
@@ -104,35 +128,48 @@ function Position() {
               </tr>
             </thead>
             <tbody>
-              {AGENTS.slice(0, 4).map((a) => (
-                <tr key={a.id} className="border-b border-edge/60">
+              {(data?.rows ?? []).map((r) => (
+                <tr key={r.agentId} className="border-b border-edge/60">
                   <td className="py-3.5">
                     <Link
-                      href={`/agent/${a.id}`}
+                      href={`/agent/${r.agentId}`}
                       className="font-mono text-sm text-ink transition-colors hover:text-signal"
                     >
-                      {a.name}
+                      {r.name}
                     </Link>
                     <span className="ml-3 font-mono text-[0.625rem] tracking-[0.14em] text-ink-faint uppercase">
-                      ${a.ticker}
+                      ${r.ticker}
                     </span>
                   </td>
-                  <td className="tabular py-3.5 text-right font-mono text-sm text-ink-dim">—</td>
-                  <td className="tabular py-3.5 text-right font-mono text-sm text-ink-dim">—</td>
-                  <td className="py-3.5 text-right font-mono text-sm text-ink-faint">{a.asset}</td>
+                  <td className="tabular py-3.5 text-right font-mono text-sm text-ink-dim">
+                    {r.staked}
+                  </td>
+                  <td className="tabular py-3.5 text-right font-mono text-sm text-ink-dim">
+                    {r.accrued}
+                  </td>
+                  <td className="py-3.5 text-right font-mono text-sm text-ink-faint">{r.asset}</td>
                   <td className="py-3.5 text-right font-mono text-xs text-ink-faint">—</td>
                 </tr>
               ))}
+              {data && data.rows.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-6 font-mono text-sm text-ink-faint">
+                    No agents registered on this cluster yet.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
 
         <div className="panel flex flex-col gap-3 p-5">
-          <span className="label">Why these are empty</span>
+          <span className="label">
+            {data?.onChain ? "Where these numbers come from" : "Why these are empty"}
+          </span>
           <p className="max-w-2xl text-sm leading-relaxed text-ink-dim">
-            The staking vault and the wrapper are written and tested, but the program is not deployed
-            to mainnet yet, so there is no vault for a wallet to stake into. Nothing here is
-            simulated — an em dash is what an unavailable reading looks like.
+            {data?.onChain
+              ? "Read from your UserStake and DividendVault accounts on chain. Accrued rewards stream per slot held, so the figure grows between interactions without anyone claiming."
+              : "The stock_vault program is not reachable on the cluster this app is pointed at, so there is nothing for a wallet to stake into. An em dash is what an unavailable reading honestly looks like."}
           </p>
           <Link
             href="/app/profile"
