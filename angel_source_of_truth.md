@@ -82,22 +82,31 @@ Mint only against measured reserve delta (see C4).
 
 ---
 
-### 🔴 C2 — Clawpump cannot launch a Meteora DBC pool
+### 🟢 C2 — Clawpump launches the token on DBC (RESOLVED 21 Sep 2026)
 
-Clawpump's bounty text is *"Launch your token with a stock-paired liquidity pool using clawpump
-and Meteora."* Verified Clawpump surface: `POST /api/v1/launch`,
-`/api/v1/launch/self-funded`, `/api/v1/launch/pons`; CLI `npx clawpump launch --paid`; MCP at
-`https://clawpump.tech/api/mcp`. Its only launch paths are `launch_token` (**pump.fun**),
-`launch_token_self_funded`, `launch_metaplex_genesis_token`, `launch_pons` (Robinhood Chain).
+Clawpump confirmed a **custom-pair** launch: the token starts on a **Meteora DBC pool** and graduates
+to **DAMM v2**, with Clawpump running fee collection and distribution. Their surface also exposes
+holder rewards, buybacks and burns. One Clawpump-launched token is therefore simultaneously the
+Clawpump token and the Meteora DBC pool — both bounty tracks apply, and Clawpump confirmed a single
+submission can enter both.
 
-**There is no Meteora DBC launch and no custom-quote-mint option.** Meteora appears only in
-Clawpump's tracked DeFi protocol list. Clawpump's fee split (75% agent / 25% platform) is collected
-from **pump.fun creator vaults**, so a DBC launch earns nothing through its rails.
+**Consequences for the architecture:**
 
-**⇒ Compose instead:** Clawpump = agent identity, wallet, execution, and (optionally) the $AGENT
-token launch. We create the stock-paired DBC pool ourselves with
-`@meteora-ag/dynamic-bonding-curve-sdk`. **Ask Clawpump to confirm this satisfies the requirement —
-highest-priority clarification.**
+- **We no longer create the production DBC pool.** `experiments/day0-pool.ts` is now a test rig. The
+  launch order is: deploy program → init wrapper → mint `wPreStock` → hand Clawpump the quote mint →
+  Clawpump creates the DBC pool (we read the new base mint) → `register_agent` + `initialize_vault`.
+- **`DividendVault` keeps one job: pay in stock.** Clawpump's native distribution is
+  SOL-denominated (their example token `tokens/EpXt…` publishes SOL fees/buybacks), so streaming
+  `wPreStock` is still ours alone.
+
+**Still open (blocks the vault wiring, not the build):**
+
+1. Confirm the DBC quote mint is `wPreStock` (classic 0-fee SPL → no token badge).
+2. Confirm `collectFeeMode = QuoteToken` and that our share is paid **in `wPreStock`** to a treasury
+   we nominate (`set_external_wallet`). If Clawpump converts to SOL, the passive stream stops being
+   equity.
+3. Confirm who sets the curve/fee tier, migration threshold and token authority, and the DBC
+   creator/platform split.
 
 ---
 

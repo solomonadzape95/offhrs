@@ -248,10 +248,12 @@ Evidence: `day6_results.md`. All 11 routes build and serve; typecheck clean.
 
 ## 3. Send these today (blocking, external)
 
-1. **Clawpump** — *(asked, no reply yet)* does Clawpump-agent + our own Meteora DBC pool satisfy
-   *"launch your token with a stock-paired liquidity pool using clawpump and Meteora"*? Their own
-   launch paths are pump.fun / Metaplex Genesis / Pons — **no DBC**. Still the single biggest
-   interpretation risk, but no longer blocking: the agent's execution venue is a swappable adapter.
+1. **Clawpump** — *(resolved 21 Sep)* they confirmed a custom-pair launch that starts on **Meteora
+   DBC** and graduates to **DAMM v2**, with Clawpump managing fee distribution, and that one
+   submission can enter both the Clawpump and Meteora tracks. The remaining questions are
+   operational: is the DBC quote mint our `wPreStock`, do fees accrue there and get paid to us **in
+   `wPreStock`**, and who owns the curve config. None of it blocks the build — only the final vault
+   wiring.
 2. **Meteora** — we hit `QuoteMintHasNonZeroTransferFee` on the real PreStock mints. Confirm there is
    no path for a non-zero transfer fee (we believe there isn't: `token.rs:232`). Confirm a wrapped
    0-fee SPL quote mint is acceptable for the bounty.
@@ -268,7 +270,7 @@ Evidence: `day6_results.md`. All 11 routes build and serve; typecheck clean.
 | # | Risk | Severity | Mitigation |
 |---|---|---|---|
 | C1 | PreStock can't be a DBC quote mint | ~~fatal~~ **resolved** | Wrapper — proven on devnet |
-| C2 | Clawpump requirement excludes our DBC pool | **high, still open** | Execution is behind a swappable adapter, so only `execution.ts` changes. Fallback = launch the token via Clawpump on pump.fun and keep the DBC pool as the stock-paired venue, documenting the split |
+| C2 | ~~Clawpump requirement excludes our DBC pool~~ | ~~high~~ **resolved** | Clawpump launches the token on Meteora **DBC** with a custom pair and graduates to DAMM v2. One token, both tracks. Residual: confirm the quote mint is `wPreStock` and our fee share is paid **in `wPreStock`** |
 | C3 | `scaledUiAmount` multiplier changes mid-hackathon | medium | Never bake it in; 1:1 raw wrapper + pricing-layer multiplier |
 | C4 | Transfer fee rises 0.5%→1% at epoch 1039 (~2 days) | medium | Delta-minting handles any rate; disclose the number in the UI |
 | C5 | PreStocks pause transfers / use `permanentDelegate` | medium | `paused` mirror + `bad_debt()` view + disclosure |

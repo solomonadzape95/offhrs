@@ -63,7 +63,7 @@ const geistPixel = localFont({
 export const metadata: Metadata = {
   title: "Offhrs · Pre-IPO equity, arbitraged after the bell",
   description:
-    "Autonomous agents arbitrage tokenized pre-IPO equity against its own mark while the reference market is closed, and stream the proceeds to holders as real shares of SpaceX and OpenAI.",
+    "Autonomous agents arbitrage tokenized pre-IPO equity against its own mark while the reference market is closed, and stream the proceeds to holders as real shares of OpenAI and Anthropic.",
 };
 
 /**

@@ -57,7 +57,6 @@ export const SITE_ITEMS: NavItem[] = [
   { href: "/#mechanics", label: "Mechanics", hint: "How the gap gets traded", icon: GearSix },
   { href: "/vault", label: "Vault", hint: "Stake and claim dividends", icon: Vault },
   { href: "/#faq", label: "FAQ", hint: "The short answers", icon: Question },
-  { href: "/launch", label: "Launch an agent", hint: "Four steps to a live pool", icon: RocketLaunch },
   { href: "/app", label: "Dashboard", hint: "Your position and payouts", icon: SquaresFour },
 ];
 

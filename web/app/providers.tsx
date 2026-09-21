@@ -1,7 +1,7 @@
 "use client";
 
 import { SolanaProvider } from "@solana/react-hooks";
-import { autoDiscover, createClient } from "@solana/client";
+import { createClient, defaultWalletConnectors } from "@solana/client";
 
 import { ThemeProvider } from "@/components/site/theme-provider";
 import { ShaderProvider } from "@/components/site/shader-provider";
@@ -31,7 +31,11 @@ const websocketEndpoint =
 export const solanaClient = createClient({
   endpoint,
   websocketEndpoint,
-  walletConnectors: autoDiscover(),
+  // `defaultWalletConnectors()` names Phantom/Solflare/Backpack and adds whatever
+  // else registered by this point. It is still a snapshot, though, so it is only
+  // the fallback for auto-connect — `useWalletUi` subscribes to the live Wallet
+  // Standard registry and feeds that list into `useWalletConnection`.
+  walletConnectors: defaultWalletConnectors(),
 });
 
 export function Providers({ children }: { children: React.ReactNode }) {

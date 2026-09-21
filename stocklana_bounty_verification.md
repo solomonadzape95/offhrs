@@ -74,32 +74,33 @@ wrapper as the DBC quote mint.
 - Fallback if the wrapper is cut for time: DBC quotes SOL/USDC, vault buys PreStocks post-hoc.
   Keeps 3 of 4 bounties coherent but weakens "stock-paired".
 
-## 4. ⚠️ Clawpump cannot launch a Meteora DBC pool
+## 4. ✅ Clawpump launches the token on Meteora DBC (RESOLVED 21 Sep 2026)
 
 Clawpump's bounty requirement: *"Launch your token with a stock-paired liquidity pool using
 clawpump and Meteora."*
 
-Verified Clawpump surface (clawpump.tech/docs, live):
+**Confirmed by Clawpump:** a custom-pair launch that **starts on a Meteora DBC pool and graduates
+to DAMM v2**, with **Clawpump managing and distributing the fees**. Their launch surface also
+exposes holder rewards, buybacks and burns. They confirmed that one submission **can enter both** the
+Clawpump and Meteora tracks.
 
-- REST: `POST /api/v1/launch`, `/api/v1/launch/self-funded`, `/api/v1/launch/pons`
-- CLI: `npx clawpump launch --paid`, `clawpump tokenize`
-- MCP: `https://clawpump.tech/api/mcp` (78 launchpad tools / 122 agent tools)
-- Launch paths available: `launch_token` (**pump.fun**), `launch_token_self_funded`,
-  `launch_metaplex_genesis_token`, `launch_pons` (Robinhood Chain)
+So the requirement is met natively: Clawpump launches the token as the DBC base mint, quoted in our
+`wPreStock`, and graduates it to DAMM v2 — simultaneously a Clawpump token and a Meteora DBC pool.
 
-**There is no Meteora DBC launch and no stock-pair / custom-quote-mint option.** Meteora appears
-only in Clawpump's tracked DeFi protocol list. Clawpump fees are **75% agent / 25% platform,
-collected from pump.fun creator vaults** — a Meteora DBC launch earns nothing through Clawpump's
-fee rails.
+**Consequences:**
 
-So the requirement can only be met by **composition**: Clawpump = agent identity, wallet,
-execution + token launch; Meteora DBC (via `@meteora-ag/dynamic-bonding-curve-sdk`) = the
-stock-paired pool, built by us. Useful Clawpump agent tools: `swap_quote`, `swap_execute`,
+- We do **not** create the production DBC pool ourselves; `experiments/day0-pool.ts` becomes a test
+  rig.
+- Clawpump owns the curve and the fee crank. Our `DividendVault` keeps the stock-denominated
+  distribution, which their native SOL-denominated rewards do not provide.
+
+**Still to confirm (blocks vault wiring, not the build):** the DBC quote mint is `wPreStock`;
+`collectFeeMode = QuoteToken`; our share is paid **in `wPreStock`** to a treasury we nominate
+(`set_external_wallet`); who sets the curve/migration config; and the DBC creator/platform split.
+
+Useful Clawpump agent tools either way: `swap_quote`, `swap_execute`,
 `arbitrage_quote`, `arbitrage_prices`, `token_search`, `get_portfolio`, `dca_create`,
 `limit_order_create`, `get_news_feed`, `predictions_*`, x402 payments, agent email.
-
-**Action: ask Clawpump to confirm this composition satisfies the requirement.** This is the
-single biggest ambiguity in the plan.
 
 ## 5. What the market actually looks like
 

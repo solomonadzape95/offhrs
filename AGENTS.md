@@ -3,7 +3,7 @@
 **Read this first.** It is the entry point for a fresh session. It says what the project is, what
 already works, how to run it, and what is broken or blocked.
 
-Last updated: **Mon 21 Sep 2026, ~03:00 UTC.**
+Last updated: **Mon 21 Sep 2026, ~19:00 UTC.**
 
 ---
 
@@ -17,6 +17,13 @@ Built for **Stocklana** (`https://hackathons.solana.com/hackathons/stocklana`).
 
 The thesis, in one line: *the reference market closes, the tokenized marks keep trading, and that gap
 is the product.* It is measurable — see `day3_results.md`.
+
+> 🗓️ **Asset status (21 Sep 2026).** **SpaceX IPO'd 9–11 Jun 2026** at $135 — the largest IPO in
+> history — and now trades publicly, so it is **no longer a pre-IPO asset**. The docs still use it as
+> the headline example; they are stale. **OpenAI is the lead asset** (still private, live ~−10%
+> mark-vs-market basis), Anthropic second. Note the `scaledUiAmount` **1→5 adjustment on SPACEX took
+> effect 2026-06-10 — the IPO date**: the multiplier *is* the corporate action the wrapper was built
+> to survive. It is a story, not a bug.
 
 > ⚠️ **Naming.** The project was called **Angel** until Sep 20 and was renamed **Offhrs**. The
 > frontend is fully renamed. **The docs, the Rust, the agent runtime and the directory name still say
@@ -50,21 +57,28 @@ specific subsystem.
 | Frontend, 11 routes | `day6_results.md` |
 | Wallet connect (Wallet Standard) | `/connect`, header menu |
 | **Swap signing** — real Jupiter tx, real signature | `web/scripts/swap-check.ts` |
+| **Live on devnet** — program deployed | `FoVBZ…VLw`; `scripts/devnet-smoke.ts` runs wrapper → registry → streaming vault on-chain |
 
-### Blocked on one number
+### Deployed on devnet; blocked on mainnet rent
 
-**~3.86 SOL of mainnet rent to deploy the program.** Every dashboard balance, the Activity feed, and
-the actual deploy transaction in `/launch` are downstream of this. Program is 555 KB; mainnet wallet
-is empty. Faucet address is in `day1_results.md`.
+**The program is live on devnet** (`FoVBZ…VLw`, upgrade authority `Duzj6…`) and the whole path runs
+on-chain — see `scripts/devnet-smoke.ts`. **Mainnet is the remaining spend: ~2.9 SOL of refundable
+rent**, not the 3.86 SOL earlier drafts assumed. Measured, not estimated: the devnet deploy moved the
+deploy wallet 11.30 → 8.41 SOL for the same 555 KB program. Every dashboard balance, the Activity
+feed, and the `/launch` deploy transaction are downstream of it. The mainnet wallet is empty.
 
 ### Open questions
 
-- **Clawpump has not replied.** Their bounty requires *"launch your token with a stock-paired
-  liquidity pool using clawpump and Meteora"*, but their launch paths are pump.fun / Metaplex Genesis
-  / Pons — **no DBC**. Whether "Clawpump agent + our own DBC pool" satisfies it is unresolved. The
-  agent's execution venue is behind a swappable adapter (`agent/src/execution.ts`) so only that file
-  changes when the answer arrives. **The `ClawpumpAdapter` is written against their documented MCP
-  surface but is unverified — no API key.**
+- **Clawpump — resolved 21 Sep.** They confirmed a **custom-pair** launch that starts on **Meteora
+  DBC** and graduates to **DAMM v2**, with **Clawpump managing and distributing fees** (plus holder
+  rewards / buybacks / burns). One Clawpump-launched token is therefore *also* the DBC pool: the
+  Clawpump and Meteora tracks both apply, and Clawpump confirmed one submission can enter both.
+  **Still to confirm (blocks the vault wiring, not the build):** (1) the DBC quote mint is our
+  `wPreStock`; (2) fees accrue there (`collectFeeMode = QuoteToken`) and our share is paid **in
+  `wPreStock`** to a treasury we nominate — their native distribution is SOL-denominated (see the
+  example token `tokens/EpXt…`), so this is the one that protects the "dividends in stock" promise;
+  (3) who owns the curve/migration config and what the DBC fee split is. The `ClawpumpAdapter` in
+  `agent/src/execution.ts` is also still unverified — no API key.
 - **Pyth `pyth-indices`** — requested, not granted. `Equity.Index.OPENAI/ANTHROPIC` are gated on
   Hermes *and* absent on-chain. Not on the critical path; if granted it is a config change.
 
@@ -89,6 +103,11 @@ pnpm exec tsx agent/src/index.ts --feeds               # known on-chain feeds
 # ── checks ────────────────────────────────────────────────────────────
 pnpm exec tsx web/scripts/session-check.ts   # 8 market-session cases
 pnpm exec tsx web/scripts/swap-check.ts      # decodes a real Jupiter tx
+
+# ── ops scripts (cluster-agnostic; RPC_URL / ANCHOR_WALLET env) ───────
+pnpm exec tsx scripts/status.ts              # deployed? wrappers, agents
+pnpm exec tsx scripts/devnet-smoke.ts        # full on-chain path on devnet
+CLUSTER=devnet ./scripts/deploy.sh           # build + deploy + status
 ```
 
 ## 5. Layout
@@ -187,9 +206,11 @@ rename will break open editors and the paths quoted throughout the docs — do i
 
 ## 9. What to do next
 
-1. **Deploy the program** (~3.86 SOL). That single action unblocks the dashboard, the Activity feed
-   and the `/launch` deploy path.
-2. **Chase Clawpump.** The only open bounty question.
+1. **Deploy the program** (~3.86 SOL mainnet; devnet is free and funded). That single action
+   unblocks the dashboard, the Activity feed and the `/launch` deploy path.
+2. **Wire Clawpump's DBC launch into the vault.** Confirm the three pending items above, then feed
+   the launch's token mint into `register_agent` / `initialize_vault`. Clawpump runs the curve and
+   the fee crank; we keep the stock-denominated `DividendVault`.
 3. **Day 7 — demo + submission:** record the end-to-end journey, write the submission, name the
    open-source components. See `mvp_plan.md`.
 4. Optional: propagate the rename (§7).

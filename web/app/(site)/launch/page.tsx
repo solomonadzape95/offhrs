@@ -1,4 +1,5 @@
 import { LaunchStudio } from "@/components/app/launch-studio";
+import { RequireWallet } from "@/components/app/require-wallet";
 import { fetchAllPreStocks } from "@/lib/market";
 
 export const revalidate = 60;
@@ -29,7 +30,12 @@ export default async function LaunchPage() {
             PreStocks universe unavailable — cannot stage a launch right now.
           </p>
         ) : (
-          <LaunchStudio assets={assets} />
+          <RequireWallet
+            title="Connect to launch"
+            body="Launching deploys a token, a curve and a vault, and every one of those is signed by your wallet. Connect one and the studio opens."
+          >
+            <LaunchStudio assets={assets} />
+          </RequireWallet>
         )}
       </div>
     </section>

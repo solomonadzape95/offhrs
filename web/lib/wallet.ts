@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { watchWalletStandardConnectors, type WalletConnector } from "@solana/client";
+
 import { useWalletConnection, useWalletSession } from "@solana/react-hooks";
 
 /**
@@ -61,17 +64,48 @@ export function describeWalletError(cause: unknown, walletName = "That wallet"):
   return raw;
 }
 
+/**
+ * Live Wallet Standard discovery.
+ *
+ * `autoDiscover()` is a one-shot snapshot taken when its module is evaluated. A
+ * wallet that finishes injecting a beat later — Phantom, in practice, next to an
+ * already-registered MetaMask — is never seen. The library exposes the watching
+ * variant, so subscribe to register/unregister events instead. It emits the
+ * current set immediately, so this is populated on the first client render.
+ */
+function useDiscoveredConnectors(): readonly WalletConnector[] {
+  const [connectors, setConnectors] = useState<readonly WalletConnector[]>([]);
+
+  useEffect(() => {
+    const stop = watchWalletStandardConnectors((next) => {
+      if (process.env.NODE_ENV !== "production") {
+        console.debug("[wallet] discovered:", next.map((c) => c.name));
+      }
+      setConnectors(next);
+    });
+    return stop;
+  }, []);
+
+  return connectors;
+}
+
 export function useWalletUi(): WalletUi {
+  const discovered = useDiscoveredConnectors();
+
+  // Prefer the live registry; fall back to the client's snapshot until the
+  // subscription has emitted.
   const {
     connect: rawConnect,
     connected,
     connecting,
-    connectors,
+    connectors: snapshotConnectors,
     connectorId,
     disconnect,
     error,
     isReady,
-  } = useWalletConnection();
+  } = useWalletConnection(discovered.length > 0 ? { connectors: discovered } : undefined);
+
+  const connectors = discovered.length > 0 ? discovered : snapshotConnectors;
 
   const session = useWalletSession();
 
