@@ -37,6 +37,7 @@ const SYSTEM_PROGRAM_ID = SystemProgram.programId;
 
 const DISC = {
   stake: Uint8Array.from([206, 176, 202, 18, 200, 209, 179, 108]),
+  unstake: Uint8Array.from([90, 95, 107, 42, 205, 124, 50, 225]),
   claim: Uint8Array.from([62, 198, 214, 193, 213, 159, 108, 210]),
 } as const;
 
@@ -105,6 +106,35 @@ export async function buildStakeTransaction(
         { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
       ],
       data: Buffer.concat([Buffer.from(DISC.stake), u64le(amountRaw)]),
+    }),
+  );
+  tx.feePayer = ownerKey;
+  tx.recentBlockhash = blockhash;
+  return tx;
+}
+
+export async function buildUnstakeTransaction(
+  owner: string,
+  agentAddress: string,
+  amountRaw: bigint,
+  blockhash: string,
+): Promise<Transaction> {
+  if (amountRaw <= 0n) throw new Error("Amount must be greater than zero.");
+  const { ownerKey, vault, stakingMint } = await context(owner, agentAddress);
+
+  const tx = new Transaction().add(
+    new TransactionInstruction({
+      programId: PROGRAM_ID,
+      keys: [
+        { pubkey: ownerKey, isSigner: true, isWritable: true },
+        { pubkey: vault, isSigner: false, isWritable: true },
+        { pubkey: stakingMint, isSigner: false, isWritable: false },
+        { pubkey: stakeVaultPda(vault), isSigner: false, isWritable: true },
+        { pubkey: associatedAddress(ownerKey, stakingMint), isSigner: false, isWritable: true },
+        { pubkey: stakePda(vault, ownerKey), isSigner: false, isWritable: true },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      ],
+      data: Buffer.concat([Buffer.from(DISC.unstake), u64le(amountRaw)]),
     }),
   );
   tx.feePayer = ownerKey;

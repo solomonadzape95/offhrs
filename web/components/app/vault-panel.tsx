@@ -3,7 +3,7 @@
 import { ArrowsClockwise, Coins, Hourglass, LockKey, Vault as VaultIcon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 
-import { buildClaimTx, buildStakeTx, getUserPosition } from "@/app/actions";
+import { buildClaimTx, buildStakeTx, buildUnstakeTx, getUserPosition } from "@/app/actions";
 import { Stat } from "@/components/site/stat";
 import { Icon } from "@/components/ui/icon";
 import { useServerData } from "@/lib/use-server-data";
@@ -55,6 +55,15 @@ export function VaultPanel() {
   const onClaim = () => {
     if (!address || !target) return;
     void run(() => buildClaimTx(address, target));
+  };
+
+  const onUnstake = () => {
+    if (!address || !target) return;
+    const n = Number(amount);
+    if (!Number.isFinite(n) || n <= 0) return;
+    const raw = BigInt(Math.floor(n * 10 ** AGENT_DECIMALS)).toString();
+    void run(() => buildUnstakeTx(address, target, raw));
+    setAmount("");
   };
 
   return (
@@ -157,6 +166,14 @@ export function VaultPanel() {
                     : state.status === "sending"
                       ? "Sending…"
                       : "Stake"}
+                </button>
+                <button
+                  type="button"
+                  onClick={onUnstake}
+                  disabled={busy || !amount || Number(amount) <= 0}
+                  className="btn btn-ghost flex-1 disabled:opacity-50"
+                >
+                  Unstake
                 </button>
                 <button
                   type="button"

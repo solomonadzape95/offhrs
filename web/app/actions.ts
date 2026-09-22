@@ -26,7 +26,7 @@ import {
   PROGRAM_RPC_URL,
   type OnChainVault,
 } from "@/lib/chain";
-import { buildClaimTransaction, buildStakeTransaction } from "@/lib/program-tx";
+import { buildClaimTransaction, buildStakeTransaction, buildUnstakeTransaction } from "@/lib/program-tx";
 import { fetchAllPreStocks } from "@/lib/market";
 import type {
   AgentView,
@@ -235,6 +235,20 @@ export async function buildStakeTx(
   try {
     const { blockhash } = await rpc().getLatestBlockhash("confirmed");
     const tx = await buildStakeTransaction(owner, agentId, BigInt(amountRaw), blockhash);
+    return { tx: serialize(tx) };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+export async function buildUnstakeTx(
+  owner: string,
+  agentId: string,
+  amountRaw: string,
+): Promise<BuildTxResult> {
+  try {
+    const { blockhash } = await rpc().getLatestBlockhash("confirmed");
+    const tx = await buildUnstakeTransaction(owner, agentId, BigInt(amountRaw), blockhash);
     return { tx: serialize(tx) };
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) };

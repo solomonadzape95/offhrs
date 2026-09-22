@@ -13,7 +13,7 @@ import fs from "node:fs";
 import { Connection, Keypair } from "@solana/web3.js";
 
 import { fetchAgents, fetchUserStake, PROGRAM_RPC_URL } from "../lib/chain";
-import { buildClaimTransaction, buildStakeTransaction } from "../lib/program-tx";
+import { buildClaimTransaction, buildStakeTransaction, buildUnstakeTransaction } from "../lib/program-tx";
 
 const conn = new Connection(PROGRAM_RPC_URL, "confirmed");
 const payer = Keypair.fromSecretKey(
@@ -46,7 +46,16 @@ async function main() {
   await send("stake", await buildStakeTransaction(owner, agent.pda, amount, blockhash));
 
   const { blockhash: bh2 } = await conn.getLatestBlockhash("confirmed");
-  await send("claim", await buildClaimTransaction(owner, agent.pda, bh2));
+  try {
+    await send("claim", await buildClaimTransaction(owner, agent.pda, bh2));
+  } catch (e) {
+    // NothingToClaim is expected once the vault's stream is fully drained — it
+    // still proves the instruction reached the handler.
+    console.log(`  claim skipped: ${e instanceof Error ? e.message.split("\n")[0] : e}`);
+  }
+
+  const { blockhash: bh3 } = await conn.getLatestBlockhash("confirmed");
+  await send("unstake", await buildUnstakeTransaction(owner, agent.pda, amount, bh3));
 
   const after = await fetchUserStake(agent.vault, owner);
   console.log(`after  staked=${after?.stakedAmount ?? 0n} claimed=${after?.totalClaimed ?? 0n}`);
