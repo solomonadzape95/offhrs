@@ -23,13 +23,19 @@ import {
 
 import {
   PROGRAM_ID,
+  agentPda,
   fetchAgentByPda,
+  fetchWrapper,
+  reservePda,
   rewardVaultPda,
   stakePda,
   stakeVaultPda,
+  vaultPda,
+  wrapperConfigPda,
 } from "./chain";
 
 const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+const TOKEN_2022_PROGRAM_ID = new PublicKey("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey(
   "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
 );
@@ -39,6 +45,9 @@ const DISC = {
   stake: Uint8Array.from([206, 176, 202, 18, 200, 209, 179, 108]),
   unstake: Uint8Array.from([90, 95, 107, 42, 205, 124, 50, 225]),
   claim: Uint8Array.from([62, 198, 214, 193, 213, 159, 108, 210]),
+  initializeWrapper: Uint8Array.from([143, 211, 228, 247, 131, 67, 40, 30]),
+  registerAgent: Uint8Array.from([135, 157, 66, 195, 2, 113, 175, 30]),
+  initializeVault: Uint8Array.from([48, 191, 163, 44, 71, 129, 63, 164]),
 } as const;
 
 function u64le(v: bigint): Buffer {
@@ -166,6 +175,122 @@ export async function buildClaimTransaction(
     }),
   );
   tx.feePayer = ownerKey;
+  tx.recentBlockhash = blockhash;
+  return tx;
+}
+
+// ---------------------------------------------------------------------------
+// Launch — one-time wrapper init, then register + vault for a launched token.
+// The DBC pool that creates the `$AGENT` mint is Clawpump's; these are the
+// program-side steps that follow it.
+// ---------------------------------------------------------------------------
+
+/**
+ * `initialize_wrapper` mints the zero-fee `wPreStock` and its reserve. The wrapped
+ * mint is a fresh keypair, so the caller must add its signature as well as the
+ * wallet's before sending.
+ */
+export function buildInitializeWrapperTransaction(
+  owner: string,
+  prestockMint: string,
+  wrappedMint: PublicKey,
+  blockhash: string,
+): Transaction {
+  const admin = new PublicKey(owner);
+  const prestock = new PublicKey(prestockMint);
+  const wrapperConfig = wrapperConfigPda(prestock);
+
+  const tx = new Transaction().add(
+    new TransactionInstruction({
+      programId: PROGRAM_ID,
+      keys: [
+        { pubkey: admin, isSigner: true, isWritable: true },
+        { pubkey: prestock, isSigner: false, isWritable: false },
+        { pubkey: wrapperConfig, isSigner: false, isWritable: true },
+        { pubkey: wrappedMint, isSigner: true, isWritable: true },
+        { pubkey: reservePda(wrapperConfig), isSigner: false, isWritable: true },
+        { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
+      ],
+      data: Buffer.from(DISC.initializeWrapper),
+    }),
+  );
+  tx.feePayer = admin;
+  tx.recentBlockhash = blockhash;
+  return tx;
+}
+
+/** `register_agent` — binds a launched token to its creator, signer and fee tier. */
+export async function buildRegisterAgentTransaction(
+  owner: string,
+  agentTokenMint: string,
+  prestockMint: string,
+  agentSigner: string,
+  feeBps: number,
+  blockhash: string,
+): Promise<Transaction> {
+  const wrapper = await fetchWrapper(prestockMint);
+  if (!wrapper) throw new Error("No wrapper for that PreStock on this cluster yet.");
+
+  const creator = new PublicKey(owner);
+  const mint = new PublicKey(agentTokenMint);
+  const fee = Buffer.alloc(2);
+  fee.writeUInt16LE(feeBps);
+
+  const tx = new Transaction().add(
+    new TransactionInstruction({
+      programId: PROGRAM_ID,
+      keys: [
+        { pubkey: creator, isSigner: true, isWritable: true },
+        { pubkey: agentPda(mint), isSigner: false, isWritable: true },
+        { pubkey: mint, isSigner: false, isWritable: false },
+        { pubkey: new PublicKey(wrapper.wrappedMint), isSigner: false, isWritable: false },
+        { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
+      ],
+      data: Buffer.concat([Buffer.from(DISC.registerAgent), new PublicKey(agentSigner).toBuffer(), fee]),
+    }),
+  );
+  tx.feePayer = creator;
+  tx.recentBlockhash = blockhash;
+  return tx;
+}
+
+/** `initialize_vault` — creates the staking + reward vaults for a registered agent. */
+export async function buildInitializeVaultTransaction(
+  owner: string,
+  agentTokenMint: string,
+  prestockMint: string,
+  minHoldSlots: bigint,
+  blockhash: string,
+): Promise<Transaction> {
+  const wrapper = await fetchWrapper(prestockMint);
+  if (!wrapper) throw new Error("No wrapper for that PreStock on this cluster yet.");
+
+  const creator = new PublicKey(owner);
+  const mint = new PublicKey(agentTokenMint);
+  const agent = agentPda(mint);
+  const vault = vaultPda(mint);
+
+  const tx = new Transaction().add(
+    new TransactionInstruction({
+      programId: PROGRAM_ID,
+      keys: [
+        { pubkey: creator, isSigner: true, isWritable: true },
+        { pubkey: agent, isSigner: false, isWritable: true },
+        { pubkey: mint, isSigner: false, isWritable: false },
+        { pubkey: new PublicKey(wrapper.wrappedMint), isSigner: false, isWritable: false },
+        { pubkey: vault, isSigner: false, isWritable: true },
+        { pubkey: stakeVaultPda(vault), isSigner: false, isWritable: true },
+        { pubkey: rewardVaultPda(vault), isSigner: false, isWritable: true },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
+      ],
+      data: Buffer.concat([Buffer.from(DISC.initializeVault), u64le(minHoldSlots)]),
+    }),
+  );
+  tx.feePayer = creator;
   tx.recentBlockhash = blockhash;
   return tx;
 }

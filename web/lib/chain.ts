@@ -363,6 +363,10 @@ const pda = (seeds: (Buffer | Uint8Array)[]) =>
 
 export const agentPda = (mint: string | PublicKey) =>
   pda([Buffer.from("agent"), new PublicKey(mint).toBuffer()]);
+export const wrapperConfigPda = (prestockMint: string | PublicKey) =>
+  pda([Buffer.from("wrapper"), new PublicKey(prestockMint).toBuffer()]);
+export const reservePda = (wrapperConfig: string | PublicKey) =>
+  pda([Buffer.from("reserve"), new PublicKey(wrapperConfig).toBuffer()]);
 export const vaultPda = (mint: string | PublicKey) =>
   pda([Buffer.from("vault"), new PublicKey(mint).toBuffer()]);
 export const stakePda = (vault: string | PublicKey, owner: string | PublicKey) =>

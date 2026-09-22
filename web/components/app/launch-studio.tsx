@@ -3,11 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSolanaClient } from "@solana/react-hooks";
 
+import { buildInitializeVaultTx, buildRegisterAgentTx } from "@/app/actions";
 import { Curve } from "@/components/app/curve";
 import { CurvePreview } from "@/components/app/curve-preview";
 import { preflight, type Check } from "@/lib/deploy";
 import { usd } from "@/lib/format";
 import type { PreStock } from "@/lib/market";
+import { useWriteTx } from "@/lib/use-write-tx";
+import { useWalletUi } from "@/lib/wallet";
 
 /**
  * §4 Creator Studio.
@@ -24,6 +27,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
   const [step, setStep] = useState(0);
 
   const [agentSigner, setAgentSigner] = useState("");
+  const [agentTokenMint, setAgentTokenMint] = useState("");
   const [minEdge, setMinEdge] = useState("150");
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
@@ -32,6 +36,8 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
 
   const chosen = useMemo(() => assets.find((a) => a.symbol === asset), [assets, asset]);
   const client = useSolanaClient();
+  const { address } = useWalletUi();
+  const { state: write, run } = useWriteTx();
 
   // Preflight only runs when it can matter — an RPC round trip per check is not
   // worth spending on step 1 of a form.
@@ -58,6 +64,21 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
   }, [step, chosen, client]);
 
   const ready = Boolean(checks && checks.every((c) => c.ok === true));
+  const canDeploy = Boolean(address && chosen && agentTokenMint.length >= 32 && agentSigner.length >= 32);
+
+  /**
+   * Two program-side transactions. The DBC pool that mints the token is
+   * Clawpump's, so the mint is an input; we register it and stand up its vault.
+   */
+  const onDeploy = async () => {
+    if (!address || !chosen) return;
+    const registered = await run(() =>
+      buildRegisterAgentTx(address, agentTokenMint, chosen.mint, agentSigner, feeBps),
+    );
+    if (registered) {
+      await run(() => buildInitializeVaultTx(address, agentTokenMint, chosen.mint, 0));
+    }
+  };
 
   const canAdvance =
     (step === 0 && agentSigner.length >= 32 && Number(minEdge) > 0) ||
@@ -97,6 +118,14 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
                   value={agentSigner}
                   onChange={(e) => setAgentSigner(e.target.value.trim())}
                   placeholder="9BmQr4kLhVn2XcWpY7TfAd3sGzE6uJqRoP8vNbC1dHfM"
+                  className="w-full border-b border-edge bg-transparent pb-2 font-mono text-sm text-ink outline-none focus:border-signal"
+                />
+              </Field>
+              <Field label="Agent token mint" hint="returned by your Clawpump DBC launch">
+                <input
+                  value={agentTokenMint}
+                  onChange={(e) => setAgentTokenMint(e.target.value.trim())}
+                  placeholder="DVdtWw6y8Aet4oLP741ZpYoS5VoGa6Dr11qFWEsfQfwM"
                   className="w-full border-b border-edge bg-transparent pb-2 font-mono text-sm text-ink outline-none focus:border-signal"
                 />
               </Field>
@@ -255,14 +284,31 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
                 />
               </dl>
 
-              <button disabled={!ready} className="btn btn-primary mt-2 w-full disabled:opacity-50">
-                {ready ? "Deploy on Solana" : "Blocked by preflight"}
+              <button
+                disabled={!canDeploy || write.status === "signing" || write.status === "sending"}
+                onClick={() => void onDeploy()}
+                className="btn btn-primary mt-2 w-full disabled:opacity-50"
+              >
+                {write.status === "signing"
+                  ? "Sign…"
+                  : write.status === "sending"
+                    ? "Sending…"
+                    : "Register agent + create vault"}
               </button>
 
+              {write.status === "done" && (
+                <p className="font-mono text-[0.6875rem] break-all text-signal">
+                  Confirmed: {write.signature}
+                </p>
+              )}
+              {write.status === "error" && (
+                <p className="text-xs leading-relaxed text-ember">{write.error}</p>
+              )}
+
               <p className="font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
-                {ready
-                  ? "This is as far as the flow has been exercised. The transactions would be built with the DBC SDK and sent from the connected wallet."
-                  : "The first check is the deployment itself and it is the one that fails: the vault program needs roughly 2.9 SOL of refundable mainnet rent before an agent can exist on mainnet. Nothing above is simulated — the same preflight would pass the moment it is deployed."}
+                Two transactions: register the agent, then create its dividend vault. The DBC pool
+                that mints the token is Clawpump&apos;s — paste the mint it returns above. The
+                preflight reports mainnet readiness; the program is live on devnet.
               </p>
             </>
           )}

@@ -35,13 +35,13 @@ export function useWriteTx(onDone?: () => void) {
   const reset = useCallback(() => setState({ status: "idle" }), []);
 
   const run = useCallback(
-    async (build: () => Promise<BuildTxResult>) => {
+    async (build: () => Promise<BuildTxResult>): Promise<boolean> => {
       if (!session?.signTransaction) {
         setState({
           status: "error",
           error: "This wallet does not support signing transactions in the browser.",
         });
-        return;
+        return false;
       }
 
       setState({ status: "signing" });
@@ -59,8 +59,10 @@ export function useWriteTx(onDone?: () => void) {
 
         setState({ status: "done", signature: res.signature });
         onDone?.();
+        return true;
       } catch (e) {
         setState({ status: "error", error: describeWalletError(e) });
+        return false;
       }
     },
     [session, onDone],
