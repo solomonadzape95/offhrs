@@ -120,6 +120,30 @@ export async function loadPool(
   return promise;
 }
 
+/**
+ * How far a DBC curve has filled, plus its two reserves.
+ *
+ * `base_reserve` is what is left unsold, so progress is `1 - left / supply`. The
+ * supply is the curve's configured `totalTokenSupply` (1e9 base tokens, 6dp) — the
+ * config does not carry it, so it is read from the same constant `buildCurve` is
+ * given in `lib/launch.ts`.
+ */
+export async function poolProgress(baseMint: string): Promise<{
+  progress: number;
+  baseReserve: bigint;
+  quoteReserve: bigint;
+} | null> {
+  const pool = await loadPool(baseMint);
+  if (!pool) return null;
+  const state = (pool.virtualPool as any).poolState ?? pool.virtualPool;
+  const baseReserve = BigInt(state.baseReserve?.toString?.() ?? 0);
+  const quoteReserve = BigInt(state.quoteReserve?.toString?.() ?? 0);
+  const totalSupply = 1_000_000_000n * 10n ** 6n;
+  const filled = totalSupply - baseReserve;
+  const progress = Math.min(1, Math.max(0, Number(filled) / Number(totalSupply)));
+  return { progress, baseReserve, quoteReserve };
+}
+
 // ---------------------------------------------------------------------------
 // Quotes
 // ---------------------------------------------------------------------------

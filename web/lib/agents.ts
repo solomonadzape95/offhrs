@@ -127,6 +127,23 @@ export const AGENTS: AgentSeed[] = [
 export const findAgent = (id: string) => AGENTS.find((a) => a.id === id);
 
 /**
+ * The display identity for an on-chain agent that carries no Metaplex metadata,
+ * keyed by the asset it trades. These are the preview names, reused so a launched
+ * devnet agent reads as a desk rather than as a mint fragment. Metadata always
+ * wins when it exists.
+ */
+export const AGENT_IDENTITY_BY_ASSET: Record<string, { name: string; ticker: string }> = {
+  SPACEX: { name: "Orbital", ticker: "ORB" },
+  ANDURIL: { name: "Sentinel", ticker: "SNTL" },
+  OPENAI: { name: "Alignment", ticker: "ALGN" },
+  ANTHROPIC: { name: "Frontier", ticker: "FRNTR" },
+  NEURALINK: { name: "Cortex", ticker: "CRTX" },
+  KALSHI: { name: "Forecast", ticker: "FCST" },
+  POLYMARKET: { name: "Consensus", ticker: "CNSN" },
+  FIGUREAI: { name: "Humanoid", ticker: "HMND" },
+};
+
+/**
  * The assets we lead with. The PreStocks universe is eight tokens; these two are
  * the ones the demo and the bounty narrative center on. **OpenAI** is still
  * private — the PreStocks bounty is about pre-IPO equity — and **SpaceX** has

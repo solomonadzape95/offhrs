@@ -27,6 +27,7 @@ import {
   fetchVaultByPda,
   fetchWrappers,
   PROGRAM_RPC_URL,
+  type LiveAgent,
   type OnChainVault,
 } from "@/lib/chain";
 import {
@@ -42,7 +43,7 @@ import {
 import { buildBuyTransaction, buildSellTransaction, loadPool, quoteTrade } from "@/lib/trade";
 import { buildCreateAgentCurve } from "@/lib/launch";
 import { faucet } from "@/lib/faucet";
-import { fetchAllPreStocks } from "@/lib/market";
+import { fetchUniverse } from "@/lib/universe";
 import type {
   AgentTradeInfo,
   AgentView,
@@ -62,13 +63,25 @@ const PRECISION = 10n ** 12n;
 const STAKE_DECIMALS = 6;
 const REWARD_DECIMALS = 9;
 
-/** Raw units -> "1.2345", truncating rather than rounding (we never overstate). */
+/**
+ * Raw units -> a compact display string. Funds get k/m/b suffixes; small reward
+ * amounts keep enough decimals to be meaningful and drop trailing zeros, rather
+ * than printing `0.0000` for a real balance.
+ */
 function fmt(raw: bigint, decimals: number): string {
   if (raw === 0n) return "0";
-  const base = 10n ** BigInt(decimals);
-  const whole = raw / base;
-  const frac = (raw % base).toString().padStart(decimals, "0").slice(0, 4);
-  return `${whole}.${frac}`;
+  const value = Number(raw) / 10 ** decimals;
+  const abs = Math.abs(value);
+  if (abs >= 1e9) return `${trim(value / 1e9)}B`;
+  if (abs >= 1e6) return `${trim(value / 1e6)}M`;
+  if (abs >= 1e3) return `${trim(value / 1e3)}K`;
+  if (abs >= 1) return trim(value, 2);
+  const s = value.toFixed(6);
+  return s.replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function trim(n: number, digits = 2): string {
+  return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: digits });
 }
 
 /** `staked * acc / PRECISION - debt`, clamped at zero — the program's own formula. */
@@ -94,7 +107,7 @@ function projectAcc(vault: OnChainVault, slot: number): bigint {
 }
 
 async function universe() {
-  const stocks = await fetchAllPreStocks().catch(() => []);
+  const stocks = await fetchUniverse().catch(() => []);
   return stocks.map((s) => ({ symbol: s.symbol, mint: s.mint }));
 }
 
@@ -200,6 +213,15 @@ export async function getUserAgents(owner: string): Promise<AgentView[]> {
         creator: l.creator,
         executionCount: l.executionCount,
       }));
+  } catch {
+    return [];
+  }
+}
+
+/** Every agent registered on this cluster — the “other agents” grid. */
+export async function getLiveAgents(): Promise<LiveAgent[]> {
+  try {
+    return await fetchLiveAgents(await universe());
   } catch {
     return [];
   }
@@ -355,7 +377,7 @@ async function tradeContext(agentId: string) {
   if (!agent) return null;
   const [wrappers, stocks] = await Promise.all([
     fetchWrappers().catch(() => []),
-    fetchAllPreStocks().catch(() => []),
+    fetchUniverse().catch(() => []),
   ]);
   const prestockMint =
     wrappers.find((w) => w.wrappedMint === agent.wrappedMint)?.prestockMint ?? null;

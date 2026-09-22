@@ -10,7 +10,9 @@ import { Terminal, type TerminalRow } from "@/components/app/terminal";
 import { AGENTS, findAgent } from "@/lib/agents";
 import { fetchLiveAgentByPda } from "@/lib/chain";
 import { shortAddr, usd } from "@/lib/format";
-import { FROZEN_AFTER_SECS, fetchAllPreStocks, fetchMarket } from "@/lib/market";
+import { FROZEN_AFTER_SECS, fetchMarket } from "@/lib/market";
+import { poolProgress } from "@/lib/trade";
+import { fetchUniverse } from "@/lib/universe";
 
 export const revalidate = 30;
 
@@ -25,7 +27,7 @@ export function generateStaticParams() {
 async function resolveAgent(id: string) {
   const seed = findAgent(id);
   if (seed) return seed;
-  const stocks = await fetchAllPreStocks().catch(() => []);
+  const stocks = await fetchUniverse().catch(() => []);
   return fetchLiveAgentByPda(
     id,
     stocks.map((s) => ({ symbol: s.symbol, mint: s.mint })),
@@ -101,6 +103,13 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
   const costBps = 600;
   const netBps = edge - costBps;
   const actionable = frozen && netBps > 0 && edge > 150;
+
+  // The curve's fill and reserves, read from the DBC pool rather than seeded.
+  const curve =
+    agent.onchain && "agentTokenMint" in agent
+      ? await poolProgress(agent.agentTokenMint as string).catch(() => null)
+      : null;
+  const curveProgress = curve?.progress ?? agent.curveProgress;
 
   // The terminal is built from the agent's real reasoning over real data. No
   // on-chain execution exists to show yet, so nothing here is dressed up as a
@@ -214,11 +223,27 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
           )}
 
           <div className="panel flex flex-col gap-5 p-6">
-            <Curve progress={agent.curveProgress} />
+            <Curve progress={curveProgress} />
             <div className="flex items-baseline justify-between border-t border-edge pt-4">
               <span className="label">Curve fee</span>
               <span className="tabular font-mono text-sm text-ink">{agent.feeBps / 100}%</span>
             </div>
+            {curve && (
+              <>
+                <div className="flex items-baseline justify-between">
+                  <span className="label">Tokens left</span>
+                  <span className="tabular font-mono text-sm text-ink-dim">
+                    {compactRaw(curve.baseReserve, 6)}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <span className="label">Raised</span>
+                  <span className="tabular font-mono text-sm text-ink-dim">
+                    {compactRaw(curve.quoteReserve, 9)} {prestock.symbol}
+                  </span>
+                </div>
+              </>
+            )}
             <div className="flex items-baseline justify-between">
               <span className="label">Creator</span>
               <span className="font-mono text-xs text-ink-faint">{shortAddr(agent.creator)}</span>
@@ -266,4 +291,14 @@ function Field({ k, v, hint }: { k: string; v: string; hint?: string }) {
       </dd>
     </div>
   );
+}
+
+/** Raw integer amount + decimals -> a compact figure (k/m/b). */
+function compactRaw(raw: bigint, decimals: number): string {
+  const n = Number(raw) / 10 ** decimals;
+  const abs = Math.abs(n);
+  if (abs >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
+  if (abs >= 1e3) return `${(n / 1e3).toFixed(2)}K`;
+  return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
 }

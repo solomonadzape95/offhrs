@@ -4,7 +4,7 @@ import { AgentManage, type ManageData } from "@/components/app/agent-manage";
 import { RequireWallet } from "@/components/app/require-wallet";
 import { AGENTS, findAgent } from "@/lib/agents";
 import { fetchAgentByPda, fetchLiveAgentByPda, fetchWrappers } from "@/lib/chain";
-import { fetchAllPreStocks } from "@/lib/market";
+import { fetchUniverse } from "@/lib/universe";
 
 export function generateStaticParams() {
   return AGENTS.map((a) => ({ id: a.id }));
@@ -19,7 +19,7 @@ async function resolve(id: string): Promise<{ agent: any; onchain: ManageData | 
   const seed = findAgent(id);
   if (seed) return { agent: seed, onchain: null };
 
-  const stocks = await fetchAllPreStocks().catch(() => []);
+  const stocks = await fetchUniverse().catch(() => []);
   const live = await fetchLiveAgentByPda(
     id,
     stocks.map((s) => ({ symbol: s.symbol, mint: s.mint })),

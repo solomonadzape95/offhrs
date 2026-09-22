@@ -24,6 +24,8 @@
  */
 import { Connection, PublicKey } from "@solana/web3.js";
 
+import { AGENT_IDENTITY_BY_ASSET } from "./agents";
+
 export const PROGRAM_ID = new PublicKey(
   process.env.ANGEL_PROGRAM_ID ?? "FoVBZRFCamH1HNMiVpNZV2QJxk9bSxWtQvKgmqZ1rVLw",
 );
@@ -644,10 +646,11 @@ export async function toLiveAgent(
   }
 
   const short = agent.agentTokenMint.slice(0, 4).toUpperCase();
+  const identity = prestock ? AGENT_IDENTITY_BY_ASSET[prestock.symbol] : undefined;
   return {
     id: agent.pda,
-    name: meta?.name || (prestock ? `${prestock.symbol} desk` : `Agent ${short}`),
-    ticker: (meta?.symbol || short).toUpperCase(),
+    name: meta?.name || identity?.name || (prestock ? `${prestock.symbol} desk` : `Agent ${short}`),
+    ticker: (meta?.symbol || identity?.ticker || short).toUpperCase(),
     asset: prestock?.symbol ?? "—",
     thesis:
       "On-chain agent. Its vault streams the wrapped PreStock it was registered against.",

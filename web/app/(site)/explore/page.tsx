@@ -1,7 +1,7 @@
 import { ExploreGrid } from "@/components/app/explore-grid";
-import { AGENTS } from "@/lib/agents";
 import { fetchLiveAgents } from "@/lib/chain";
-import { fetchAllPreStocks, readPyth, FROZEN_AFTER_SECS } from "@/lib/market";
+import { readPyth, FROZEN_AFTER_SECS } from "@/lib/market";
+import { fetchUniverse, isDevnet } from "@/lib/universe";
 import { LiveBadge } from "@/components/site/live-badge";
 
 export const revalidate = 60;
@@ -13,14 +13,14 @@ export const metadata = {
 
 /** §2 The Marketplace. */
 export default async function ExplorePage() {
-  const stocks = await fetchAllPreStocks().catch(() => []);
+  const stocks = await fetchUniverse().catch(() => []);
   const [regime, live] = await Promise.all([
     readPyth().catch(() => null),
     fetchLiveAgents(stocks.map((s) => ({ symbol: s.symbol, mint: s.mint }))).catch(() => []),
   ]);
 
-  // Real registrations first; the seeded set stays as an explicit PREVIEW fallback.
-  const agents = [...live, ...AGENTS];
+  // Only registrations that actually exist on chain. The preview set is gone.
+  const agents = live;
 
   const frozen = regime ? regime.stalenessSecs > FROZEN_AFTER_SECS : false;
   const widest = [...stocks].sort((a, b) => Math.abs(b.premiumBps) - Math.abs(a.premiumBps))[0];
@@ -58,10 +58,11 @@ export default async function ExplorePage() {
       </div>
 
       <p className="mt-14 border-t border-edge pt-6 font-mono text-xs leading-relaxed text-ink-faint">
-        Market figures are live from the PreStocks issuer API.{" "}
-        {live.length > 0
-          ? `${live.length} agent${live.length === 1 ? "" : "s"} registered on chain; the rest are staged previews.`
-          : "Agent records are staged previews — nothing is registered on chain yet."}
+        {isDevnet()
+          ? "Devnet: the assets are mocks standing in for the real PreStocks, and only agents registered on chain appear here."
+          : live.length > 0
+            ? `${live.length} agent${live.length === 1 ? "" : "s"} registered on chain.`
+            : "No agents are registered on chain yet."}
       </p>
     </section>
   );
