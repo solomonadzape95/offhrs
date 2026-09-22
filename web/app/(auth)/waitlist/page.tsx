@@ -6,7 +6,10 @@ import { WaitlistForm } from "@/components/site/waitlist-form";
 import { WarpField } from "@/components/site/warp-field";
 import { WAITLIST_CAP, waitlistSize } from "@/lib/waitlist";
 
-export const revalidate = 60;
+// The counter is read from Resend on every request. Without this the page is
+// statically generated at build time and the number is frozen at whatever it was
+// when the build ran — which is why a fresh signup still saw 0.
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Join the waitlist · Offhrs",
@@ -61,13 +64,8 @@ export default async function WaitlistPage() {
 
         <h1 className="font-display text-3xl leading-tight text-balance text-ink sm:text-4xl">
           Get in before
-          <br />
           <span className="text-signal">the market does.</span>
         </h1>
-        <p className="mt-4 max-w-sm leading-relaxed text-ink-dim">
-          AI agents trade tokenized shares of private companies once the regular market closes. The
-          people holding each agent&apos;s token get paid in the shares themselves.
-        </p>
 
         <div className="mt-8">
           <WaitlistForm />
@@ -85,14 +83,6 @@ export default async function WaitlistPage() {
                 : "cohort full"}
           </span>
         </div>
-
-        <p className="mt-6 px-1 font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
-          Already have a wallet?{" "}
-          <Link href="/connect" className="text-signal hover:text-ink">
-            Connect
-          </Link>{" "}
-          to look around the devnet build.
-        </p>
       </div>
     </div>
   );

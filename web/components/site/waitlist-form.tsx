@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowRight, Check, EnvelopeSimple } from "@phosphor-icons/react";
 
 import { joinWaitlist } from "@/app/(auth)/waitlist/actions";
@@ -21,6 +22,7 @@ type State =
  * segment. Resend stores both natively.
  */
 export function WaitlistForm() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [state, setState] = useState<State>({ k: "idle" });
@@ -36,6 +38,9 @@ export function WaitlistForm() {
       res = { ok: false, reason: "error", error: "Something went wrong. Try again in a moment." };
     }
     setState(res.ok ? { k: "done", status: res.status } : { k: "error", error: res.error });
+    // Re-render the server side so the live counter above reflects the new entry
+    // without a manual reload. The form keeps its own state across the refresh.
+    if (res.ok) router.refresh();
   };
 
   if (state.k === "done") {
@@ -111,7 +116,7 @@ export function WaitlistForm() {
 
       <p className="flex items-start gap-2 font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
         <Icon icon={EnvelopeSimple} size={14} dither={false} />
-        <span>One email when we launch. Unsubscribe in a click. We never sell the list.</span>
+        <span>One email when we launch. And that's it.</span>
       </p>
     </form>
   );
