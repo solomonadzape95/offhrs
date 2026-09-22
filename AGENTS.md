@@ -116,6 +116,8 @@ CLUSTER=devnet ./scripts/deploy.sh           # build + deploy + status
 
 # ── trade verification (needs devnet-pool.ts first) ───────────────────
 pnpm exec tsx web/scripts/trade-check.ts     # buy+auto-stake, sell→PreStock, wrap, unwrap
+pnpm exec tsx web/scripts/launch-check.ts    # register_agent + initialize_vault (Clawpump path)
+pnpm exec tsx web/scripts/launch-curve-check.ts  # self-owned DBC config+pool (Clawpump fallback)
 
 # ── waitlist (Resend) ─────────────────────────────────────────────────
 pnpm exec tsx web/scripts/waitlist-setup.ts  # verify key, create the segment, print size
@@ -281,21 +283,21 @@ Buyers are betting on the agent; holders earn from it. That is the whole idea.
 | Who creates the token and curve? | **Clawpump**, with our `wPreStock` as the pair | one token then qualifies for both the Clawpump and Meteora DBC tracks, while our vault keeps the stock payouts |
 | Buyback / holder rewards? | **Off** | Clawpump pays those in SOL; paying in stock is the differentiator |
 
-### Built now — items 1–4 of the queue (22 Sep)
+### Built now — items 1–5 of the queue (22 Sep)
 
 1. ✅ **The agent-token buy box.** `/agent/[id]` now trades the agent's own `$AGENT` on its Meteora DBC curve, not the underlying PreStock. `web/lib/trade.ts` does pool discovery (`getPoolByBaseMint`), quoting and unsigned-transaction building server-side; `web/components/app/agent-trade.tsx` is the panel. Seeded previews still show the PreStock swap.
 2. ✅ **USDC routing on buy.** USDC → PreStock (Jupiter) → wrap → buy, as a stepped route where every leg is signed and its signature shown. Jupiter is mainnet-only, so on devnet the direct `wPreStock` path is the one that runs.
 3. ✅ **Auto-stake on purchase.** The bought `$AGENT` is staked into the dividend vault in the *same transaction* as the DBC swap, so rewards stream from the slot of purchase. The stake amount is the quote's slippage-guaranteed minimum, so the transaction can never revert because the curve delivered a hair less.
 4. ✅ **Sale reward selection.** A sale settles as `wPreStock` (hold), raw `PreStock` (unwrap, same tx), or USDC (unwrap + Jupiter route). If the `$AGENT` is staked, the route unstakes the shortfall first.
+5. ✅ **Self-owned DBC fallback.** If Clawpump falls through, the app can create the Meteora DBC config and pool itself (`web/lib/launch.ts`, `buildCreateAgentCurveTx`), with a "Create the curve" mode in `/launch`. The config and base-mint keypairs are generated, used to partially sign, and discarded — the mint is created `Immutable`, so they have no power after the transaction lands. Verified on devnet by `web/scripts/launch-curve-check.ts` (all three signatures present, pool exists after landing).
 
 **Verified on devnet:** `scripts/devnet-pool.ts` stands up a full tradable agent (mock PreStock → wrapper → DBC config + pool → `register_agent` + vault → first buy), and `web/scripts/trade-check.ts` quotes, builds, signs and lands **buy + auto-stake**, **sell → PreStock**, **wrap** and **unwrap**. The auto-stake delta equals the quoted minimum exactly.
 
 ### Still to do (the queue, roughly in order)
 
-1. **Self-owned DBC fallback.** Already proven on devnet (`experiments/day0-pool.ts`); use only if Clawpump falls through.
-2. **Mainnet deploy** (~2.9 SOL, refundable) and the real OpenAI/SpaceX wrappers.
-3. **One real browser signature.** Every instruction is proven with the local keypair on devnet; the wallet sign → relay half has not been clicked in a browser.
-4. **Demo video and submission.**
+1. **Mainnet deploy** (~2.9 SOL, refundable) and the real OpenAI/SpaceX wrappers.
+2. **One real browser signature.** Every instruction is proven with the local keypair on devnet — including the self-owned DBC launch — but the wallet sign → relay half, and the multi-signer co-sign for a self-owned curve, have not been clicked in a browser.
+3. **Demo video and submission.**
 
 **Later, not a priority:** a direct **Raydium venue adapter** — execute on Raydium's pools itself
 instead of going through Jupiter. Jupiter already routes through Raydium, Meteora and Orca, so this
