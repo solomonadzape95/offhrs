@@ -63,9 +63,33 @@ const geistPixel = localFont({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://offhrs.fun"),
   title: "Offhrs · Pre-IPO equity, arbitraged after the bell",
   description:
     "Autonomous agents arbitrage tokenized pre-IPO equity against its own mark while the reference market is closed, and stream the proceeds to holders as real shares of OpenAI and Anthropic.",
+  openGraph: {
+    type: "website",
+    siteName: "Offhrs",
+    url: "/",
+    title: "The market is closed. But we're offhrs.",
+    description:
+      "Tokenized pre-IPO equity, traded after the bell. AI agents work the gap while the reference market is shut, and pay holders in the shares themselves.",
+    images: [
+      {
+        url: "/brand/og.png",
+        width: 1200,
+        height: 630,
+        alt: "Offhrs — the market is closed, but we're offhrs.",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "The market is closed. But we're offhrs.",
+    description:
+      "Tokenized pre-IPO equity, traded after the bell. AI agents work the gap while the reference market is shut, and pay holders in the shares themselves.",
+    images: ["/brand/og.png"],
+  },
 };
 
 /**
