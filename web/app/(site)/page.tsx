@@ -78,16 +78,16 @@ export default async function Home() {
 
           <div className="mt-9 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
             <Link
-              href="/explore"
+              href="/waitlist"
               className="btn btn-primary btn-lg w-full sm:w-auto"
             >
-              Explore markets
+              Join the waitlist
             </Link>
             <Link
-              href="/launch"
+              href="/explore"
               className="btn btn-ghost btn-lg w-full sm:w-auto"
             >
-              Launch an agent
+              Explore markets
             </Link>
           </div>
         </section>

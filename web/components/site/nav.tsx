@@ -8,6 +8,7 @@ import {
   CaretDown,
   ChartLineUp,
   ClockCounterClockwise,
+  EnvelopeSimple,
   GearSix,
   Question,
   Robot,
@@ -56,6 +57,7 @@ export const SITE_ITEMS: NavItem[] = [
   { href: "/#board", label: "Dislocation board", hint: "Every SPV mark, live", icon: Table },
   { href: "/#mechanics", label: "Mechanics", hint: "How the gap gets traded", icon: GearSix },
   { href: "/vault", label: "Vault", hint: "Stake and claim dividends", icon: Vault },
+  { href: "/waitlist", label: "Waitlist", hint: "Early access to the first cohort", icon: EnvelopeSimple },
   { href: "/#faq", label: "FAQ", hint: "The short answers", icon: Question },
   { href: "/app", label: "Dashboard", hint: "Your position and payouts", icon: SquaresFour },
 ];
@@ -70,7 +72,7 @@ export const APP_ITEMS: NavItem[] = [
   { href: "/launch", label: "Launch an agent", hint: "Deploy a new desk", icon: RocketLaunch },
 ];
 
-export function Nav({ items = SITE_ITEMS }: { items?: NavItem[] }) {
+export function Nav({ items = SITE_ITEMS, waitlist = false }: { items?: NavItem[]; waitlist?: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -194,17 +196,17 @@ export function Nav({ items = SITE_ITEMS }: { items?: NavItem[] }) {
                   {/* The wallet lives in the header on desktop; on a phone it moves
                       in here as a button beside the main action. */}
                   <div className="sm:hidden">
-                    <MobileWalletButton onNavigate={() => setOpen(false)} />
+                    <MobileWalletButton waitlist={waitlist} onNavigate={() => setOpen(false)} />
                   </div>
 
                   <div className="mt-1 space-y-2 border-t border-edge px-1 pt-2.5 pb-1">
                     <Link
-                      href="/explore"
+                      href={waitlist ? "/waitlist" : "/explore"}
                       role="menuitem"
                       onClick={() => setOpen(false)}
                       className="btn btn-primary w-full !py-3 !text-sm"
                     >
-                      Explore markets
+                      {waitlist ? "Join the waitlist" : "Explore markets"}
                     </Link>
                   </div>
                 </div>
@@ -216,7 +218,9 @@ export function Nav({ items = SITE_ITEMS }: { items?: NavItem[] }) {
         {/* Desktop control. Hidden on a phone, where the wallet is in the menu. */}
         <div className="flex items-center gap-2">
           <span className="hidden sm:contents">
-            <ProfileMenu />
+            <ProfileMenu
+              fallbackCta={waitlist ? { href: "/waitlist", label: "Join waitlist" } : undefined}
+            />
           </span>
         </div>
       </div>
@@ -224,9 +228,13 @@ export function Nav({ items = SITE_ITEMS }: { items?: NavItem[] }) {
   );
 }
 
-function MobileWalletButton({ onNavigate }: { onNavigate: () => void }) {
+function MobileWalletButton({ onNavigate, waitlist }: { onNavigate: () => void; waitlist?: boolean }) {
   const { address, isReady } = useWalletUi();
   if (!isReady) return null;
+  // On the marketing surface the waitlist is the primary action; the menu's
+  // bottom button already carries it, so a wallet button only appears once there
+  // is a wallet to show.
+  if (waitlist && !address) return null;
 
   const href = address ? "/app" : "/connect";
   const label = address ? "Dashboard" : "Connect wallet";

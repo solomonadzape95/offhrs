@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Check, Copy, SignOut, SquaresFour, User, Vault, Wallet } from "@phosphor-icons/react";
+import { Check, Copy, EnvelopeSimple, SignOut, SquaresFour, User, Vault, Wallet } from "@phosphor-icons/react";
 
 import { DitherAvatar } from "@/components/site/dither-avatar";
 import { Icon } from "@/components/ui/icon";
@@ -21,7 +21,13 @@ import { useWalletUi, shortAddress } from "@/lib/wallet";
  * fixed descendants; ours does too, so the panel is `fixed`-free and anchored
  * inside its own `relative` wrapper instead.
  */
-export function ProfileMenu() {
+export function ProfileMenu({
+  fallbackCta,
+}: {
+  /** Shown instead of "Connect" when no wallet is present — the marketing
+   *  surface points at the waitlist, the app points at the wallet. */
+  fallbackCta?: { href: string; label: string };
+} = {}) {
   const { address, status, isReady, disconnect, connectorId, connectors } = useWalletUi();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -46,16 +52,16 @@ export function ProfileMenu() {
   }
 
   if (!address) {
+    const href = fallbackCta?.href ?? "/connect";
+    const label = fallbackCta?.label ?? (status === "connecting" ? "Connecting…" : "Connect");
     return (
       <Link
-        href="/connect"
-        aria-label="Connect wallet"
+        href={href}
+        aria-label={label}
         className="btn btn-primary !rounded-none !px-3.5 !py-2.5 !text-xs sm:!px-4"
       >
-        <Icon icon={Wallet} size={14} dither={false} />
-        <span className="hidden sm:inline">
-          {status === "connecting" ? "Connecting…" : "Connect"}
-        </span>
+        <Icon icon={fallbackCta ? EnvelopeSimple : Wallet} size={14} dither={false} />
+        <span className="hidden sm:inline">{label}</span>
       </Link>
     );
   }

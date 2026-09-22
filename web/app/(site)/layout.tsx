@@ -26,7 +26,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
 
   return (
     <>
-      <Nav />
+      <Nav waitlist />
 
       {universe.stale && (
         <div className="border-b border-ember/40 bg-ember/8">
