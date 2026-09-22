@@ -50,6 +50,8 @@ const DISC = {
   registerAgent: Uint8Array.from([135, 157, 66, 195, 2, 113, 175, 30]),
   initializeVault: Uint8Array.from([48, 191, 163, 44, 71, 129, 63, 164]),
   setPaused: Uint8Array.from([91, 60, 125, 192, 176, 225, 166, 218]),
+  wrap: Uint8Array.from([178, 40, 10, 189, 228, 129, 186, 140]),
+  unwrap: Uint8Array.from([126, 175, 198, 14, 212, 69, 50, 44]),
 } as const;
 
 function u64le(v: bigint): Buffer {
@@ -58,23 +60,37 @@ function u64le(v: bigint): Buffer {
   return b;
 }
 
-const associatedAddress = (owner: PublicKey, mint: PublicKey) =>
+/**
+ * The associated token address for `owner`/`mint` under a given token program.
+ * The program id is part of the PDA seeds, so a Token-2022 mint (the raw
+ * PreStock) has a different ATA than the classic SPL wrapper of the same owner.
+ */
+export const associatedAddress = (
+  owner: PublicKey,
+  mint: PublicKey,
+  tokenProgram: PublicKey = TOKEN_PROGRAM_ID,
+) =>
   PublicKey.findProgramAddressSync(
-    [owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+    [owner.toBuffer(), tokenProgram.toBuffer(), mint.toBuffer()],
     ASSOCIATED_TOKEN_PROGRAM_ID,
   )[0];
 
 /** `CreateIdempotent` on the Associated Token Program — a no-op if it exists. */
-function createAtaIdempotent(payer: PublicKey, owner: PublicKey, mint: PublicKey) {
+export function createAtaIdempotent(
+  payer: PublicKey,
+  owner: PublicKey,
+  mint: PublicKey,
+  tokenProgram: PublicKey = TOKEN_PROGRAM_ID,
+) {
   return new TransactionInstruction({
     programId: ASSOCIATED_TOKEN_PROGRAM_ID,
     keys: [
       { pubkey: payer, isSigner: true, isWritable: true },
-      { pubkey: associatedAddress(owner, mint), isSigner: false, isWritable: true },
+      { pubkey: associatedAddress(owner, mint, tokenProgram), isSigner: false, isWritable: true },
       { pubkey: owner, isSigner: false, isWritable: false },
       { pubkey: mint, isSigner: false, isWritable: false },
       { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
-      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: tokenProgram, isSigner: false, isWritable: false },
     ],
     data: Buffer.from([1]),
   });
@@ -93,6 +109,33 @@ async function context(owner: string, agentAddress: string) {
   };
 }
 
+/**
+ * The bare `stake` instruction, without the ATA prelude. Auto-stake-on-buy
+ * composes this after a DBC swap in the same transaction, where the token
+ * account already exists (the swap creates it), so it must stand alone.
+ */
+export function stakeInstruction(
+  owner: PublicKey,
+  vault: PublicKey,
+  stakingMint: PublicKey,
+  amountRaw: bigint,
+): TransactionInstruction {
+  return new TransactionInstruction({
+    programId: PROGRAM_ID,
+    keys: [
+      { pubkey: owner, isSigner: true, isWritable: true },
+      { pubkey: vault, isSigner: false, isWritable: true },
+      { pubkey: stakingMint, isSigner: false, isWritable: false },
+      { pubkey: stakeVaultPda(vault), isSigner: false, isWritable: true },
+      { pubkey: associatedAddress(owner, stakingMint), isSigner: false, isWritable: true },
+      { pubkey: stakePda(vault, owner), isSigner: false, isWritable: true },
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
+    ],
+    data: Buffer.concat([Buffer.from(DISC.stake), u64le(amountRaw)]),
+  });
+}
+
 export async function buildStakeTransaction(
   owner: string,
   agentAddress: string,
@@ -103,22 +146,7 @@ export async function buildStakeTransaction(
   const { ownerKey, vault, stakingMint } = await context(owner, agentAddress);
 
   const tx = new Transaction().add(createAtaIdempotent(ownerKey, ownerKey, stakingMint));
-  tx.add(
-    new TransactionInstruction({
-      programId: PROGRAM_ID,
-      keys: [
-        { pubkey: ownerKey, isSigner: true, isWritable: true },
-        { pubkey: vault, isSigner: false, isWritable: true },
-        { pubkey: stakingMint, isSigner: false, isWritable: false },
-        { pubkey: stakeVaultPda(vault), isSigner: false, isWritable: true },
-        { pubkey: associatedAddress(ownerKey, stakingMint), isSigner: false, isWritable: true },
-        { pubkey: stakePda(vault, ownerKey), isSigner: false, isWritable: true },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
-      ],
-      data: Buffer.concat([Buffer.from(DISC.stake), u64le(amountRaw)]),
-    }),
-  );
+  tx.add(stakeInstruction(ownerKey, vault, stakingMint, amountRaw));
   tx.feePayer = ownerKey;
   tx.recentBlockhash = blockhash;
   return tx;
@@ -325,6 +353,105 @@ export async function buildInitializeVaultTransaction(
     }),
   );
   tx.feePayer = creator;
+  tx.recentBlockhash = blockhash;
+  return tx;
+}
+
+// ---------------------------------------------------------------------------
+// Wrapper — the boundary crossing. Raw PreStock (Token-2022, fee-bearing) enters
+// the reserve; the zero-fee classic `wPreStock` leaves it, and vice versa. This is
+// where the PreStocks transfer fee is actually paid, exactly once per direction.
+
+/**
+ * `wrap` — raw PreStock → wPreStock. The program mints the *measured* reserve
+ * delta, so the amount the user receives is less than they sent whenever the
+ * PreStock carries a transfer fee. We pass the requested amount; the chain
+ * decides what arrives.
+ */
+export async function buildWrapTransaction(
+  owner: string,
+  prestockMint: string,
+  amountRaw: bigint,
+  blockhash: string,
+): Promise<Transaction> {
+  if (amountRaw <= 0n) throw new Error("Amount must be greater than zero.");
+  const wrapper = await fetchWrapper(prestockMint);
+  if (!wrapper) throw new Error("No wrapper for that PreStock on this cluster yet.");
+
+  const user = new PublicKey(owner);
+  const prestock = new PublicKey(prestockMint);
+  const wrapped = new PublicKey(wrapper.wrappedMint);
+  const wrapperConfig = wrapperConfigPda(prestock);
+
+  const userPrestock = associatedAddress(user, prestock, TOKEN_2022_PROGRAM_ID);
+  const userWrapped = associatedAddress(user, wrapped, TOKEN_PROGRAM_ID);
+
+  const tx = new Transaction().add(
+    createAtaIdempotent(user, user, prestock, TOKEN_2022_PROGRAM_ID),
+  );
+  tx.add(createAtaIdempotent(user, user, wrapped, TOKEN_PROGRAM_ID));
+  tx.add(
+    new TransactionInstruction({
+      programId: PROGRAM_ID,
+      keys: [
+        { pubkey: user, isSigner: true, isWritable: true },
+        { pubkey: prestock, isSigner: false, isWritable: true },
+        { pubkey: wrapperConfig, isSigner: false, isWritable: true },
+        { pubkey: wrapped, isSigner: false, isWritable: true },
+        { pubkey: reservePda(wrapperConfig), isSigner: false, isWritable: true },
+        { pubkey: userPrestock, isSigner: false, isWritable: true },
+        { pubkey: userWrapped, isSigner: false, isWritable: true },
+        { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      ],
+      data: Buffer.concat([Buffer.from(DISC.wrap), u64le(amountRaw)]),
+    }),
+  );
+  tx.feePayer = user;
+  tx.recentBlockhash = blockhash;
+  return tx;
+}
+
+/** `unwrap` — wPreStock → raw PreStock. The user pays the PreStock fee once, here. */
+export async function buildUnwrapTransaction(
+  owner: string,
+  prestockMint: string,
+  amountRaw: bigint,
+  blockhash: string,
+): Promise<Transaction> {
+  if (amountRaw <= 0n) throw new Error("Amount must be greater than zero.");
+  const wrapper = await fetchWrapper(prestockMint);
+  if (!wrapper) throw new Error("No wrapper for that PreStock on this cluster yet.");
+
+  const user = new PublicKey(owner);
+  const prestock = new PublicKey(prestockMint);
+  const wrapped = new PublicKey(wrapper.wrappedMint);
+  const wrapperConfig = wrapperConfigPda(prestock);
+
+  const userPrestock = associatedAddress(user, prestock, TOKEN_2022_PROGRAM_ID);
+  const userWrapped = associatedAddress(user, wrapped, TOKEN_PROGRAM_ID);
+
+  const tx = new Transaction().add(
+    createAtaIdempotent(user, user, prestock, TOKEN_2022_PROGRAM_ID),
+  );
+  tx.add(
+    new TransactionInstruction({
+      programId: PROGRAM_ID,
+      keys: [
+        { pubkey: user, isSigner: true, isWritable: true },
+        { pubkey: prestock, isSigner: false, isWritable: true },
+        { pubkey: wrapperConfig, isSigner: false, isWritable: true },
+        { pubkey: wrapped, isSigner: false, isWritable: true },
+        { pubkey: reservePda(wrapperConfig), isSigner: false, isWritable: true },
+        { pubkey: userPrestock, isSigner: false, isWritable: true },
+        { pubkey: userWrapped, isSigner: false, isWritable: true },
+        { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      ],
+      data: Buffer.concat([Buffer.from(DISC.unwrap), u64le(amountRaw)]),
+    }),
+  );
+  tx.feePayer = user;
   tx.recentBlockhash = blockhash;
   return tx;
 }

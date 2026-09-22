@@ -16,10 +16,13 @@
 import { Connection } from "@solana/web3.js";
 
 import {
+  fetchAgentByPda,
   fetchAgents,
   fetchExecutions,
   fetchLiveAgents,
+  fetchMintDecimals,
   fetchSlot,
+  fetchTokenBalance,
   fetchUserStake,
   fetchVaultByPda,
   fetchWrappers,
@@ -33,15 +36,22 @@ import {
   buildSetPausedTransaction,
   buildStakeTransaction,
   buildUnstakeTransaction,
+  buildUnwrapTransaction,
+  buildWrapTransaction,
 } from "@/lib/program-tx";
+import { buildBuyTransaction, buildSellTransaction, loadPool, quoteTrade } from "@/lib/trade";
 import { fetchAllPreStocks } from "@/lib/market";
 import type {
+  AgentTradeInfo,
   AgentView,
   BuildTxResult,
   ExecutionView,
   Portfolio,
   PositionRow,
+  SellPayout,
   SubmitResult,
+  TradeQuote,
+  TradeSide,
 } from "@/lib/portfolio";
 
 const PRECISION = 10n ** 12n;
@@ -324,6 +334,213 @@ export async function buildSetPausedTx(
   try {
     const { blockhash } = await rpc().getLatestBlockhash("confirmed");
     const tx = await buildSetPausedTransaction(owner, agentId, paused, blockhash);
+    return { tx: serialize(tx) };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Trade — the `$AGENT` buy box and sell box. Same build-unsigned / sign-in-wallet
+// / relay-signed shape as the vault write path, with the DBC curve maths done
+// server-side by Meteora's SDK so none of it reaches the browser bundle.
+// ---------------------------------------------------------------------------
+
+/** Resolve an agent plus the raw PreStock mint its reward asset wraps. */
+async function tradeContext(agentId: string) {
+  const agent = await fetchAgentByPda(agentId);
+  if (!agent) return null;
+  const [wrappers, stocks] = await Promise.all([
+    fetchWrappers().catch(() => []),
+    fetchAllPreStocks().catch(() => []),
+  ]);
+  const prestockMint =
+    wrappers.find((w) => w.wrappedMint === agent.wrappedMint)?.prestockMint ?? null;
+  const known = prestockMint ? stocks.find((s) => s.mint === prestockMint)?.symbol : undefined;
+  // Fall back to a short mint label rather than an em dash: the trade box needs
+  // *something* to name the quote asset, and on devnet the mock PreStock is not
+  // in the issuer's universe.
+  const asset = known ?? (prestockMint ? prestockMint.slice(0, 4).toUpperCase() : "—");
+  return { agent, prestockMint, asset };
+}
+
+/**
+ * The trade box's opening state: does a curve exist, what are the units, and what
+ * does the connected wallet already hold. Reads are best-effort and fail to zero
+ * rather than throwing, so the panel renders even when one RPC call is unhappy.
+ */
+export async function getAgentTradeInfo(
+  owner: string | null,
+  agentId: string,
+): Promise<AgentTradeInfo> {
+  const base: AgentTradeInfo = {
+    onChain: false,
+    poolExists: false,
+    agentTokenMint: "",
+    wrappedMint: "",
+    prestockMint: null,
+    asset: "—",
+    baseDecimals: 6,
+    quoteDecimals: 9,
+    balances: { liquidAgent: "0", stakedAgent: "0", wrapped: "0", prestock: "0" },
+    price: null,
+  };
+
+  try {
+    const ctx = await tradeContext(agentId);
+    if (!ctx) return base;
+    const { agent, prestockMint, asset } = ctx;
+
+    const [liquidAgent, staked, wrapped, prestock, baseDec, quoteDec, pool] = await Promise.all([
+      owner
+        ? fetchTokenBalance(agent.agentTokenMint, owner, "spl").catch(() => null)
+        : Promise.resolve(null),
+      owner
+        ? fetchUserStake(agent.vault, owner)
+            .then((s) => s?.stakedAmount ?? 0n)
+            .catch(() => 0n)
+        : Promise.resolve(0n),
+      owner
+        ? fetchTokenBalance(agent.wrappedMint, owner, "spl").catch(() => null)
+        : Promise.resolve(null),
+      owner && prestockMint
+        ? fetchTokenBalance(prestockMint, owner, "token-2022").catch(() => null)
+        : Promise.resolve(null),
+      fetchMintDecimals(agent.agentTokenMint).catch(() => 6),
+      fetchMintDecimals(agent.wrappedMint).catch(() => 9),
+      loadPool(agent.agentTokenMint).catch(() => null),
+    ]);
+
+    const quoteDecimals = quoteDec ?? 9;
+    let price: number | null = null;
+    if (pool) {
+      try {
+        // A nominal 1 wPreStock buy just to read the curve price.
+        const q = await quoteTrade(
+          agent.agentTokenMint,
+          "buy",
+          (10n ** BigInt(quoteDecimals)).toString(),
+        );
+        price = q.price;
+      } catch {
+        price = null;
+      }
+    }
+
+    return {
+      onChain: true,
+      poolExists: Boolean(pool),
+      agentTokenMint: agent.agentTokenMint,
+      wrappedMint: agent.wrappedMint,
+      prestockMint,
+      asset,
+      baseDecimals: baseDec ?? 6,
+      quoteDecimals,
+      balances: {
+        liquidAgent: (liquidAgent ?? 0n).toString(),
+        stakedAgent: staked.toString(),
+        wrapped: (wrapped ?? 0n).toString(),
+        prestock: (prestock ?? 0n).toString(),
+      },
+      price,
+    };
+  } catch {
+    return base;
+  }
+}
+
+/** A live DBC quote for the buy box. Amounts are raw integer strings. */
+export async function quoteAgentTrade(
+  agentId: string,
+  side: TradeSide,
+  amountRaw: string,
+): Promise<{ quote: TradeQuote } | { error: string }> {
+  try {
+    const agent = await fetchAgentByPda(agentId);
+    if (!agent) throw new Error("That agent is not registered on this cluster.");
+    const quote = await quoteTrade(agent.agentTokenMint, side, amountRaw);
+    return { quote };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Buy `$AGENT` with `wPreStock`; auto-stake is a flag on the same transaction. */
+export async function buildBuyAgentTx(
+  owner: string,
+  agentId: string,
+  amountRaw: string,
+  autoStake: boolean,
+): Promise<BuildTxResult> {
+  try {
+    const { blockhash } = await rpc().getLatestBlockhash("confirmed");
+    const agent = await fetchAgentByPda(agentId);
+    if (!agent) throw new Error("That agent is not registered on this cluster.");
+    const tx = await buildBuyTransaction(
+      owner,
+      agent.agentTokenMint,
+      amountRaw,
+      autoStake,
+      blockhash,
+    );
+    return { tx: serialize(tx) };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Sell `$AGENT`; `payout` selects wPreStock, raw PreStock, or the USDC route. */
+export async function buildSellAgentTx(
+  owner: string,
+  agentId: string,
+  amountRaw: string,
+  payout: SellPayout,
+): Promise<BuildTxResult> {
+  try {
+    const ctx = await tradeContext(agentId);
+    if (!ctx) throw new Error("That agent is not registered on this cluster.");
+    if ((payout === "prestock" || payout === "usdc") && !ctx.prestockMint) {
+      throw new Error("No PreStock mint is registered for this agent's reward asset.");
+    }
+    const { blockhash } = await rpc().getLatestBlockhash("confirmed");
+    const tx = await buildSellTransaction(
+      owner,
+      ctx.agent.agentTokenMint,
+      ctx.prestockMint ?? "",
+      amountRaw,
+      payout,
+      blockhash,
+    );
+    return { tx: serialize(tx) };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Wrap raw PreStock → wPreStock. One leg of the USDC buy route. */
+export async function buildWrapTx(
+  owner: string,
+  prestockMint: string,
+  amountRaw: string,
+): Promise<BuildTxResult> {
+  try {
+    const { blockhash } = await rpc().getLatestBlockhash("confirmed");
+    const tx = await buildWrapTransaction(owner, prestockMint, BigInt(amountRaw), blockhash);
+    return { tx: serialize(tx) };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Unwrap wPreStock → raw PreStock. The final leg of a PreStock/USDC payout. */
+export async function buildUnwrapTx(
+  owner: string,
+  prestockMint: string,
+  amountRaw: string,
+): Promise<BuildTxResult> {
+  try {
+    const { blockhash } = await rpc().getLatestBlockhash("confirmed");
+    const tx = await buildUnwrapTransaction(owner, prestockMint, BigInt(amountRaw), blockhash);
     return { tx: serialize(tx) };
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) };

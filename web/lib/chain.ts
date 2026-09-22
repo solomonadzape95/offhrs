@@ -484,6 +484,46 @@ export async function programDeployed(): Promise<boolean> {
  */
 export const fetchSlot = () => connection().getSlot("confirmed");
 
+// ---------------------------------------------------------------------------
+// Token balances — for the trade box, which needs to know what the connected
+// wallet actually holds before it offers a size.
+// ---------------------------------------------------------------------------
+const TOKEN_PROGRAM = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+const TOKEN_2022_PROGRAM = new PublicKey("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
+const ASSOCIATED_TOKEN_PROGRAM = new PublicKey(
+  "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+);
+
+export type TokenFlavour = "spl" | "token-2022";
+
+/**
+ * Raw balance of `mint` held by `owner`, or null when the account does not exist.
+ * Reads the SPL token-account layout directly (amount is a u64 at offset 64) so
+ * one code path serves both the classic `$AGENT`/`wPreStock` and the Token-2022
+ * PreStock.
+ */
+export async function fetchTokenBalance(
+  mint: string,
+  owner: string,
+  flavour: TokenFlavour = "spl",
+): Promise<bigint | null> {
+  const program = flavour === "token-2022" ? TOKEN_2022_PROGRAM : TOKEN_PROGRAM;
+  const [ata] = PublicKey.findProgramAddressSync(
+    [new PublicKey(owner).toBuffer(), program.toBuffer(), new PublicKey(mint).toBuffer()],
+    ASSOCIATED_TOKEN_PROGRAM,
+  );
+  const info = await connection().getAccountInfo(ata);
+  if (!info) return null;
+  return (info.data as Buffer).readBigUInt64LE(64);
+}
+
+/** Mint decimals (offset 44 in both the SPL and Token-2022 mint layouts). */
+export async function fetchMintDecimals(mint: string): Promise<number | null> {
+  const info = await connection().getAccountInfo(new PublicKey(mint));
+  if (!info) return null;
+  return (info.data as Buffer)[44];
+}
+
 /**
  * Map a `wrapped_mint` back to the raw PreStock it wraps, using the wrapper
  * registry. Callers join the result against the PreStocks universe to recover the

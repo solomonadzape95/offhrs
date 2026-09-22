@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { AgentTrade } from "@/components/app/agent-trade";
 import { Basis } from "@/components/app/basis";
 import { Curve } from "@/components/app/curve";
 import { MarkVsMarket } from "@/components/app/mark-vs-market";
@@ -45,11 +46,49 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
 
   const market = await fetchMarket(agent.asset).catch(() => null);
   if (!market) {
+    if (!agent.onchain) {
+      return (
+        <section className="mx-auto max-w-app px-5 py-20 sm:px-8">
+          <p className="font-mono text-sm text-ink-faint">
+            Market data unavailable for {agent.asset}. Try again shortly.
+          </p>
+        </section>
+      );
+    }
+    // An on-chain agent whose reference feed is missing (a devnet mock, or a
+    // flaky issuer API) still has a live curve. Show the trade box and say why
+    // the mark and terminal are absent, rather than hiding the whole page.
     return (
-      <section className="mx-auto max-w-app px-5 py-20 sm:px-8">
-        <p className="font-mono text-sm text-ink-faint">
-          Market data unavailable for {agent.asset}. Try again shortly.
-        </p>
+      <section className="mx-auto max-w-app px-5 py-12 sm:px-8 sm:py-16">
+        <div className="flex flex-col gap-5">
+          <Link
+            href="/explore"
+            className="font-mono text-xs tracking-[0.18em] text-ink-faint uppercase transition-colors hover:text-signal"
+          >
+            ← Explore
+          </Link>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <h1 className="font-display text-3xl leading-none text-ink sm:text-4xl">
+                {agent.name}
+              </h1>
+              <span className="font-mono text-xs tracking-[0.16em] text-ink-faint uppercase">
+                ${agent.ticker}
+              </span>
+            </div>
+            <p className="max-w-xl text-sm leading-relaxed text-ink-dim">{agent.thesis}</p>
+          </div>
+        </div>
+        <div className="mt-12 grid gap-6 lg:grid-cols-[1fr_22rem]">
+          <div className="panel flex flex-col gap-3 p-6">
+            <span className="label">Reference market</span>
+            <p className="text-sm leading-relaxed text-ink-dim">
+              The PreStocks issuer feed is unavailable for this asset, so the mark, basis and Pyth
+              terminal are not shown. The agent&apos;s bonding curve is live and can still be traded.
+            </p>
+          </div>
+          <AgentTrade agentId={agent.id} ticker={agent.ticker} asset={agent.asset} />
+        </div>
       </section>
     );
   }
@@ -167,7 +206,11 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
 
         {/* Right column */}
         <div className="flex flex-col gap-6">
-          <Swap symbol={prestock.symbol} mint={prestock.mint} decimals={9} />
+          {agent.onchain ? (
+            <AgentTrade agentId={agent.id} ticker={agent.ticker} asset={prestock.symbol} />
+          ) : (
+            <Swap symbol={prestock.symbol} mint={prestock.mint} decimals={9} />
+          )}
 
           <div className="panel flex flex-col gap-5 p-6">
             <Curve progress={agent.curveProgress} />
@@ -192,9 +235,15 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
               <span className="font-mono text-xs text-ink-dim uppercase">Uncollected</span>
               <span className="tabular font-mono text-sm text-ink">—</span>
             </div>
-            <button disabled className="btn btn-primary mt-1 w-full opacity-60">
-              Claim {prestock.symbol}
-            </button>
+            {agent.onchain ? (
+              <Link href="/app/vault" className="btn btn-primary mt-1 w-full">
+                Claim in the vault
+              </Link>
+            ) : (
+              <button disabled className="btn btn-primary mt-1 w-full opacity-60">
+                Claim {prestock.symbol}
+              </button>
+            )}
             <p className="font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
               Paid in w{prestock.symbol}, redeemable 1:1 for the raw PreStock. Rewards stream over
               time, so claiming later pays more — the vault is not a lump sum.

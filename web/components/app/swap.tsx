@@ -2,9 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ArrowUpRight } from "@phosphor-icons/react";
-import { getBase64Encoder, getTransactionDecoder } from "@solana/kit";
 import { useWalletSession } from "@solana/react-hooks";
 
+import {
+  USDC,
+  USDC_DECIMALS,
+  jupiterQuote,
+  jupiterSwapTransaction,
+  signAndSendJupiter,
+  type JupiterQuote,
+  type JupiterSigner,
+} from "@/lib/jupiter";
 import { useWalletUi, describeWalletError } from "@/lib/wallet";
 
 /**
@@ -20,9 +28,6 @@ import { useWalletUi, describeWalletError } from "@/lib/wallet";
  * *guaranteed* — routes and slippage move, and an unfunded wallet gets a
  * quote and then a failed send.
  */
-const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-const USDC_DECIMALS = 6;
-
 type Status =
   | { kind: "idle" }
   | { kind: "quoting" }
@@ -32,7 +37,7 @@ type Status =
       route: string[];
       priceImpactPct: number;
       /** The raw quote, kept so the swap call sends back exactly what was shown. */
-      quote: unknown;
+      quote: JupiterQuote;
     }
   | { kind: "signing" }
   | { kind: "sending" }
@@ -75,19 +80,12 @@ export function Swap({
     const timer = setTimeout(async () => {
       setStatus({ kind: "quoting" });
       try {
-        const res = await fetch(
-          `https://lite-api.jup.ag/swap/v1/quote?inputMint=${inputMint}&outputMint=${outputMint}` +
-            `&amount=${raw}&slippageBps=100`,
-          { signal: controller.signal },
-        );
-        if (!res.ok) throw new Error(`no route (${res.status})`);
-        const q = await res.json();
-        if (!q.outAmount) throw new Error("no route for this pair");
+        const q = await jupiterQuote(inputMint, outputMint, raw, 100, controller.signal);
         setStatus({
           kind: "ready",
           out: q.outAmount,
-          route: (q.routePlan ?? []).map((s: any) => s.swapInfo?.label).filter(Boolean),
-          priceImpactPct: Number(q.priceImpactPct ?? 0),
+          route: q.route,
+          priceImpactPct: q.priceImpactPct,
           quote: q,
         });
       } catch (e: any) {
@@ -122,27 +120,10 @@ export function Swap({
     setStatus({ kind: "signing" });
 
     try {
-      const res = await fetch("https://lite-api.jup.ag/swap/v1/swap", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          quoteResponse: quote,
-          userPublicKey: address,
-          wrapAndUnwrapSol: true,
-          dynamicComputeUnitLimit: true,
-        }),
-      });
-      if (!res.ok) throw new Error(`swap build failed (${res.status})`);
-      const { swapTransaction } = await res.json();
-
-      // The wallet session is handed the decoded transaction; the message stays
-      // opaque so it signs exactly what Jupiter built.
-      const tx = getTransactionDecoder().decode(getBase64Encoder().encode(swapTransaction));
-      const signed = await session.signTransaction(tx as never);
+      const swapTransaction = await jupiterSwapTransaction(quote.raw, address as string);
       setStatus({ kind: "sending" });
-
-      const signature = await session.sendTransaction(signed as never);
-      setStatus({ kind: "done", signature: String(signature) });
+      const signature = await signAndSendJupiter(session as unknown as JupiterSigner, swapTransaction);
+      setStatus({ kind: "done", signature });
     } catch (e) {
       setStatus({ kind: "error", message: describeWalletError(e) });
     }
