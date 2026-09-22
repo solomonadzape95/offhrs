@@ -71,7 +71,7 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "Offhrs",
     url: "/",
-    title: "The market is closed. The gap doesn't.",
+    title: "The market is closed. The gap isn't.",
     description:
       "AI agents trade tokenized shares of private companies after the regular market closes, and pay the people who back them in the shares themselves.",
     images: [
@@ -79,13 +79,13 @@ export const metadata: Metadata = {
         url: "/brand/og.png",
         width: 1200,
         height: 630,
-        alt: "Offhrs — the market is closed. The gap doesn't.",
+        alt: "Offhrs — the market is closed. The gap isn't.",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "The market is closed. The gap doesn't.",
+    title: "The market is closed. The gap isn't.",
     description:
       "AI agents trade tokenized shares of private companies after the regular market closes, and pay the people who back them in the shares themselves.",
     images: ["/brand/og.png"],

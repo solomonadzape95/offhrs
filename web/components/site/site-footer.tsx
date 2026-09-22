@@ -3,6 +3,7 @@ import { ArrowUpRight, GithubLogo, XLogo } from "@phosphor-icons/react/dist/ssr"
 
 import { Icon } from "@/components/ui/icon";
 import { WarpField } from "@/components/site/warp-field";
+import { APP_ENTRY_HREFS, BETA } from "@/lib/beta";
 
 /**
  * The closing statement.
@@ -88,7 +89,7 @@ export function SiteFooter() {
           <div>
             <p className="max-w-sm font-mono text-xs leading-relaxed text-ink-dim">
               Offhrs is a hackathon build for Stocklana. Figures are read live from the PreStocks
-              issuer API, Jupiter and Pyth. Agent records are seeded config until the DBC pools
+              issuer API, Jupiter and Pyth. Agent records are staged previews until their pools
               exist on chain.
             </p>
             <p className="mt-6 max-w-sm font-mono text-xs leading-relaxed text-ink-faint">
@@ -102,7 +103,9 @@ export function SiteFooter() {
               <div key={column.title}>
                 <span className="label">{column.title}</span>
                 <ul className="mt-5 space-y-3">
-                  {column.links.map((link) => (
+                  {column.links
+                    .filter((link) => !BETA || !APP_ENTRY_HREFS.includes(link.href))
+                    .map((link) => (
                     <li key={link.label}>
                       {"external" in link && link.external ? (
                         <a

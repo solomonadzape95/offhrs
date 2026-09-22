@@ -24,6 +24,7 @@ import { Logo } from "@/components/site/logo";
 import { ProfileMenu } from "@/components/site/profile-menu";
 import { DitherIcon } from "@/components/ui/dither-icon";
 import { Icon } from "@/components/ui/icon";
+import { APP_ENTRY_HREFS } from "@/lib/beta";
 
 /**
  * The header, shared by the public and signed-in surfaces.
@@ -71,7 +72,10 @@ export const APP_ITEMS: NavItem[] = [
   { href: "/launch", label: "Launch an agent", hint: "Deploy a new desk", icon: RocketLaunch },
 ];
 
-export function Nav({ items = SITE_ITEMS, waitlist = false }: { items?: NavItem[]; waitlist?: boolean }) {
+export function Nav({ items = SITE_ITEMS, beta = false }: { items?: NavItem[]; beta?: boolean }) {
+  // In beta the menu only carries the marketing pages; the app entries wait for
+  // the product to open.
+  const shown = beta ? items.filter((i) => !APP_ENTRY_HREFS.includes(i.href)) : items;
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -184,7 +188,7 @@ export function Nav({ items = SITE_ITEMS, waitlist = false }: { items?: NavItem[
             <div id="site-menu" role="menu" className="center-menu-body">
               <div className="center-menu-inner">
                 <div className="center-menu-pad">
-                  {items.map((item) => (
+                  {shown.map((item) => (
                     <MenuRow
                       key={item.href}
                       item={item}
@@ -195,12 +199,12 @@ export function Nav({ items = SITE_ITEMS, waitlist = false }: { items?: NavItem[
 
                   <div className="mt-1 space-y-2 border-t border-edge px-1 pt-2.5 pb-1">
                     <Link
-                      href={waitlist ? "/waitlist" : "/explore"}
+                      href={beta ? "/waitlist" : "/explore"}
                       role="menuitem"
                       onClick={() => setOpen(false)}
                       className="btn btn-primary w-full !py-3 !text-sm"
                     >
-                      {waitlist ? "Join the waitlist" : "Explore markets"}
+                      {beta ? "Join the waitlist" : "Explore markets"}
                     </Link>
                   </div>
                 </div>
@@ -215,7 +219,7 @@ export function Nav({ items = SITE_ITEMS, waitlist = false }: { items?: NavItem[
             stays here, right of the menu trigger, showing just the pfp. */}
         <div className="flex items-center gap-2">
           <ProfileMenu
-            fallbackCta={waitlist ? { href: "/waitlist", label: "Join waitlist" } : undefined}
+            fallbackCta={beta ? { href: "/waitlist", label: "Join waitlist" } : undefined}
           />
         </div>
       </div>

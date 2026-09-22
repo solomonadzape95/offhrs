@@ -1,5 +1,6 @@
 import { Nav } from "@/components/site/nav";
 import { SiteFooter } from "@/components/site/site-footer";
+import { BETA } from "@/lib/beta";
 import { fetchAllPreStocks, universeStatus } from "@/lib/market";
 
 /**
@@ -26,7 +27,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
 
   return (
     <>
-      <Nav waitlist />
+      <Nav beta={BETA} />
 
       {universe.stale && (
         <div className="border-b border-ember/40 bg-ember/8">

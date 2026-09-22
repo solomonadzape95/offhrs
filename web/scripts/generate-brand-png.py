@@ -196,7 +196,7 @@ def banner():
     # The claim, in the display serif, as the mid-page band does.
     head = display_font(44 * SS, weight=500)
     draw.text((cx, cy + 112 * SS), "The market is closed.", font=head, fill=INK, anchor="mm")
-    draw.text((cx, cy + 160 * SS), "The gap doesn\u2019t.", font=head, fill=SIGNAL, anchor="mm")
+    draw.text((cx, cy + 160 * SS), "The gap isn\u2019t.", font=head, fill=SIGNAL, anchor="mm")
 
     img.resize((W, H), Image.LANCZOS).save(OUT / "banner.png")
     return OUT / "banner.png"
@@ -243,7 +243,7 @@ def og():
     # The claim.
     head = display_font(60 * SS, weight=520)
     draw.text((cx, 292 * SS), "The market is closed.", font=head, fill=INK, anchor="mm")
-    draw.text((cx, 354 * SS), "The gap doesn\u2019t.", font=head, fill=SIGNAL, anchor="mm")
+    draw.text((cx, 354 * SS), "The gap isn\u2019t.", font=head, fill=SIGNAL, anchor="mm")
 
     # The one-liner and the domain, centered under it.
     sub = sans_font(27 * SS, weight=500)

@@ -10,6 +10,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 
 import { AgentCarousel } from "@/components/site/agent-carousel";
+import { Cta } from "@/components/site/cta";
 import { FaqList } from "@/components/site/faq";
 import { Glyph } from "@/components/site/glyph";
 import { MechanicsGrid } from "@/components/site/mechanics";
@@ -18,6 +19,7 @@ import { Stat } from "@/components/site/stat";
 import { WarpField } from "@/components/site/warp-field";
 import { Icon } from "@/components/ui/icon";
 import { AGENTS } from "@/lib/agents";
+import { BETA } from "@/lib/beta";
 import { FAQ } from "@/lib/faq";
 import { usd } from "@/lib/format";
 import { FROZEN_AFTER_SECS, fetchAllPreStocks, readPyth } from "@/lib/market";
@@ -67,7 +69,7 @@ export default async function Home() {
           <h1 className="font-display text-display max-w-4xl text-balance text-ink">
             The market is closed.
             <br />
-            <span className="text-signal">The gap doesn&apos;t.</span>
+            <span className="text-signal">The gap isn&apos;t.</span>
           </h1>
 
           <p className="mt-6 max-w-xl text-base leading-relaxed text-ink-dim text-pretty sm:text-lg">
@@ -84,12 +86,14 @@ export default async function Home() {
             >
               Join the waitlist
             </Link>
-            <Link
-              href="/explore"
-              className="btn btn-ghost btn-lg w-full sm:w-auto"
-            >
-              Explore markets
-            </Link>
+            {!BETA && (
+              <Link
+                href="/explore"
+                className="btn btn-ghost btn-lg w-full sm:w-auto"
+              >
+                Explore markets
+              </Link>
+            )}
           </div>
         </section>
 
@@ -197,9 +201,9 @@ export default async function Home() {
           <h2 className="font-display text-statement max-w-3xl text-balance text-ink">
             Tokenized shares, priced against their mark.
           </h2>
-          <Link href="/explore" className="nav-item">
+          <Cta href="/explore" className="nav-item">
             All agents →
-          </Link>
+          </Cta>
         </div>
 
         <div className="panel mt-10 overflow-x-auto rounded-none p-2 sm:p-3">
@@ -281,9 +285,9 @@ export default async function Home() {
 
           <div className="mt-10 flex flex-wrap items-center gap-4">
             <span className="label">{AGENTS.length} agents staged</span>
-            <Link href="/explore" className="btn btn-primary ml-auto">
+            <Cta href="/explore" className="btn btn-primary ml-auto">
               Open the market
-            </Link>
+            </Cta>
           </div>
         </div>
       </Section>
@@ -309,9 +313,9 @@ export default async function Home() {
               become real the moment their pools are on chain.
             </p>
           </div>
-          <Link href="/explore" className="nav-item">
+          <Cta href="/explore" className="nav-item">
             All agents →
-          </Link>
+          </Cta>
         </div>
 
         <AgentCarousel agents={AGENTS.slice(0, 4)} />
@@ -337,16 +341,25 @@ export default async function Home() {
           <p className="font-display text-headline mx-auto max-w-3xl text-balance text-ink">
             The market is closed.
             <br />
-            <span className="text-signal">The gap doesn&apos;t.</span>
+            <span className="text-signal">The gap isn&apos;t.</span>
           </p>
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href="/explore" className="btn btn-primary btn-lg">
-              Explore markets
-              <Icon icon={ArrowRight} size={16} dither={false} />
-            </Link>
-            <Link href="/launch" className="btn btn-ghost btn-lg">
-              Launch an agent
-            </Link>
+            {BETA ? (
+              <Link href="/waitlist" className="btn btn-primary btn-lg">
+                Join the waitlist
+                <Icon icon={ArrowRight} size={16} dither={false} />
+              </Link>
+            ) : (
+              <>
+                <Link href="/explore" className="btn btn-primary btn-lg">
+                  Explore markets
+                  <Icon icon={ArrowRight} size={16} dither={false} />
+                </Link>
+                <Link href="/launch" className="btn btn-ghost btn-lg">
+                  Launch an agent
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </section>
