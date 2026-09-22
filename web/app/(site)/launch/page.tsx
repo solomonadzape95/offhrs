@@ -1,5 +1,7 @@
 import { LaunchStudio } from "@/components/app/launch-studio";
 import { RequireWallet } from "@/components/app/require-wallet";
+import { PROGRAM_RPC_URL } from "@/lib/chain";
+import { fetchDevnetAssets } from "@/lib/devnet-assets";
 import { fetchAllPreStocks } from "@/lib/market";
 
 export const revalidate = 60;
@@ -11,7 +13,11 @@ export const metadata = {
 
 /** §4 Creator Studio. */
 export default async function LaunchPage() {
-  const assets = await fetchAllPreStocks().catch(() => []);
+  // Real PreStocks only exist on mainnet, so on devnet the launchable assets are
+  // the mock PreStocks the wrappers actually point at — otherwise the preflight
+  // would look for a devnet wrapper around a mainnet mint and never pass.
+  const isDevnet = PROGRAM_RPC_URL.includes("devnet");
+  const assets = await (isDevnet ? fetchDevnetAssets() : fetchAllPreStocks()).catch(() => []);
 
   return (
     <section className="mx-auto max-w-app px-5 py-14 sm:px-8 sm:py-20">

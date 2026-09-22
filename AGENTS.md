@@ -3,7 +3,7 @@
 **Read this first.** It is the entry point for a fresh session. It says what the project is, what
 already works, how to run it, and what is broken or blocked.
 
-Last updated: **Tue 22 Sep 2026, ~20:30 UTC.**
+Last updated: **Tue 22 Sep 2026, ~21:30 UTC.**
 
 ---
 
@@ -64,6 +64,7 @@ specific subsystem.
 | **Swap signing** — real Jupiter tx, real signature | `web/scripts/swap-check.ts` |
 | **Agent-token trade** — DBC buy/sell + auto-stake | `web/scripts/trade-check.ts` lands buy+stake, sell→PreStock, wrap, unwrap on devnet |
 | **Browser sign → relay** — real Wallet Standard signature through the UI | `scripts/browser-sign-check.ts`; `day7_results.md` |
+| **Devnet beta** — faucet + self-serve launch on mock assets | `web/lib/faucet.ts`, `scripts/browser-launch-check.ts`; §14 |
 | **Live on devnet** — program deployed | `FoVBZ…VLw`; `scripts/devnet-smoke.ts` runs wrapper → registry → streaming vault on-chain |
 
 ### Deployed on devnet; blocked on mainnet rent
@@ -116,6 +117,7 @@ pnpm exec tsx agent/src/index.ts --feeds               # known on-chain feeds
 pnpm exec tsx web/scripts/session-check.ts   # 8 market-session cases
 pnpm exec tsx web/scripts/swap-check.ts      # decodes a real Jupiter tx
 pnpm exec tsx scripts/browser-sign-check.ts  # real browser sign → relay; dev server required (see §9)
+pnpm exec tsx scripts/browser-launch-check.ts # a fresh faucet-funded wallet launches an agent (§14)
 
 # ── ops scripts (cluster-agnostic; RPC_URL / ANCHOR_WALLET env) ───────
 pnpm exec tsx scripts/status.ts              # deployed? wrappers, agents
@@ -148,7 +150,8 @@ offhours/                     ← directory on disk still says "angel"; the prod
 ├── agent/src/                off-chain agent runtime (config, market, signal, execution, chain)
 ├── experiments/              day0–day3 probes; the evidence behind the constraints
 ├── scripts/                  devnet ops: status.ts, devnet-smoke.ts, devnet-pool.ts,
-│                             deploy.sh, browser-sign-check.ts
+│                             deploy.sh, browser-sign-check.ts, browser-launch-check.ts,
+│                             lib/test-wallet.ts
 ├── web/                      Next.js 16 frontend  ← the active work
 │   ├── app/(site)/           marketing: /, /explore, /launch, /agent/[id], /vault, /terms, /privacy
 │   ├── app/(auth)/           bare chrome: /connect, /waitlist
@@ -157,11 +160,13 @@ offhours/                     ← directory on disk still says "angel"; the prod
 │   │                         profile-menu, logo, waitlist-form, mechanics, agent-carousel,
 │   │                         section, glyph, faq, site-footer, session-clock, stat
 │   ├── components/app/       agent-trade, swap, vault-panel, launch-studio, agent-manage,
-│   │                         curve, curve-preview, basis, mark-vs-market, terminal, app-shell
+│   │                         curve, curve-preview, basis, mark-vs-market, terminal, app-shell,
+│   │                         devnet-faucet
 │   ├── components/ui/        icon (Phosphor + halftone), dither-icon
 │   ├── lib/                  market, session, wallet, deploy, agents, snapshot, format, theme,
 │   │                         beta, waitlist (Resend), trade (DBC), program-tx (stock_vault ixs),
-│   │                         jupiter, chain, portfolio, faq, use-write-tx, use-server-data
+│   │                         jupiter, chain, portfolio, faq, use-write-tx, use-server-data,
+│   │                         faucet, devnet, devnet-assets
 │   ├── public/brand/         banner.png · pfp.png · og.png (generated)
 │   ├── DESIGN_SYSTEM.md      the tokens, palettes, rules and component inventory
 │   └── scripts/              check scripts + generate-brand-png.py (see §4)
@@ -352,6 +357,9 @@ Buyers are betting on the agent; holders earn from it. That is the whole idea.
     stake through the app's own `decode → sign → encode → relay` path, and the self-owned DBC
     **multi-signer co-sign** (config + base mint + wallet) — `scripts/browser-sign-check.ts`,
     `day7_results.md`. This caught and fixed the `getProgramAccounts` 429 storm in `chain.ts`.
+11. ✅ **Devnet beta on-ramp** — a server-signed faucet gives testers test SOL + mock PreStock +
+    wPreStock, and `/launch` lists the devnet mock assets, so a fresh wallet can launch, trade and
+    stake. §14; `scripts/browser-launch-check.ts`.
 
 ### Still to do (the queue, roughly in order)
 
@@ -472,3 +480,25 @@ Who to ask, fastest first:
 **Fallback.** The whole product loop runs on devnet for free, and the submission needs only **one
 link** (GitHub, live demo, or video) — so a devnet demo is a valid submission if the SOL does not
 land. The mainnet deploy only buys the *real* PreStocks wrappers and a mainnet demo.
+
+---
+
+## 14. Devnet beta testing (the faucet)
+
+A beta tester uses **their own wallet** and never imports a key. `Duzj6…` is the program's upgrade
+authority *and* the mock mints' authority, so handing it out would hand over the program. The
+on-ramp is a server-signed **faucet** instead.
+
+- **`web/lib/faucet.ts`** sends a connected wallet **0.5 SOL + 10 mock PreStock + 10 wPreStock**
+  (`faucetDevnet` in `app/actions.ts`). 10-minute cooldown per wallet; the faucet wallet refuses to
+  drop below 1 SOL. Devnet-gated — it refuses before touching a key on a mainnet `PROGRAM_RPC_URL`.
+- **The button** is `components/app/devnet-faucet.tsx`, on `/app`, rendered only when the client is
+  pointed at devnet (`lib/devnet.ts`).
+- **`/launch` on devnet** lists the mock PreStocks (`lib/devnet-assets.ts`) instead of the mainnet
+  issuer API, so the self-owned DBC launch's preflight can actually pass for a tester.
+- **Verified:** `scripts/browser-launch-check.ts` funds a fresh keypair from the faucet, then drives
+  the real `/launch` UI through create-curve → register → vault, all signed in the browser.
+
+Clawpump itself is still mainnet-only; the devnet launch is our own DBC curve. For a public beta,
+set `FAUCET_KEYPAIR` to a dedicated devnet wallet and give that wallet the mock mints' authority, so
+the upgrade authority is not the hot key. Evidence: `day7_results.md`.

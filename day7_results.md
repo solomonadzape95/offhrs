@@ -81,3 +81,52 @@ pnpm exec tsx scripts/browser-sign-check.ts
 `playwright-core@1.63.0` is a dev dependency; a Chromium build must be present (on this machine it
 is the one Playwright already cached). The check reads the wallet from `ANCHOR_WALLET` and the agent
 from `.devnet-demo.json`, so it targets the same demo agent without arguments.
+
+---
+
+## Beta testing on devnet
+
+The browser check made it clear that a tester could not actually *use* the product: the
+devnet mock tokens live in the provider wallet, and the only way to hand them out was to
+give someone a private key — which is both impossible (wallets do not import keys from a
+website) and unsafe (`Duzj6…` is the program's **upgrade authority**).
+
+So the beta on-ramp is a **devnet faucet**, not a key import:
+
+- `web/lib/faucet.ts` — the server holds a keypair and, on request, sends the connected
+  wallet **0.5 SOL + 10 mock PreStock + 10 wPreStock**. The tester signs their own trades,
+  stakes and launches; the faucet only removes the "I have no tokens" wall. Cooldown is
+  10 minutes per wallet, and the faucet wallet refuses to drop below 1 SOL.
+- `web/components/app/devnet-faucet.tsx` + a `faucetDevnet` server action — a button on
+  `/app`, rendered only when the client is pointed at devnet.
+- `web/lib/devnet-assets.ts` — `/launch` now lists the **mock devnet PreStocks** instead of
+  the mainnet issuer API when the program is on devnet. Without this the preflight looked
+  for a devnet wrapper around a mainnet mint and could never pass.
+
+**Verified end to end:** `scripts/browser-launch-check.ts` funds a **fresh keypair** from
+the faucet, then drives the real `/launch` UI to create the DBC curve, register the agent
+and create its vault — all three signed in the browser by the tester's own key:
+
+```
+tester  EAzreuDuUYYhVGUKadmqLPgxbzHBqfScmsxbzsNhZ4pV
+faucet  4SrrAtg9Mwt5DX5ftpt9iXQcDhCnepGkPhFw6pHTfwLTnjugDLQfXEjHHo947UZfhUbVT78jJ4S7iBFWR6p5TuHb
+mint    9kzVnRzzyQKAkupwYfGybBZSEUnNd1m7jBraZ7fHZDnj
+agent   FKUhB3dnCNhhXYtQqDH46SrB9zQ8HXYjpRYQgGkpvX5d
+vault   G4bxMGatgR2szfCZ4PAY3WtQN3EniEdXibo85rP6ffBw
+PASS — a fresh faucet-funded wallet launched an agent on devnet: curve + register + vault, signed in the browser.
+```
+
+### What this does *not* change
+
+Clawpump still needs mainnet. The devnet launch is our own DBC curve (the fallback); the
+**Clawpump token** path in `/launch` still expects a mint Clawpump created on mainnet and
+cannot be exercised on devnet. The faucet gives testers the *product loop* — trade, stake,
+claim, and launch their own curve — not a Clawpump launch.
+
+### Safety notes
+
+- The faucet key never reaches the browser; the client only asks the server action.
+- For a public beta, set `FAUCET_KEYPAIR` to a dedicated devnet wallet and give **that**
+  wallet the mock mints' authority, so the upgrade authority is not the hot key.
+- Cooldown state is in-process and resets on redeploy — a courtesy limit, not a security
+  boundary. The real limit is the faucet wallet's balance.

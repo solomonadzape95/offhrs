@@ -41,6 +41,7 @@ import {
 } from "@/lib/program-tx";
 import { buildBuyTransaction, buildSellTransaction, loadPool, quoteTrade } from "@/lib/trade";
 import { buildCreateAgentCurve } from "@/lib/launch";
+import { faucet } from "@/lib/faucet";
 import { fetchAllPreStocks } from "@/lib/market";
 import type {
   AgentTradeInfo,
@@ -598,4 +599,12 @@ export async function submitTx(signedBase64: string): Promise<SubmitResult> {
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) };
   }
+}
+
+/**
+ * Devnet faucet — the server sends the connected wallet test SOL and the mock
+ * PreStock/wPreStock pair. Devnet-only; refuses before touching a key on mainnet.
+ */
+export async function faucetDevnet(owner: string): Promise<SubmitResult> {
+  return faucet(owner);
 }

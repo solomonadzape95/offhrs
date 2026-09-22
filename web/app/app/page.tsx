@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { buildClaimTx, getUserPosition } from "@/app/actions";
+import { DevnetFaucet } from "@/components/app/devnet-faucet";
 import { RequireWallet } from "@/components/app/require-wallet";
 import { SessionClock } from "@/components/site/session-clock";
 import { Stat } from "@/components/site/stat";
@@ -57,6 +58,8 @@ function Position() {
         </div>
         <SessionClock variant="hero" />
       </div>
+
+      <DevnetFaucet />
 
       <div className="grid grid-cols-2 gap-10 border-t border-edge pt-10 lg:grid-cols-4">
         <Stat
