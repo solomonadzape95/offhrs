@@ -177,11 +177,26 @@ def banner():
     draw = ImageDraw.Draw(img)
     paint_voronoi(img, draw, W, H, SS, count=90, seed=0x0FF5)
 
-    # The wordmark plate: the mark and the name, as one lockup.
-    rx, ry, rw, rh = 375, 170, 750, 160
-    draw.rectangle([rx * SS, ry * SS, (rx + rw) * SS, (ry + rh) * SS], fill=(0, 0, 0))
-    total = lockup_width(draw, 132 * SS, 52 * SS, 30 * SS)
-    draw_lockup(draw, (rx + rw / 2) * SS - total / 2, (ry + rh / 2) * SS, 132 * SS, 52 * SS, 30 * SS)
+    # One uniform wash, matching the landing's mid-page band ("bg-void/70") —
+    # the warp shows through faintly instead of sitting behind a black plate.
+    overlay = Image.new("RGBA", (W * SS, H * SS), (*VOID, int(0.70 * 255)))
+    img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+    draw = ImageDraw.Draw(img)
+
+    cx = (W / 2) * SS
+
+    # The lockup, centered.
+    size = 122 * SS
+    mark_r = 48 * SS
+    gap = 30 * SS
+    total = lockup_width(draw, size, mark_r, gap)
+    cy = 190 * SS
+    draw_lockup(draw, cx - total / 2, cy, size, mark_r, gap)
+
+    # The claim, in the display serif, as the mid-page band does.
+    head = display_font(44 * SS, weight=500)
+    draw.text((cx, cy + 112 * SS), "The market is closed.", font=head, fill=INK, anchor="mm")
+    draw.text((cx, cy + 160 * SS), "The gap doesn\u2019t.", font=head, fill=SIGNAL, anchor="mm")
 
     img.resize((W, H), Image.LANCZOS).save(OUT / "banner.png")
     return OUT / "banner.png"
@@ -200,44 +215,47 @@ def pfp():
 
 
 def og():
-    """1200x630 Open Graph card: the field on the right, the claim on the left."""
+    """1200x630 Open Graph card, built like the banner: one uniform wash over the
+    field and everything centered — the wordmark, the claim, a one-liner and the
+    domain. Nothing anchored to a corner, nothing hidden behind a vignette.
+    """
     SS = 2
     W, H = 1200, 630
-    img = Image.new("RGBA", (W * SS, H * SS), VOID)
+    img = Image.new("RGB", (W * SS, H * SS), GROUND)
     draw = ImageDraw.Draw(img)
-    paint_voronoi(img, draw, W, H, SS, count=64, seed=0x0FF5, gap=False)
+    paint_voronoi(img, draw, W, H, SS, count=72, seed=0x0FF5)
 
-    # Darken the left two-thirds so the type reads, leaving the pattern on the right.
-    overlay = Image.new("RGBA", (W * SS, H * SS), (0, 0, 0, 0))
-    od = ImageDraw.Draw(overlay)
-    for x in range(W * SS):
-        t = x / (W * SS)
-        a = int(242 * max(0.0, 1.0 - (t / 0.74) ** 1.35))
-        od.line([(x, 0), (x, H * SS)], fill=(*VOID, a))
-    img = Image.alpha_composite(img, overlay).convert("RGB")
+    # The same uniform wash the banner uses, a touch heavier so the centered type
+    # stays legible over the brightest cells.
+    overlay = Image.new("RGBA", (W * SS, H * SS), (*VOID, int(0.72 * 255)))
+    img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
     draw = ImageDraw.Draw(img)
 
-    M = 78 * SS
+    cx = (W / 2) * SS
 
-    # Wordmark, top-left.
-    draw_lockup(draw, M, 116 * SS, 54 * SS, 21 * SS, 13 * SS)
+    # The lockup, centered.
+    size = 58 * SS
+    mark_r = 23 * SS
+    gap = 14 * SS
+    total = lockup_width(draw, size, mark_r, gap)
+    draw_lockup(draw, cx - total / 2, 160 * SS, size, mark_r, gap)
 
     # The claim.
-    head = display_font(84 * SS, weight=500)
-    draw.text((M, 250 * SS), "The market is closed.", font=head, fill=INK, anchor="ls")
-    draw.text((M, 342 * SS), "But we're offhrs.", font=head, fill=SIGNAL, anchor="ls")
+    head = display_font(60 * SS, weight=520)
+    draw.text((cx, 292 * SS), "The market is closed.", font=head, fill=INK, anchor="mm")
+    draw.text((cx, 354 * SS), "The gap doesn\u2019t.", font=head, fill=SIGNAL, anchor="mm")
 
-    # The one-liner, and the domain.
+    # The one-liner and the domain, centered under it.
     sub = sans_font(27 * SS, weight=500)
     draw.text(
-        (M, 438 * SS),
-        "Tokenized pre-IPO equity, traded after the bell.",
+        (cx, 450 * SS),
+        "AI agents trade private-company shares after the bell.",
         font=sub,
         fill=INK_DIM,
-        anchor="ls",
+        anchor="mm",
     )
-    domain = sans_font(24 * SS, weight=700)
-    draw.text((M, 528 * SS), "offhrs.fun", font=domain, fill=SIGNAL, anchor="ls")
+    dom = sans_font(28 * SS, weight=700)
+    draw.text((cx, 526 * SS), "offhrs.fun", font=dom, fill=SIGNAL, anchor="mm")
 
     img.resize((W, H), Image.LANCZOS).save(OUT / "og.png")
     return OUT / "og.png"

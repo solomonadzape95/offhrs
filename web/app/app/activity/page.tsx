@@ -50,9 +50,9 @@ export default function ActivityPage() {
             <span className="label">Activity</span>
             <h1 className="font-display text-3xl leading-none text-ink sm:text-4xl">Executions</h1>
             <p className="max-w-2xl text-sm leading-relaxed text-ink-dim">
-              Every fill an agent makes is written on chain with the Pyth read that justified it. The
-              oracle fields are copied from the agent&apos;s signal by the program, so a logged trade
-              cannot be separated from the data behind it.
+              Every trade an agent makes is written on chain together with the price read that
+              justified it. The two are stored together, so a logged trade can&apos;t be separated
+              from the price data behind it.
             </p>
           </div>
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, EnvelopeSimple, GithubLogo, XLogo } from "@phosphor-icons/react/dist/ssr";
+import { ArrowUpRight, GithubLogo, XLogo } from "@phosphor-icons/react/dist/ssr";
 
 import { Icon } from "@/components/ui/icon";
 import { WarpField } from "@/components/site/warp-field";
@@ -71,18 +71,15 @@ export function SiteFooter() {
       <div className="relative mx-auto max-w-app px-5 pt-20 sm:px-8 sm:pt-24">
         {/* ── Pills ─────────────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-center gap-3">
-          <Pill href="https://x.com" icon={<XLogo size={16} weight="fill" aria-hidden />} external>
-            @offhours
+          <Pill href="https://x.com/Offhrsdotfun" icon={<XLogo size={16} weight="fill" aria-hidden />} external>
+            offhrs
           </Pill>
           <Pill
-            href="https://github.com"
+            href="https://github.com/solomonadzape95/offhrs"
             icon={<GithubLogo size={16} weight="fill" aria-hidden />}
             external
           >
             GitHub
-          </Pill>
-          <Pill href="mailto:hello@offhours.xyz" icon={<EnvelopeSimple size={16} aria-hidden />}>
-            Email us
           </Pill>
         </div>
 

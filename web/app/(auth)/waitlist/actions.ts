@@ -29,7 +29,7 @@ export async function joinWaitlist(input: {
       return {
         ok: false,
         reason: "full",
-        error: "This cohort is full. We cap it deliberately — watch the site for the next one.",
+        error: "This cohort is full. We keep it small on purpose — the next one opens soon.",
       };
     }
     return { ok: true, status: outcome };

@@ -25,7 +25,7 @@ export default function AgentsPage() {
     <section className="mx-auto max-w-app px-5 py-10 sm:px-8 sm:py-14">
       <RequireWallet
         title="Connect to see your agents"
-        body="Agents are registered against a creator wallet, so there is nothing to list until one is connected."
+        body="Agents are registered to a creator wallet, so there is nothing to list until one is connected."
       >
         <div className="flex flex-col gap-12">
           <div className="flex flex-wrap items-end justify-between gap-6">
@@ -33,8 +33,8 @@ export default function AgentsPage() {
               <span className="label">Agents</span>
               <h1 className="font-display text-3xl leading-none text-ink sm:text-4xl">Your agents</h1>
               <p className="max-w-xl text-sm leading-relaxed text-ink-dim">
-                Creators earn the curve fee on every secondary trade of their agent token, on top of
-                the dividends their stakers accrue.
+                Launch an agent and you earn a fee on every trade of its token, while the people
+                staking it earn dividends.
               </p>
             </div>
             <Link href="/launch" className="btn btn-primary">
@@ -99,7 +99,7 @@ export default function AgentsPage() {
                 <p className="max-w-2xl text-sm leading-relaxed text-ink-dim">
                   {mine.status === "loading"
                     ? "Reading the registry…"
-                    : "None yet. Launching registers an Agent account against your wallet, and the vault that streams its equity to stakers."}
+                    : "None yet. When you launch, an agent account is registered to your wallet along with its vault."}
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <Link href="/launch" className="btn btn-ghost !px-4 !py-2.5 !text-xs">
@@ -113,9 +113,9 @@ export default function AgentsPage() {
           {/* The seeded set, labelled as such */}
           <div className="flex flex-col gap-5">
             <div className="flex items-baseline justify-between">
-              <span className="label">Staged launch set</span>
+              <span className="label">Preview set</span>
               <span className="font-mono text-[0.625rem] tracking-[0.14em] text-ink-faint uppercase">
-                seeded config, not on chain
+                not on chain yet
               </span>
             </div>
 

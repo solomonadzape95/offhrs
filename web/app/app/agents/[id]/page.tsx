@@ -59,7 +59,7 @@ export default async function ManageAgentPage({ params }: { params: Promise<{ id
     <section className="mx-auto max-w-app px-5 py-10 sm:px-8 sm:py-14">
       <RequireWallet
         title="Connect to manage this desk"
-        body="Agents are registered against a creator wallet, so there is nothing to control until one is connected."
+        body="Agents are registered to a creator wallet, so there is nothing to control until one is connected."
       >
         <AgentManage agent={resolved.agent} onchain={resolved.onchain} />
       </RequireWallet>

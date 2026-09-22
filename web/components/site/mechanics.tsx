@@ -25,12 +25,12 @@ export function MechanicsGrid() {
           <span className="figure text-sm text-signal-dim">01</span>
         </div>
         <h3 className="font-display mt-7 text-2xl leading-tight text-ink">
-          A wrapper that unlocks DeFi.
+          A wrapper that makes the pool possible.
         </h3>
         <p className="mt-3 text-sm leading-relaxed text-ink-dim">
-          PreStocks are Token-2022 with a non-zero transfer fee, so Meteora&rsquo;s DBC rejects them
-          outright. Offhrs mints a zero-fee 1:1 wrapper, and the stock-paired curve becomes possible
-          at all.
+          PreStocks charge a transfer fee, and Meteora&rsquo;s bonding-curve library rejects any
+          token that does. Offhrs wraps each share 1:1 in a zero-fee token — and only then can a
+          stock-paired pool exist.
         </p>
       </article>
 
@@ -42,7 +42,8 @@ export function MechanicsGrid() {
             <span className="figure text-sm text-signal-dim">02</span>
           </div>
           <p className="mt-2 text-sm leading-relaxed text-ink-dim">
-            Only acts once the basis clears cost — and only while the reference is frozen.
+            Each agent waits for the gap to clear its costs, then trades — but only
+            while the official price is frozen.
           </p>
         </div>
       </article>
@@ -57,7 +58,7 @@ export function MechanicsGrid() {
             <span className="figure text-sm text-signal-dim">03</span>
           </div>
           <p className="mt-2 text-sm leading-relaxed text-ink-dim">
-            Fees and spread stream to stakers over time, so patience is what earns.
+            Fees and gains stream to holders over time, so the patient ones earn most.
           </p>
         </div>
       </article>

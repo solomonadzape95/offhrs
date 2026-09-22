@@ -49,8 +49,8 @@ export function WaitlistForm() {
         </h2>
         <p className="max-w-md text-sm leading-relaxed text-ink-dim">
           {state.status === "already"
-            ? "Nothing else to do — you'll get the same single email as everyone else."
-            : "We'll send exactly one email when your cohort opens, from the address below. No drip campaign, no newsletter."}
+            ? "Nothing to do — you'll get the same single email as everyone else."
+            : "One email when your cohort opens. No drip campaign, no newsletter."}
         </p>
         <span className="mt-1 font-mono text-xs text-ink-faint">{email}</span>
       </div>
@@ -111,7 +111,7 @@ export function WaitlistForm() {
 
       <p className="flex items-start gap-2 font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
         <Icon icon={EnvelopeSimple} size={14} dither={false} />
-        <span>One email when it's your turn. Unsubscribe in a click. We never sell the list.</span>
+        <span>One email when we launch. Unsubscribe in a click. We never sell the list.</span>
       </p>
     </form>
   );

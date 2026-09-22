@@ -9,7 +9,7 @@ export const metadata = {
 const CLAUSES = [
   {
     h: "What Offhrs is",
-    p: "Offhrs is a software build for the Stocklana hackathon. It reads public market data, presents it, and describes a mechanism for trading tokenized pre-IPO equity against a stale reference price. Nothing on this site is an offer to buy or sell any security.",
+    p: "Offhrs is a software build for the Stocklana hackathon. It reads public market data, presents it, and describes a mechanism for trading tokenized private-company shares against a stale reference price. Nothing on this site is an offer to buy or sell any security.",
   },
   {
     h: "Not investment advice",

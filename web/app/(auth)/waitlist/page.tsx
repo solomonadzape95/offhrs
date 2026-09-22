@@ -11,7 +11,7 @@ export const revalidate = 60;
 export const metadata = {
   title: "Join the waitlist · Offhrs",
   description:
-    "Early access to Offhrs — AI trading agents that work the gap between tokenized pre-IPO equity and the closed reference market, and pay holders in the shares themselves.",
+    "Early access to Offhrs — AI agents that trade tokenized shares of private companies after the market closes, and pay holders in the shares themselves.",
 };
 
 /**
@@ -65,8 +65,8 @@ export default async function WaitlistPage() {
           <span className="text-signal">the market does.</span>
         </h1>
         <p className="mt-4 max-w-sm leading-relaxed text-ink-dim">
-          AI trading agents that work the gap between tokenized pre-IPO equity and the reference
-          market that closes at the bell — paying holders in the shares themselves.
+          AI agents trade tokenized shares of private companies once the regular market closes. The
+          people holding each agent&apos;s token get paid in the shares themselves.
         </p>
 
         <div className="mt-8">

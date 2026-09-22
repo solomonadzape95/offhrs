@@ -67,13 +67,14 @@ export default async function Home() {
           <h1 className="font-display text-display max-w-4xl text-balance text-ink">
             The market is closed.
             <br />
-            <span className="text-signal">But we&apos;re offhrs.</span>
+            <span className="text-signal">The gap doesn&apos;t.</span>
           </h1>
 
           <p className="mt-6 max-w-xl text-base leading-relaxed text-ink-dim text-pretty sm:text-lg">
-            Tokenized pre-IPO equity trades around the clock. The reference
-            price it tracks stops at the closing bell. We run agents on the gap,
-            and pay holders in the shares themselves.
+            Tokenized shares of private companies trade around the clock. The
+            regular stock market doesn&apos;t. Offhrs runs AI agents on the gap
+            between the two — and pays the people who back them in the shares
+            themselves.
           </p>
 
           <div className="mt-9 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
@@ -114,10 +115,11 @@ export default async function Home() {
               The proof is a timestamp.
             </h2>
             <p className="mt-6 max-w-2xl leading-relaxed text-ink-dim">
-              Pyth publishes the Apple equity feed on chain with a{" "}
+              Pyth puts each stock&apos;s price on chain with a{" "}
               <span className="font-mono text-ink">publish_time</span> anyone
-              can read. When that stops advancing, the reference market is
-              closed — and the tokenized marks drift.
+              can read. When that timestamp stops moving, the real market has
+              closed. The tokenized shares keep trading anyway — and that is
+              when their prices drift.
             </p>
 
             <div className="mt-10 grid grid-cols-2 gap-8">
@@ -157,7 +159,7 @@ export default async function Home() {
           <div className="grid grid-cols-2 gap-px border border-edge bg-edge">
             <div className="bg-void p-6 sm:p-8">
               <Stat
-                label="Widest dislocation"
+                label="Widest gap"
                 value={`${widest?.premiumBps && widest.premiumBps >= 0 ? "+" : ""}${widest?.premiumBps ?? 0}`}
                 unit="bps"
                 tone="signal"
@@ -193,7 +195,7 @@ export default async function Home() {
       <Section id="board" label="The board">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <h2 className="font-display text-statement max-w-3xl text-balance text-ink">
-            Every SPV mark, against its market.
+            Tokenized shares, priced against their mark.
           </h2>
           <Link href="/explore" className="nav-item">
             All agents →
@@ -206,9 +208,9 @@ export default async function Home() {
               <tr className="border-b border-edge">
                 {[
                   "Asset",
-                  "SPV mark",
-                  "Issuer price",
-                  "Basis",
+                  "Official mark",
+                  "Token price",
+                  "Gap",
                   "Mark value",
                 ].map((h, i) => (
                   <th
@@ -256,9 +258,8 @@ export default async function Home() {
         </div>
 
         <p className="mt-6 max-w-3xl font-mono text-xs leading-relaxed text-ink-faint">
-          Basis is PreStocks&apos; own published premium, so it is
-          scale-invariant — the mint&apos;s scaledUiAmount multiplier does not
-          affect it. Positive means the token trades below its mark.
+          The gap is how far the token&apos;s price sits from its official mark.
+          Positive means it trades below the mark.
         </p>
       </Section>
 
@@ -273,7 +274,7 @@ export default async function Home() {
 
         <div className="relative">
           <h2 className="font-display text-statement max-w-3xl text-balance text-ink">
-            Three moving parts, one of which had to be invented.
+            Three pieces. One of them is what we built.
           </h2>
 
           <MechanicsGrid />
@@ -302,10 +303,10 @@ export default async function Home() {
               Four desks, one thesis each.
             </h2>
             <p className="mt-6 max-w-2xl leading-relaxed text-ink-dim">
-              Every agent is a wrapper around the same signal with a different
-              risk appetite: what counts as a wide enough gap, which asset it
-              watches, and how long it is willing to hold through the open. The
-              record below is seeded config until the pools exist on chain.
+              Every agent runs the same idea with different settings: how wide
+              a gap counts as a trade, which company it watches, and how long
+              it will hold through the open. These eight are a preview — they
+              become real the moment their pools are on chain.
             </p>
           </div>
           <Link href="/explore" className="nav-item">
@@ -316,11 +317,8 @@ export default async function Home() {
         <AgentCarousel agents={AGENTS.slice(0, 4)} />
 
         <p className="mt-6 font-mono text-xs leading-relaxed text-ink-faint">
-          ⚠ Agent records are seeded configuration. The registry PDA is{" "}
-          <span className="text-ink-dim">
-            [b&quot;agent&quot;, agentTokenMint]
-          </span>{" "}
-          and this rail reads real accounts the moment a DBC pool exists.
+          ⚠ The eight agents are staged previews. This rail reads real accounts
+          the moment each DBC pool exists on chain.
         </p>
       </Section>
 
@@ -337,9 +335,9 @@ export default async function Home() {
 
         <div className="relative mx-auto max-w-app px-5 py-24 text-center sm:px-8">
           <p className="font-display text-headline mx-auto max-w-3xl text-balance text-ink">
-            The reference market closes.
+            The market is closed.
             <br />
-            <span className="text-signal">The basis doesn&apos;t.</span>
+            <span className="text-signal">The gap doesn&apos;t.</span>
           </p>
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/explore" className="btn btn-primary btn-lg">
@@ -365,12 +363,13 @@ export default async function Home() {
         <div className="relative grid items-center gap-14 lg:grid-cols-[1fr_1.05fr] lg:gap-20">
           <div>
             <h2 className="font-display text-statement text-balance text-ink">
-              Fees and arbitrage, streamed to stakers.
+              Hold the token, earn the shares.
             </h2>
             <p className="mt-6 text-lg leading-relaxed text-ink-dim">
-              Every curve trade pays a fee, and every closing trade books a
-              spread. Both land in the vault, and the vault pays them out over
-              time — in the wrapped share itself, not in a token that tracks it.
+              Every trade on an agent&apos;s curve pays a fee, and every trade
+              that closes the gap books a gain. Both flow into a pool that pays
+              you over time — in the tokenized shares themselves, not in a token
+              that tracks them.
             </p>
 
             <div className="mt-8 flex items-center gap-3">
@@ -381,7 +380,7 @@ export default async function Home() {
                 dither={false}
               />
               <p className="font-mono text-xs leading-relaxed text-ink-faint">
-                Rewards accrue per slot staked, not per epoch snapshot.
+                Rewards build up for every moment you hold. No snapshots to game.
               </p>
             </div>
           </div>
@@ -392,22 +391,22 @@ export default async function Home() {
               {[
                 {
                   k: "Income",
-                  v: "DBC curve fees + basis capture",
+                  v: "Curve fees + gap capture",
                   icon: Coins,
                 },
                 {
                   k: "Payout",
-                  v: "Streamed pro-rata over time held",
+                  v: "Paid out for how long you hold",
                   icon: Hourglass,
                 },
                 {
                   k: "Denomination",
-                  v: "wPreStock, redeemable 1:1",
+                  v: "The wrapped share, redeemable 1:1",
                   icon: LockKey,
                 },
                 {
                   k: "Rule",
-                  v: "Snapshot-free. No staking deadline.",
+                  v: "No snapshots. No deadline.",
                   icon: ArrowsClockwise,
                 },
               ].map((f) => (

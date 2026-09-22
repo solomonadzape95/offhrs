@@ -83,8 +83,9 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
           <div className="panel flex flex-col gap-3 p-6">
             <span className="label">Reference market</span>
             <p className="text-sm leading-relaxed text-ink-dim">
-              The PreStocks issuer feed is unavailable for this asset, so the mark, basis and Pyth
-              terminal are not shown. The agent&apos;s bonding curve is live and can still be traded.
+              The official price feed is unavailable for this asset right now, so the price, gap
+              and activity log are hidden. The agent&apos;s trade pool is live and can still be
+              traded.
             </p>
           </div>
           <AgentTrade agentId={agent.id} ticker={agent.ticker} asset={agent.asset} />
@@ -119,9 +120,9 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
     {
       t: Math.floor(Date.now() / 1000),
       kind: "signal",
-      text: `spv mark $${prestock.markPrice.toFixed(2)}  vs  market ${
+      text: `official mark $${prestock.markPrice.toFixed(2)}  vs  market ${
         dex ? `$${dex.priceUsd.toFixed(2)}` : "unavailable"
-      }  →  basis ${basisBps >= 0 ? "+" : ""}${basisBps}bps`,
+      }  →  gap ${basisBps >= 0 ? "+" : ""}${basisBps}bps`,
     },
     ...(multiplier
       ? [
@@ -137,7 +138,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
       kind: actionable ? "signal" : "hold",
       text: actionable
         ? `edge ${edge}bps clears cost ${costBps}bps → net ${netBps}bps, executable while frozen`
-        : `no action: ${!frozen ? "reference is live" : netBps <= 0 ? `net ${netBps}bps after ${costBps}bps cost` : `basis inside ${150}bps threshold`}`,
+        : `no action: ${!frozen ? "reference is live" : netBps <= 0 ? `net ${netBps}bps after ${costBps}bps cost` : `gap inside ${150}bps threshold`}`,
     },
   ];
 
@@ -169,7 +170,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
           </div>
 
           <div className="flex flex-col items-end gap-2">
-            <span className="label">Basis</span>
+            <span className="label">Gap</span>
             <Basis premiumBps={basisBps} size="lg" />
           </div>
         </div>
@@ -194,7 +195,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                 <Field
                   k="Issuer price"
                   v={`$${prestock.tokenPrice.toFixed(2)}`}
-                  hint="unscaled"
+                  hint="official"
                 />
                 <Field k="Supply" v={prestock.supply.toLocaleString(undefined, { maximumFractionDigits: 0 })} />
                 <Field k="Implied valuation" v={usd(prestock.impliedValuation, { compact: true })} />
@@ -245,8 +246,8 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
               </button>
             )}
             <p className="font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
-              Paid in w{prestock.symbol}, redeemable 1:1 for the raw PreStock. Rewards stream over
-              time, so claiming later pays more — the vault is not a lump sum.
+              Paid in the wrapped share, redeemable 1:1 for the real token. Rewards build up over
+              time — the longer you hold, the more you claim.
             </p>
           </div>
         </div>

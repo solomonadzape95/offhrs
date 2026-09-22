@@ -105,7 +105,7 @@ export function AgentManage({ agent, onchain }: { agent: AgentSeed; onchain?: Ma
         <Stat
           label="Executions"
           value={onchain ? String(onchain.executionCount) : "—"}
-          hint={onchain ? "Pyth-attested" : "no agent"}
+          hint={onchain ? "each backed by a price read" : "no agent"}
         />
       </div>
 
@@ -176,8 +176,8 @@ export function AgentManage({ agent, onchain }: { agent: AgentSeed; onchain?: Ma
 
       <p className="font-mono text-xs leading-relaxed text-ink-faint">
         {onchain
-          ? "Pause halts wrapping and unwrapping for this asset, admin-only. It does not stop the agent or the vault. Creator fees are collected and distributed by Clawpump."
-          : "This is a seeded preview record — there is no on-chain agent to manage yet."}
+          ? "Pause stops wrapping and unwrapping of this asset (admin only) — it does not stop the agent or the vault. Creator fees are handled by Clawpump."
+          : "This is a staged preview record — there is no on-chain agent to manage yet."}
       </p>
     </div>
   );

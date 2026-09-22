@@ -340,7 +340,7 @@ export function AgentTrade({
           <span className="label">Trade ${ticker}</span>
           <span className="flex items-center gap-1.5 font-mono text-[0.625rem] tracking-[0.14em] text-ink-faint uppercase">
             <Icon icon={Lock} size={13} dither={false} />
-            {data?.poolExists ? "Meteora DBC" : "no pool"}
+            {data?.poolExists ? "Live pool" : "no pool"}
           </span>
         </div>
 
@@ -422,8 +422,8 @@ export function AgentTrade({
         {!data?.poolExists && info.status !== "loading" && (
           <div className="border border-ember/30 bg-ember/[0.06] px-4 py-3">
             <p className="text-sm leading-relaxed text-ink-dim">
-              <span className="text-ember">No curve yet.</span> This agent has no Meteora DBC pool on
-              this cluster, so there is nothing to quote against.
+              <span className="text-ember">No live pool yet.</span> This agent&apos;s pool is not
+              deployed on this cluster, so there is nothing to quote against.
             </p>
           </div>
         )}
@@ -438,7 +438,7 @@ export function AgentTrade({
             <span className="flex flex-col gap-0.5">
               <span className="label">Auto-stake on purchase</span>
               <span className="text-xs leading-snug text-ink-faint">
-                Stake the bought {ticker} in the same transaction and start streaming {wSymbol}.
+                Earn into the vault the moment you buy — no extra step.
               </span>
             </span>
             <span
@@ -538,8 +538,8 @@ export function AgentTrade({
         <p className="flex items-start gap-2 font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
           <Icon icon={Wallet} size={14} dither={false} />
           <span>
-            Signed in your wallet; the curve settles on-chain. Buying settles in {wSymbol}, redeemable
-            1:1 for {asset}. A USDC sale routes {asset} through Jupiter, which is mainnet-only.
+            Each step is signed in your wallet. Buying pays in {wSymbol}, redeemable 1:1 for{" "}
+            {asset}. USDC routes go through Jupiter on mainnet.
           </span>
         </p>
       </div>

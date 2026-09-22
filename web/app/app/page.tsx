@@ -49,10 +49,10 @@ function Position() {
       <div className="flex flex-wrap items-end justify-between gap-8">
         <div className="flex flex-col gap-3">
           <span className="label">Position</span>
-          <h1 className="font-display text-3xl leading-none text-ink sm:text-4xl">Net wealth</h1>
+          <h1 className="font-display text-3xl leading-none text-ink sm:text-4xl">Your position</h1>
           <p className="max-w-lg text-sm leading-relaxed text-ink-dim">
-            Agent tokens plus the pre-IPO equity accumulated behind them. Both sides move: the tokens
-            trade, the equity accrues.
+            The agent tokens you hold, plus the share equity they have earned for you. Both sides
+            move: the tokens trade, the equity builds up.
           </p>
         </div>
         <SessionClock variant="hero" />
@@ -62,7 +62,7 @@ function Position() {
         <Stat
           label="Agent tokens"
           value={data?.totals.staked ?? "—"}
-          hint={pos.status === "loading" ? "reading the chain…" : "staked across your desks"}
+          hint={pos.status === "loading" ? "reading the chain…" : "staked across your agents"}
         />
         <Stat
           label="Equity accrued"
@@ -88,7 +88,7 @@ function Position() {
       {/* Equity inventory, mirroring the public portfolio page. */}
       <div className="flex flex-col gap-5">
         <div className="flex items-baseline justify-between">
-          <span className="label">Real equity inventory</span>
+          <span className="label">Your share inventory</span>
           <span className="font-mono text-xs text-ink-faint">redeemable 1:1 for raw PreStock</span>
         </div>
         {data && data.equity.length > 0 ? (
@@ -184,8 +184,8 @@ function Position() {
           </span>
           <p className="max-w-2xl text-sm leading-relaxed text-ink-dim">
             {data?.onChain
-              ? "Read from your UserStake and DividendVault accounts on chain. Accrued rewards stream per slot held, so the figure grows between interactions without anyone claiming."
-              : "The stock_vault program is not reachable on the cluster this app is pointed at, so there is nothing for a wallet to stake into. An em dash is what an unavailable reading honestly looks like."}
+              ? "Read directly from your on-chain stake. Rewards build up for every moment you hold, so the figure grows without anyone claiming."
+              : "The vault program isn't deployed to the network this build points at, so there's nothing to stake into yet. Dashes are what an unavailable reading honestly looks like."}
           </p>
           {write.status === "done" && (
             <p className="font-mono text-[0.6875rem] break-all text-signal">

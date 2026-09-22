@@ -75,8 +75,8 @@ export function VaultPanel() {
             Stake, accrue, claim.
           </h1>
           <p className="max-w-lg text-sm leading-relaxed text-ink-dim">
-            Stake an agent token, and its share of curve fees and arbitrage spread streams to you
-            over time. Payouts are denominated in the wrapped share itself, redeemable 1:1.
+            Stake an agent&apos;s token and it pays you over time from what the agent earns — in the
+            wrapped share, redeemable 1:1.
           </p>
         </div>
         <span className="text-signal">
@@ -107,7 +107,7 @@ export function VaultPanel() {
           label="Income to date"
           value={totals?.incomeToDate ?? "—"}
           unit="wPreStock"
-          hint="fees + spread"
+          hint="fees + gains"
         />
       </div>
 
@@ -195,8 +195,8 @@ export function VaultPanel() {
               )}
 
               <p className="mt-4 font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
-                Signed in your wallet; the vault never holds your keys. Rewards accrue per slot
-                staked, not per epoch snapshot.
+                Signed in your wallet; the vault never holds your keys. Rewards build up for every
+                moment you&apos;re staked.
               </p>
             </>
           )}
@@ -206,10 +206,10 @@ export function VaultPanel() {
         <div className="panel overflow-hidden">
           <div className="grid gap-px bg-edge">
             {[
-              { k: "Income", v: "DBC curve fees + basis capture", icon: Coins },
-              { k: "Payout", v: "Streamed pro-rata over time held", icon: Hourglass },
-              { k: "Denomination", v: "wPreStock, redeemable 1:1", icon: LockKey },
-              { k: "Rule", v: "Snapshot-free. No staking deadline.", icon: ArrowsClockwise },
+              { k: "Income", v: "Curve fees + gap capture", icon: Coins },
+              { k: "Payout", v: "Paid out for how long you hold", icon: Hourglass },
+              { k: "Denomination", v: "The wrapped share, redeemable 1:1", icon: LockKey },
+              { k: "Rule", v: "No snapshots. No deadline.", icon: ArrowsClockwise },
             ].map((f) => (
               <div key={f.k} className="flex items-center gap-5 bg-void px-6 py-6">
                 <span className="flex size-12 shrink-0 items-center justify-center rounded-[14px] bg-signal/8 text-signal">
@@ -227,7 +227,7 @@ export function VaultPanel() {
 
       <p className="font-mono text-xs leading-relaxed text-ink-faint">
         Claims are signed by your wallet; the vault never holds your keys. The figures above are read
-        from your on-chain stake rather than from an API.
+        from your on-chain stake — nothing here is an estimate.
       </p>
     </div>
   );

@@ -232,8 +232,8 @@ export function Swap({
         )}
 
         <p className="font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
-          Quoted and settled through Jupiter on Solana mainnet. The route shown is the real one; the
-          signature is yours.
+          Quoted and routed through Jupiter on Solana. The route shown is the real one; the swap is
+          signed by your wallet.
         </p>
       </div>
     </div>

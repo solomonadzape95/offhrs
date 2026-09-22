@@ -50,13 +50,13 @@ export function MarkVsMarket({
       </div>
 
       <Bar
-        label="SPV mark"
+        label="Official mark"
         sub={`$${markPrice.toFixed(2)} unscaled × ${m.toFixed(4)}`}
         value={markScaled}
         pct={markPct}
         tone="ink"
       />
-      <Bar label="Executable market" value={marketPrice} pct={marketPct} tone="signal" />
+      <Bar label="Market price" value={marketPrice} pct={marketPct} tone="signal" />
 
       <div className="flex items-baseline justify-between border-t border-edge pt-5">
         <span className="label">Gap</span>
@@ -67,14 +67,13 @@ export function MarkVsMarket({
       </div>
 
       <p className="font-mono text-xs leading-relaxed text-ink-faint">
-        Both bars are in the market&apos;s units: the mark is scaled by the mint&apos;s multiplier
-        before comparing. Unscaled, they are not comparable, and the gap would read as −75% while
-        the basis reads +2433bps — the same fact with opposite signs.
+        Both bars use the same units: the mark is scaled by the mint&apos;s multiplier before
+        comparing. Compare them unscaled and the same fact shows up with opposite signs.
       </p>
 
       <p className="font-mono text-xs leading-relaxed text-ink-faint">
         No pool is trading yet, so there is no price history to chart. The market figure is a live
-        Jupiter quote; the mark is the issuer&apos;s SPV reference.
+        Jupiter quote; the mark is the issuer&apos;s official reference.
       </p>
     </div>
   );

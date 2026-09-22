@@ -24,7 +24,6 @@ import { Logo } from "@/components/site/logo";
 import { ProfileMenu } from "@/components/site/profile-menu";
 import { DitherIcon } from "@/components/ui/dither-icon";
 import { Icon } from "@/components/ui/icon";
-import { useWalletUi } from "@/lib/wallet";
 
 /**
  * The header, shared by the public and signed-in surfaces.
@@ -53,8 +52,8 @@ export interface NavItem {
 }
 
 export const SITE_ITEMS: NavItem[] = [
-  { href: "/explore", label: "Markets", hint: "Pre-IPO marks against their feeds", icon: ChartLineUp },
-  { href: "/#board", label: "Dislocation board", hint: "Every SPV mark, live", icon: Table },
+  { href: "/explore", label: "Markets", hint: "Tokenized shares against their mark", icon: ChartLineUp },
+  { href: "/#board", label: "The board", hint: "Every tokenized share, live", icon: Table },
   { href: "/#mechanics", label: "Mechanics", hint: "How the gap gets traded", icon: GearSix },
   { href: "/vault", label: "Vault", hint: "Stake and claim dividends", icon: Vault },
   { href: "/waitlist", label: "Waitlist", hint: "Early access to the first cohort", icon: EnvelopeSimple },
@@ -150,10 +149,11 @@ export function Nav({ items = SITE_ITEMS, waitlist = false }: { items?: NavItem[
           </span>
         </Link>
 
-        {/* Mobile: pinned right. Desktop: centred without a transform. */}
+        {/* Mobile: pinned right of the account control, so the pfp sits beside it.
+            Desktop: centred without a transform. */}
         <div
           ref={wrap}
-          className="absolute top-4 right-5 sm:left-0 sm:right-0 sm:mx-auto sm:w-fit"
+          className="absolute top-4 right-[4.25rem] sm:left-0 sm:right-0 sm:mx-auto sm:w-fit"
           onPointerEnter={() => {
             if (canHover.current) setOpen(true);
           }}
@@ -193,12 +193,6 @@ export function Nav({ items = SITE_ITEMS, waitlist = false }: { items?: NavItem[
                     />
                   ))}
 
-                  {/* The wallet lives in the header on desktop; on a phone it moves
-                      in here as a button beside the main action. */}
-                  <div className="sm:hidden">
-                    <MobileWalletButton waitlist={waitlist} onNavigate={() => setOpen(false)} />
-                  </div>
-
                   <div className="mt-1 space-y-2 border-t border-edge px-1 pt-2.5 pb-1">
                     <Link
                       href={waitlist ? "/waitlist" : "/explore"}
@@ -215,39 +209,17 @@ export function Nav({ items = SITE_ITEMS, waitlist = false }: { items?: NavItem[
           </div>
         </div>
 
-        {/* Desktop control. Hidden on a phone, where the wallet is in the menu. */}
+        {/* The account control. Connected: a pfp (with the address on desktop);
+            connected elsewhere it opens the account panel. No wallet: an icon-only
+            connect and, on the marketing surface, the waitlist CTA. On a phone it
+            stays here, right of the menu trigger, showing just the pfp. */}
         <div className="flex items-center gap-2">
-          <span className="hidden sm:contents">
-            <ProfileMenu
-              fallbackCta={waitlist ? { href: "/waitlist", label: "Join waitlist" } : undefined}
-            />
-          </span>
+          <ProfileMenu
+            fallbackCta={waitlist ? { href: "/waitlist", label: "Join waitlist" } : undefined}
+          />
         </div>
       </div>
     </header>
-  );
-}
-
-function MobileWalletButton({ onNavigate, waitlist }: { onNavigate: () => void; waitlist?: boolean }) {
-  const { address, isReady } = useWalletUi();
-  if (!isReady) return null;
-  // On the marketing surface the waitlist is the primary action; the menu's
-  // bottom button already carries it, so a wallet button only appears once there
-  // is a wallet to show.
-  if (waitlist && !address) return null;
-
-  const href = address ? "/app" : "/connect";
-  const label = address ? "Dashboard" : "Connect wallet";
-
-  return (
-    <Link
-      href={href}
-      role="menuitem"
-      onClick={onNavigate}
-      className="btn btn-primary w-full !py-3 !text-sm"
-    >
-      {label}
-    </Link>
   );
 }
 

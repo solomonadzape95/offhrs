@@ -173,7 +173,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
             <>
               <Head
                 t="Agent"
-                d="Where the token comes from, the execution keypair, and the basis threshold it will trade on."
+                d="Where the token comes from, who signs its trades, and the gap size it acts on."
               />
               <div className="grid grid-cols-2 border border-edge">
                 {(
@@ -221,7 +221,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
                   unavailable.
                 </p>
               )}
-              <Field label="Minimum basis to act" hint="bps · net of ~600bps round-trip cost">
+              <Field label="Minimum gap to act" hint="bps · after ~600bps of round-trip costs">
                 <input
                   value={minEdge}
                   onChange={(e) => setMinEdge(e.target.value.replace(/[^0-9]/g, ""))}
@@ -260,7 +260,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
             <>
               <Head
                 t="Dividend asset"
-                d="The PreStock the vault streams. Only the eight PreStocks tokens are eligible."
+                d="The tokenized share the agent pays out. Only the eight PreStocks tokens are eligible."
               />
               <div className="grid gap-3 sm:grid-cols-2">
                 {orderedAssets.map((a) => (
@@ -286,16 +286,16 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
                 ))}
               </div>
               <p className="font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
-                Note: raw PreStocks cannot be a DBC quote mint — they carry a non-zero Token-2022
-                transfer fee, which Meteora rejects outright. The pool is quoted in the zero-fee
-                wrapper instead.
+                Note: the raw shares cannot be used as the pool&apos;s currency — they carry a
+                transfer fee, which Meteora rejects. The pool is quoted in the zero-fee wrapper
+                instead.
               </p>
             </>
           )}
 
           {step === 3 && (
             <>
-              <Head t="Curve fee" d="The DBC dynamic fee tier. The vault receives it in wPreStock." />
+              <Head t="Curve fee" d="What your token charges on each trade. The vault collects it in wPreStock." />
               <div className="flex items-baseline justify-between">
                 <span className="label">Fee tier</span>
                 <span className="figure text-2xl text-signal">{(feeBps / 100).toFixed(1)}%</span>
@@ -324,7 +324,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
             <>
               <Head
                 t="Deploy"
-                d="One DBC transaction to create the curve (self-owned only), then register the agent and create its vault."
+                d="Create the pool curve if needed, then register the agent and create its vault."
               />
 
               {/* Preflight. The useful thing this page can do before a wallet is
@@ -368,11 +368,11 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
                 <Row k="Token" v={name && symbol ? `${name} ($${symbol})` : "—"} />
                 <Row k="Dividend asset" v={asset} />
                 <Row k="Curve fee" v={`${(feeBps / 100).toFixed(1)}%`} />
-                <Row k="Min basis" v={`${minEdge || "0"}bps`} />
+                <Row k="Min gap" v={`${minEdge || "0"}bps`} />
                 <Row
-                  k="Pool quote mint"
+                  k="Pool currency"
                   v={`w${asset} (zero-fee wrapper)`}
-                  hint="raw PreStock is rejected by DBC"
+                  hint="the raw share is rejected by the curve"
                 />
               </dl>
 
@@ -455,7 +455,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
             </span>
           </div>
           <div className="flex items-baseline justify-between">
-            <span className="label">Basis today</span>
+            <span className="label">Gap today</span>
             <span
               className={`tabular font-mono text-sm ${
                 (chosen?.premiumBps ?? 0) > 0 ? "basis-up" : "basis-down"

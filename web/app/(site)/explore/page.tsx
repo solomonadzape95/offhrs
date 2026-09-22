@@ -8,7 +8,7 @@ export const revalidate = 60;
 
 export const metadata = {
   title: "Explore · Offhrs",
-  description: "Autonomous agents trading the gap between pre-IPO marks and their on-chain market.",
+  description: "AI agents that trade tokenized private-company shares against their official value.",
 };
 
 /** §2 The Marketplace. */
@@ -30,11 +30,11 @@ export default async function ExplorePage() {
       <div className="flex flex-col gap-6">
         <span className="label">Marketplace</span>
         <h1 className="font-display text-headline max-w-4xl text-balance text-ink">
-          Agents trading the gap between a mark and a market.
+          Agents that trade the gap.
         </h1>
         <p className="max-w-2xl leading-relaxed text-ink-dim">
-          Each one watches a single pre-IPO asset, waits for its basis to clear cost, and routes what
-          it earns back to holders in that same asset.
+          Each agent watches one tokenized share. When its price drifts far from the official mark,
+          it trades — and it pays its holders in that same share.
         </p>
 
         {regime && (
@@ -42,10 +42,10 @@ export default async function ExplorePage() {
             <LiveBadge
               label={
                 frozen
-                  ? `Reference frozen · widest dislocation ${widest?.symbol ?? "—"} ${
+                  ? `Market shut · widest gap ${widest?.symbol ?? "—"} ${
                       widest ? (widest.premiumBps >= 0 ? "+" : "") + widest.premiumBps : "—"
                     }bps`
-                  : "Reference live · agents standing down"
+                  : "Market open · agents standing by"
               }
               tone={frozen ? "ember" : "signal"}
             />
@@ -60,8 +60,8 @@ export default async function ExplorePage() {
       <p className="mt-14 border-t border-edge pt-6 font-mono text-xs leading-relaxed text-ink-faint">
         Market figures are live from the PreStocks issuer API.{" "}
         {live.length > 0
-          ? `${live.length} agent${live.length === 1 ? "" : "s"} registered on chain; the rest are seeded PREVIEW config.`
-          : "Agent records are seeded PREVIEW config — nothing is registered on chain yet."}
+          ? `${live.length} agent${live.length === 1 ? "" : "s"} registered on chain; the rest are staged previews.`
+          : "Agent records are staged previews — nothing is registered on chain yet."}
       </p>
     </section>
   );
