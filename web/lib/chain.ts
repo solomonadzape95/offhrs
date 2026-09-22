@@ -38,6 +38,41 @@ export const PROGRAM_RPC_URL =
 let cached: Connection | null = null;
 const connection = () => (cached ??= new Connection(PROGRAM_RPC_URL, "confirmed"));
 
+/**
+ * `getProgramAccounts` is the one expensive call this module makes, and a single
+ * page can ask for the same set several times at once. `getUserPosition` calls
+ * `fetchAgents` and `fetchWrappers` directly *and* through `fetchLiveAgents`, so
+ * one dashboard load used to fire four concurrent full-program scans. The public
+ * devnet RPC answers that burst with a 429 storm, the `catch` returns the empty
+ * portfolio, and the vault renders "nothing to stake into" — which is a lie.
+ *
+ * De-duplicate the in-flight scan and keep the result for a short window. The
+ * registry changes rarely, and single-account reads (a stake, a wrapper, an
+ * execution) are deliberately *not* cached, so a write is still visible at once.
+ */
+const SCAN_TTL_MS = 30_000;
+const scanCache = new Map<number, { at: number; value: unknown }>();
+const scanInflight = new Map<number, Promise<unknown>>();
+
+function scan<T>(size: number, fn: () => Promise<T>): Promise<T> {
+  const hit = scanCache.get(size);
+  if (hit && Date.now() - hit.at < SCAN_TTL_MS) return Promise.resolve(hit.value as T);
+  const pending = scanInflight.get(size);
+  if (pending) return pending as Promise<T>;
+  const promise = fn()
+    .then((value) => {
+      scanCache.set(size, { at: Date.now(), value });
+      scanInflight.delete(size);
+      return value;
+    })
+    .catch((error) => {
+      scanInflight.delete(size);
+      throw error;
+    });
+  scanInflight.set(size, promise);
+  return promise;
+}
+
 // ---------------------------------------------------------------------------
 // Discriminators — copied from target/idl/stock_vault.json. The decoders assert
 // these, so a layout change fails loudly instead of decoding garbage.
@@ -399,9 +434,11 @@ async function fetchAll<T>(
   disc: Uint8Array,
   decode: (pda: PublicKey, data: Buffer) => T,
 ): Promise<T[]> {
-  const accounts = await connection().getProgramAccounts(PROGRAM_ID, {
-    filters: [{ dataSize: size }],
-  });
+  const accounts = await scan(size, () =>
+    connection().getProgramAccounts(PROGRAM_ID, {
+      filters: [{ dataSize: size }],
+    }),
+  );
   const out: T[] = [];
   for (const { pubkey, account } of accounts) {
     const data = account.data as Buffer;
