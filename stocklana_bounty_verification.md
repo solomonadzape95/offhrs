@@ -94,9 +94,15 @@ So the requirement is met natively: Clawpump launches the token as the DBC base 
 - Clawpump owns the curve and the fee crank. Our `DividendVault` keeps the stock-denominated
   distribution, which their native SOL-denominated rewards do not provide.
 
-**Still to confirm (blocks vault wiring, not the build):** the DBC quote mint is `wPreStock`;
-`collectFeeMode = QuoteToken`; our share is paid **in `wPreStock`** to a treasury we nominate
-(`set_external_wallet`); who sets the curve/migration config; and the DBC creator/platform split.
+**Evidence (22 Sep 2026, screenshots of the live launch UI):** the page exposes **Launchpad:
+Pump.fun | Meteora**, **Launch mode: Bonding curve → DAMM v2**, a **Trading pair** selector annotated
+*"Meteora · fees paid in the paired token"*, and fee strategies (auto-buyback, holder rewards,
+perps). Logged-out copy: *"Your 75% fee share and any first buy go to the wallet you launch with."*
+
+**One question remains (blocks vault wiring, not the build):** can the **Trading pair** be an
+arbitrary SPL mint (`wPreStock`), or only a preset list? If arbitrary, one Clawpump-launched token is
+also the Meteora DBC pool and takes both tracks. Also confirm the fee share arrives in the paired
+token and the buyback/holder-rewards toggles can stay off.
 
 Useful Clawpump agent tools either way: `swap_quote`, `swap_execute`,
 `arbitrage_quote`, `arbitrage_prices`, `token_search`, `get_portfolio`, `dca_create`,

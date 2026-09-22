@@ -7,6 +7,7 @@ import { buildInitializeVaultTx, buildRegisterAgentTx } from "@/app/actions";
 import { Curve } from "@/components/app/curve";
 import { CurvePreview } from "@/components/app/curve-preview";
 import { preflight, type Check } from "@/lib/deploy";
+import { LEAD_ASSETS, orderByLead } from "@/lib/agents";
 import { usd } from "@/lib/format";
 import type { PreStock } from "@/lib/market";
 import { useWriteTx } from "@/lib/use-write-tx";
@@ -31,8 +32,12 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
   const [minEdge, setMinEdge] = useState("150");
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
-  const [asset, setAsset] = useState(assets[0]?.symbol ?? "SPACEX");
+  const [asset, setAsset] = useState(
+    assets.find((a) => a.symbol === LEAD_ASSETS[0])?.symbol ?? assets[0]?.symbol ?? "SPACEX",
+  );
   const [feeBps, setFeeBps] = useState(500);
+
+  const orderedAssets = useMemo(() => orderByLead(assets), [assets]);
 
   const chosen = useMemo(() => assets.find((a) => a.symbol === asset), [assets, asset]);
   const client = useSolanaClient();
@@ -171,7 +176,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
                 d="The PreStock the vault streams. Only the eight PreStocks tokens are eligible."
               />
               <div className="grid gap-3 sm:grid-cols-2">
-                {assets.map((a) => (
+                {orderedAssets.map((a) => (
                   <button
                     key={a.symbol}
                     onClick={() => setAsset(a.symbol)}

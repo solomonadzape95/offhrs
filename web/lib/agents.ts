@@ -126,5 +126,22 @@ export const AGENTS: AgentSeed[] = [
 
 export const findAgent = (id: string) => AGENTS.find((a) => a.id === id);
 
+/**
+ * The assets we lead with. The PreStocks universe is eight tokens; these two are
+ * the ones the demo and the bounty narrative center on. **OpenAI** is still
+ * private — the PreStocks bounty is about pre-IPO equity — and **SpaceX** has
+ * IPO'd, so its PreStock is tokenized *post-IPO* stock. The wrapper, the vault and
+ * the pool are identical either way; only the underlying's status differs.
+ */
+export const LEAD_ASSETS = ["OPENAI", "SPACEX"] as const;
+
+/** Lead assets first, then the rest of the universe in its given order. */
+export const orderByLead = <T extends { symbol: string }>(assets: T[]): T[] =>
+  [...assets].sort((a, b) => {
+    const ai = (LEAD_ASSETS as readonly string[]).indexOf(a.symbol);
+    const bi = (LEAD_ASSETS as readonly string[]).indexOf(b.symbol);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+
 /** Curve progress is seeded; the migration threshold is configured in quote-token units. */
 export const MIGRATION_THRESHOLD_WPRESTOCK = 750;

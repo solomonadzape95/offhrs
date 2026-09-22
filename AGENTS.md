@@ -73,12 +73,12 @@ feed, and the `/launch` deploy transaction are downstream of it. The mainnet wal
   DBC** and graduates to **DAMM v2**, with **Clawpump managing and distributing fees** (plus holder
   rewards / buybacks / burns). One Clawpump-launched token is therefore *also* the DBC pool: the
   Clawpump and Meteora tracks both apply, and Clawpump confirmed one submission can enter both.
-  **Still to confirm (blocks the vault wiring, not the build):** (1) the DBC quote mint is our
-  `wPreStock`; (2) fees accrue there (`collectFeeMode = QuoteToken`) and our share is paid **in
-  `wPreStock`** to a treasury we nominate — their native distribution is SOL-denominated (see the
-  example token `tokens/EpXt…`), so this is the one that protects the "dividends in stock" promise;
-  (3) who owns the curve/migration config and what the DBC fee split is. The `ClawpumpAdapter` in
-  `agent/src/execution.ts` is also still unverified — no API key.
+  **Evidence (22 Sep, launch-UI screenshots):** the page has **Launchpad: Pump.fun | Meteora**,
+  **Launch mode: Bonding curve → DAMM v2**, a **Trading pair** selector (*"fees paid in the paired
+  token"*), and fee strategies; the 75% share and first buy go to the launch wallet. So the DBC path
+  is real, not just a chat answer. **One question left:** can the Trading pair be an arbitrary SPL
+  mint (`wPreStock`) or only a preset list? If arbitrary, one token takes both tracks. The
+  `ClawpumpAdapter` in `agent/src/execution.ts` is still unverified — no API key.
 - **Pyth `pyth-indices`** — requested, not granted. `Equity.Index.OPENAI/ANTHROPIC` are gated on
   Hermes *and* absent on-chain. Not on the critical path; if granted it is a config change.
 

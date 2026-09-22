@@ -99,14 +99,21 @@ submission can enter both.
   SOL-denominated (their example token `tokens/EpXt…` publishes SOL fees/buybacks), so streaming
   `wPreStock` is still ours alone.
 
-**Still open (blocks the vault wiring, not the build):**
+**Evidence (22 Sep 2026, launch-UI screenshots).** Clawpump's own launch page exposes
+**Launchpad: Pump.fun | Meteora**, **Launch mode: Bonding curve → DAMM v2**, a **Trading pair**
+selector annotated *"Meteora · fees paid in the paired token"*, and fee strategies (auto-buyback,
+holder rewards, perps). The logged-out copy reads *"Your 75% fee share and any first buy go to the
+wallet you launch with."* So the DBC→DAMM-v2 path is a real product feature, not just a chat answer —
+the docs simply never mention it.
 
-1. Confirm the DBC quote mint is `wPreStock` (classic 0-fee SPL → no token badge).
-2. Confirm `collectFeeMode = QuoteToken` and that our share is paid **in `wPreStock`** to a treasury
-   we nominate (`set_external_wallet`). If Clawpump converts to SOL, the passive stream stops being
-   equity.
-3. Confirm who sets the curve/fee tier, migration threshold and token authority, and the DBC
-   creator/platform split.
+**Still open — one question (blocks the vault wiring, not the build):**
+
+1. Can the **Trading pair** be an arbitrary SPL mint — our `wPreStock` — or only a preset list
+   (SOL/USDC)? Everything follows from that: if yes, Clawpump launches our token on Meteora DBC with
+   the stock pair, and one token takes both the Clawpump and Meteora tracks.
+2. Confirm the fee share arrives **in the paired token** (`wPreStock`), and that the auto-buyback /
+   holder-rewards toggles can stay **off** so fees reach our stock vault rather than being converted
+   to SOL.
 
 ---
 
