@@ -492,6 +492,8 @@ on-ramp is a server-signed **faucet** instead.
 - **`web/lib/faucet.ts`** sends a connected wallet **0.5 SOL + 10 mock PreStock + 10 wPreStock**
   (`faucetDevnet` in `app/actions.ts`). 10-minute cooldown per wallet; the faucet wallet refuses to
   drop below 1 SOL. Devnet-gated — it refuses before touching a key on a mainnet `PROGRAM_RPC_URL`.
+  The signing key is `FAUCET_SECRET_KEY` (the keypair contents as a JSON array or base58) on a
+  deployment, or `FAUCET_KEYPAIR`/`ANCHOR_WALLET` (a file path) locally.
 - **The button** is `components/app/devnet-faucet.tsx`, on `/app`, rendered only when the client is
   pointed at devnet (`lib/devnet.ts`).
 - **`/launch` on devnet** lists the mock PreStocks (`lib/devnet-assets.ts`) instead of the mainnet
@@ -500,5 +502,17 @@ on-ramp is a server-signed **faucet** instead.
   the real `/launch` UI through create-curve → register → vault, all signed in the browser.
 
 Clawpump itself is still mainnet-only; the devnet launch is our own DBC curve. For a public beta,
-set `FAUCET_KEYPAIR` to a dedicated devnet wallet and give that wallet the mock mints' authority, so
+make a dedicated devnet wallet the mock mints' authority and put its key in `FAUCET_SECRET_KEY`, so
 the upgrade authority is not the hot key. Evidence: `day7_results.md`.
+
+**Hosting the beta (Vercel).** Set these in the project's environment before the first build:
+
+| Where | Vars |
+|---|---|
+| server (runtime) | `PROGRAM_RPC_URL`, `RPC_URL`, `FAUCET_SECRET_KEY` |
+| browser (inlined at build) | `NEXT_PUBLIC_SOLANA_RPC_URL`, `NEXT_PUBLIC_SOLANA_WS_URL`, `NEXT_PUBLIC_BETA=false`, `NEXT_PUBLIC_DEVNET_FAUCET` |
+
+The local copies live in the gitignored `web/.env.local`; `web/.env.example` is the template. There
+is no keypair file on the host, which is why the faucet reads `FAUCET_SECRET_KEY` first. Switching
+to Helius/QuickNode is only an env change and a redeploy (the `NEXT_PUBLIC_*` ones need the
+rebuild because they are inlined).

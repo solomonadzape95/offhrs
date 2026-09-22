@@ -65,7 +65,24 @@ export function faucetEnabled(): boolean {
   );
 }
 
+/**
+ * The faucet's signing key. An inline secret wins: a deployed server has no
+ * keypair file, and the host's env vars are its only secret store. Accepts the
+ * JSON array a `solana-keygen` file holds, or the base58 secret-key form.
+ */
 function faucetKeypair(): Keypair | null {
+  const inline = process.env.FAUCET_SECRET_KEY?.trim();
+  if (inline) {
+    try {
+      const bytes = inline.startsWith("[")
+        ? Uint8Array.from(JSON.parse(inline) as number[])
+        : base58Decode(inline);
+      return Keypair.fromSecretKey(bytes);
+    } catch {
+      return null;
+    }
+  }
+
   const file =
     process.env.FAUCET_KEYPAIR ??
     process.env.ANCHOR_WALLET ??
@@ -77,6 +94,29 @@ function faucetKeypair(): Keypair | null {
   } catch {
     return null;
   }
+}
+
+const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+function base58Decode(s: string): Uint8Array {
+  const bytes: number[] = [0];
+  for (const ch of s) {
+    let carry = B58.indexOf(ch);
+    if (carry < 0) throw new Error("invalid base58");
+    for (let i = 0; i < bytes.length; i++) {
+      carry += bytes[i] * 58;
+      bytes[i] = carry & 0xff;
+      carry >>= 8;
+    }
+    while (carry > 0) {
+      bytes.push(carry & 0xff);
+      carry >>= 8;
+    }
+  }
+  for (const ch of s) {
+    if (ch !== "1") break;
+    bytes.push(0);
+  }
+  return Uint8Array.from(bytes.reverse());
 }
 
 type DemoAsset = { agent?: string; prestockMint: string; wrappedMint: string };
@@ -200,7 +240,7 @@ export async function faucet(owner: string): Promise<FaucetResult> {
 
   const provider = faucetKeypair();
   if (!provider) {
-    return { error: "The faucet has no keypair configured (set FAUCET_KEYPAIR)." };
+    return { error: "The faucet has no keypair configured (set FAUCET_SECRET_KEY)." };
   }
 
   let ownerKey: PublicKey;

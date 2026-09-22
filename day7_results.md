@@ -126,7 +126,22 @@ claim, and launch their own curve — not a Clawpump launch.
 ### Safety notes
 
 - The faucet key never reaches the browser; the client only asks the server action.
-- For a public beta, set `FAUCET_KEYPAIR` to a dedicated devnet wallet and give **that**
-  wallet the mock mints' authority, so the upgrade authority is not the hot key.
+- A deployment has no keypair file, so the faucet reads the key from **`FAUCET_SECRET_KEY`**
+  (keypair JSON array or base58) first, and only falls back to a `FAUCET_KEYPAIR` / `ANCHOR_WALLET`
+  path locally. The value is in the gitignored `web/.env.local` for copy-paste into Vercel.
+- For a public beta, make a **dedicated** devnet wallet the mock mints' authority and put its key in
+  `FAUCET_SECRET_KEY`, so the upgrade authority is not the hot key.
 - Cooldown state is in-process and resets on redeploy — a courtesy limit, not a security
   boundary. The real limit is the faucet wallet's balance.
+
+### Hosting the beta
+
+Set in the host's environment (Vercel → project → Settings → Environment Variables), then deploy:
+
+| Scope | Variables |
+|---|---|
+| server / runtime | `PROGRAM_RPC_URL`, `RPC_URL`, `FAUCET_SECRET_KEY` |
+| browser / build-time | `NEXT_PUBLIC_SOLANA_RPC_URL`, `NEXT_PUBLIC_SOLANA_WS_URL`, `NEXT_PUBLIC_BETA=false`, `NEXT_PUBLIC_DEVNET_FAUCET` |
+
+The `NEXT_PUBLIC_*` values are inlined into the bundle, so changing them needs a redeploy, not just
+an env edit. `RPC_URL` / `PROGRAM_RPC_URL` can point at Helius or QuickNode for a smoother beta.
