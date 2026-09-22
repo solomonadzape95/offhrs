@@ -282,6 +282,12 @@ Buyers are betting on the agent; holders earn from it. That is the whole idea.
 7. **One real browser signature.** Every instruction is proven with the local keypair on devnet; the wallet sign → relay half has not been clicked in a browser.
 8. **Demo video and submission.**
 
+**Later, not a priority:** a direct **Raydium venue adapter** — execute on Raydium's pools itself
+instead of going through Jupiter. Jupiter already routes through Raydium, Meteora and Orca, so this
+only earns its keep for true cross-DEX arbitrage (buy on one venue, sell on another). The venue
+*labelling* from Jupiter's route is already in (`agent/src/execution.ts`), so the execution log
+already shows Raydium/Orca/Meteora fills correctly.
+
 ### What runs on devnet, and what needs mainnet
 
 **Free on devnet:** the program, the wrapper (with mock PreStocks), our own DBC pool, buying and
