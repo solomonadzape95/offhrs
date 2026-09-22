@@ -88,25 +88,29 @@ export function VaultPanel() {
         <Stat
           label="Staked"
           value={totals?.staked ?? "—"}
-          hint={pos.status === "loading" ? "reading the chain…" : "agent tokens"}
+          loading={pos.status === "loading"}
+          hint="agent tokens"
         />
         <Stat
           label="Accrued"
           value={totals?.accrued ?? "—"}
           unit="wPreStock"
           tone="signal"
+          loading={pos.status === "loading"}
           hint="streams over time"
         />
         <Stat
           label="Claimable"
           value={totals?.claimable ?? "—"}
           unit="wPreStock"
+          loading={pos.status === "loading"}
           hint="redeemable 1:1"
         />
         <Stat
           label="Income to date"
           value={totals?.incomeToDate ?? "—"}
           unit="wPreStock"
+          loading={pos.status === "loading"}
           hint="fees + gains"
         />
       </div>
@@ -116,11 +120,19 @@ export function VaultPanel() {
         <div className="panel flex flex-col p-6 lg:p-7">
           <span className="label">Stake an agent token</span>
 
-          {rows.length === 0 ? (
+          {pos.status === "loading" ? (
+            <div className="mt-5 flex flex-col gap-3">
+              <span className="h-12 w-full animate-pulse bg-raised" />
+              <span className="h-14 w-full animate-pulse bg-raised" />
+              <div className="flex gap-3">
+                <span className="h-11 flex-1 animate-pulse bg-raised" />
+                <span className="h-11 flex-1 animate-pulse bg-raised" />
+                <span className="h-11 w-20 animate-pulse bg-raised" />
+              </div>
+            </div>
+          ) : rows.length === 0 ? (
             <p className="mt-5 text-sm leading-relaxed text-ink-dim">
-              {pos.status === "loading"
-                ? "Reading the registry…"
-                : "No agent is registered on this cluster yet, so there is nothing to stake into."}
+              No agent is registered on this cluster yet, so there is nothing to stake into.
             </p>
           ) : (
             <>

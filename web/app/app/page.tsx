@@ -44,6 +44,7 @@ function Position() {
   const busy = write.status === "signing" || write.status === "sending";
   const data = pos.status === "ready" ? pos.data : null;
   const sol = lamports != null ? lamportsToSolString(lamports) : null;
+  const loading = pos.status === "loading";
 
   return (
     <div className="flex flex-col gap-10">
@@ -65,25 +66,29 @@ function Position() {
         <Stat
           label="Agent tokens"
           value={data?.totals.staked ?? "—"}
-          hint={pos.status === "loading" ? "reading the chain…" : "staked across your agents"}
+          loading={loading}
+          hint="staked across your agents"
         />
         <Stat
           label="Equity accrued"
           value={data?.totals.accrued ?? "—"}
           unit="wPreStock"
           tone="signal"
+          loading={loading}
           hint="streams over time"
         />
         <Stat
           label="Claimable"
           value={data?.totals.claimable ?? "—"}
           unit="wPreStock"
+          loading={loading}
           hint="redeemable 1:1"
         />
         <Stat
           label="SOL balance"
           value={sol ?? "—"}
           unit="SOL"
+          loading={lamports == null}
           hint={address ? shortAddress(address) : ""}
         />
       </div>
@@ -94,7 +99,19 @@ function Position() {
           <span className="label">Your share inventory</span>
           <span className="font-mono text-xs text-ink-faint">redeemable 1:1 for raw PreStock</span>
         </div>
-        {data && data.equity.length > 0 ? (
+        {loading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="panel flex flex-col gap-3 p-5">
+                <div className="flex items-baseline justify-between">
+                  <span className="h-3 w-16 animate-pulse bg-raised" />
+                  <span className="h-3 w-10 animate-pulse bg-raised" />
+                </div>
+                <span className="h-5 w-24 animate-pulse bg-raised" />
+              </div>
+            ))}
+          </div>
+        ) : data && data.equity.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {data.equity.map((e) => (
               <div key={e.wrappedMint} className="panel flex flex-col gap-3 p-5">
@@ -110,9 +127,7 @@ function Position() {
           </div>
         ) : (
           <p className="font-mono text-sm text-ink-faint">
-            {pos.status === "loading"
-              ? "Reading the chain…"
-              : "No wrapped equity accrued behind your stakes yet."}
+            No wrapped equity accrued behind your stakes yet.
           </p>
         )}
       </div>

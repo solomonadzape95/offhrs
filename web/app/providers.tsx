@@ -1,5 +1,6 @@
 "use client";
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SolanaProvider } from "@solana/react-hooks";
 import { createClient, defaultWalletConnectors } from "@solana/client";
 
@@ -38,20 +39,42 @@ export const solanaClient = createClient({
   walletConnectors: defaultWalletConnectors(),
 });
 
+/**
+ * One cache for the wallet-scoped server reads.
+ *
+ * The `/app` tabs are separate routes, so without this every tab switch remounts
+ * and refetches the same `getUserPosition` / `getLiveAgents` chain scans. React
+ * Query keys them by the wallet, keeps the result for a short window, and
+ * de-duplicates the in-flight request, so going back and forth is instant while
+ * still revalidating after a write.
+ */
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 20_000,
+      gcTime: 5 * 60_000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
+
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider>
-      <ShaderProvider>
-        <SolanaProvider
-          client={solanaClient}
-          /* Remember the last wallet and try it silently on load. Wallets that still
-             hold the permission return without a prompt; the ones that do not are
-             forgotten rather than re-prompting on every visit. */
-          walletPersistence={{ autoConnect: true }}
-        >
-          {children}
-        </SolanaProvider>
-      </ShaderProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <ShaderProvider>
+          <SolanaProvider
+            client={solanaClient}
+            /* Remember the last wallet and try it silently on load. Wallets that still
+               hold the permission return without a prompt; the ones that do not are
+               forgotten rather than re-prompting on every visit. */
+            walletPersistence={{ autoConnect: true }}
+          >
+            {children}
+          </SolanaProvider>
+        </ShaderProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }

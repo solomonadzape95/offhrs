@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from "react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import {
   CaretDown,
-  ChartLineUp,
   ClockCounterClockwise,
   EnvelopeSimple,
   GearSix,
@@ -25,6 +24,7 @@ import { ProfileMenu } from "@/components/site/profile-menu";
 import { DitherIcon } from "@/components/ui/dither-icon";
 import { Icon } from "@/components/ui/icon";
 import { APP_ENTRY_HREFS } from "@/lib/beta";
+import { useWalletUi } from "@/lib/wallet";
 
 /**
  * The header, shared by the public and signed-in surfaces.
@@ -53,10 +53,8 @@ export interface NavItem {
 }
 
 export const SITE_ITEMS: NavItem[] = [
-  { href: "/explore", label: "Markets", hint: "Tokenized shares against their mark", icon: ChartLineUp },
   { href: "/#board", label: "The board", hint: "Every tokenized share, live", icon: Table },
   { href: "/#mechanics", label: "Mechanics", hint: "How the gap gets traded", icon: GearSix },
-  { href: "/vault", label: "Vault", hint: "Stake and claim dividends", icon: Vault },
   { href: "/waitlist", label: "Waitlist", hint: "Early access to the first cohort", icon: EnvelopeSimple },
   { href: "/#faq", label: "FAQ", hint: "The short answers", icon: Question },
   { href: "/app", label: "Dashboard", hint: "Your position and payouts", icon: SquaresFour },
@@ -72,10 +70,15 @@ export const APP_ITEMS: NavItem[] = [
   { href: "/launch", label: "Launch an agent", hint: "Deploy a new desk", icon: RocketLaunch },
 ];
 
-export function Nav({ items = SITE_ITEMS, beta = false }: { items?: NavItem[]; beta?: boolean }) {
+export function Nav({ items, beta = false }: { items?: NavItem[]; beta?: boolean }) {
+  const { address } = useWalletUi();
+  // On the public surfaces the menu follows the wallet: once connected the app
+  // entries replace the marketing ones, so the nav never argues with the page it
+  // is sitting on. The signed-in tree passes its own list explicitly.
+  const base = items ?? (address ? APP_ITEMS : SITE_ITEMS);
   // In beta the menu only carries the marketing pages; the app entries wait for
   // the product to open.
-  const shown = beta ? items.filter((i) => !APP_ENTRY_HREFS.includes(i.href)) : items;
+  const shown = beta ? base.filter((i) => !APP_ENTRY_HREFS.includes(i.href)) : base;
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -238,7 +241,7 @@ function MenuRow({
 }) {
   const { icon: Glyph } = item;
 
-  const shared = `group flex items-center gap-3.5 rounded-[14px] px-3 py-3 transition-colors ${
+  const shared = `group flex items-center gap-3.5 rounded-none px-3 py-3 transition-colors ${
     current ? "cursor-default bg-raised" : "hover:bg-raised focus-visible:bg-raised"
   }`;
 

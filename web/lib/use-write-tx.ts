@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   getBase64Encoder,
   getBase64EncodedWireTransaction,
@@ -30,6 +31,7 @@ export type WriteState =
 
 export function useWriteTx(onDone?: () => void) {
   const session = useWalletSession();
+  const queryClient = useQueryClient();
   const [state, setState] = useState<WriteState>({ status: "idle" });
 
   const reset = useCallback(() => setState({ status: "idle" }), []);
@@ -58,6 +60,9 @@ export function useWriteTx(onDone?: () => void) {
         if ("error" in res) throw new Error(res.error);
 
         setState({ status: "done", signature: res.signature });
+        // The write changed on-chain state, so drop every cached read. Active
+        // queries refetch; the rest are marked stale for their next mount.
+        void queryClient.invalidateQueries();
         onDone?.();
         return true;
       } catch (e) {

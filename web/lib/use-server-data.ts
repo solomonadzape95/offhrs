@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 /**
- * Call a server action from a client component, keyed.
+ * Call a server action from a client component, cached.
  *
- * The `/app` tabs are client components because they read the wallet, but the
- * chain reads themselves happen in a server action (`app/actions.ts`). This is
- * the glue: run the action when the key changes (the wallet address), and keep
- * the three states a page actually renders.
+ * The `/app` tabs are separate routes because they read the wallet, but the chain
+ * reads themselves happen in server actions (`app/actions.ts`). This is the glue:
+ * run the action for a key and keep the three states a page actually renders.
+ *
+ * It is backed by React Query so the reads survive a route change. Switching from
+ * Position to Vault and back reuses the last `getUserPosition` result instead of
+ * re-running the `getProgramAccounts` scans, and two components asking for the
+ * same key share one in-flight request. A write invalidates the cache, so the
+ * figure you just changed is the one you see.
  *
  * `key === null` is the "no wallet yet" case and resolves to `idle` rather than
  * firing a request against a missing address.
@@ -20,31 +25,19 @@ export type ServerData<T> =
   | { status: "error"; error: string };
 
 export function useServerData<T>(key: string | null, run: () => Promise<T>): ServerData<T> {
-  const [state, setState] = useState<ServerData<T>>({ status: "idle" });
+  const query = useQuery({
+    queryKey: ["server", key],
+    queryFn: run,
+    enabled: Boolean(key),
+  });
 
-  useEffect(() => {
-    if (!key) {
-      setState({ status: "idle" });
-      return;
-    }
-    let alive = true;
-    setState({ status: "loading" });
-    run().then(
-      (data) => {
-        if (alive) setState({ status: "ready", data });
-      },
-      (e) => {
-        if (alive) setState({ status: "error", error: e instanceof Error ? e.message : String(e) });
-      },
-    );
-    return () => {
-      alive = false;
+  if (!key) return { status: "idle" };
+  if (query.isPending) return { status: "loading" };
+  if (query.isError) {
+    return {
+      status: "error",
+      error: query.error instanceof Error ? query.error.message : String(query.error),
     };
-    // Keyed on `key` only: `run` is a fresh closure each render and re-running on
-    // its identity would loop. The key is the wallet address, which is what
-    // actually changes the answer.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-
-  return state;
+  }
+  return { status: "ready", data: query.data as T };
 }

@@ -36,7 +36,6 @@ const COLUMNS = [
       { href: "/#reference", label: "The gap" },
       { href: "/#mechanics", label: "Mechanics" },
       { href: "/#agents", label: "The agents" },
-      { href: "/agent/orbital", label: "Agent terminal" },
     ],
   },
   {
@@ -89,8 +88,8 @@ export function SiteFooter() {
           <div>
             <p className="max-w-sm font-mono text-xs leading-relaxed text-ink-dim">
               Offhrs is a hackathon build for Stocklana. Figures are read live from the PreStocks
-              issuer API, Jupiter and Pyth. Agent records are staged previews until their pools
-              exist on chain.
+              issuer API, Jupiter and Pyth. Agents registered on chain are real; the showcase set
+              on the landing page is illustrative.
             </p>
             <p className="mt-6 max-w-sm font-mono text-xs leading-relaxed text-ink-faint">
               Not investment advice. Pre-IPO marks are illiquid, and the reference price they track
