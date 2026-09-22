@@ -40,11 +40,13 @@ import {
   buildWrapTransaction,
 } from "@/lib/program-tx";
 import { buildBuyTransaction, buildSellTransaction, loadPool, quoteTrade } from "@/lib/trade";
+import { buildCreateAgentCurve } from "@/lib/launch";
 import { fetchAllPreStocks } from "@/lib/market";
 import type {
   AgentTradeInfo,
   AgentView,
   BuildTxResult,
+  CreateCurveTxResult,
   ExecutionView,
   Portfolio,
   PositionRow,
@@ -542,6 +544,41 @@ export async function buildUnwrapTx(
     const { blockhash } = await rpc().getLatestBlockhash("confirmed");
     const tx = await buildUnwrapTransaction(owner, prestockMint, BigInt(amountRaw), blockhash);
     return { tx: serialize(tx) };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/**
+ * Self-owned DBC launch — the Clawpump fallback. Builds the single transaction
+ * that creates the curve's config and pool; the `$AGENT` mint DBC creates is
+ * returned so the caller can register and vault it next.
+ */
+export async function buildCreateAgentCurveTx(
+  owner: string,
+  prestockMint: string,
+  name: string,
+  symbol: string,
+  feeBps: number,
+): Promise<CreateCurveTxResult> {
+  try {
+    if (name.trim().length < 2) throw new Error("Give the agent a name.");
+    if (symbol.trim().length < 2) throw new Error("Give the agent a ticker.");
+    const { blockhash } = await rpc().getLatestBlockhash("confirmed");
+    const built = await buildCreateAgentCurve({
+      owner,
+      prestockMint,
+      name: name.trim(),
+      symbol: symbol.trim().toUpperCase(),
+      feeBps,
+      blockhash,
+    });
+    return {
+      tx: serialize(built.tx),
+      baseMint: built.baseMint,
+      config: built.config,
+      pool: built.pool,
+    };
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) };
   }

@@ -95,6 +95,11 @@ export type TradeQuote = {
   protocolFee: string;
 };
 
+/** The self-owned DBC launch transaction, plus the mint DBC will create. */
+export type CreateCurveTxResult =
+  | { tx: string; baseMint: string; config: string; pool: string }
+  | { error: string };
+
 /**
  * Everything the trade box needs before it offers a size: the pool's existence,
  * the mint decimals, and the connected wallet's raw balances. Amounts are raw

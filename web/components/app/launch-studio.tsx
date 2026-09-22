@@ -1,17 +1,26 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSolanaClient } from "@solana/react-hooks";
+import { useSolanaClient, useWalletSession } from "@solana/react-hooks";
+import {
+  getBase64Encoder,
+  getBase64EncodedWireTransaction,
+  getTransactionDecoder,
+} from "@solana/kit";
 
-import { buildInitializeVaultTx, buildRegisterAgentTx } from "@/app/actions";
+import {
+  buildCreateAgentCurveTx,
+  buildInitializeVaultTx,
+  buildRegisterAgentTx,
+  submitTx,
+} from "@/app/actions";
 import { Curve } from "@/components/app/curve";
 import { CurvePreview } from "@/components/app/curve-preview";
 import { preflight, type Check } from "@/lib/deploy";
 import { LEAD_ASSETS, orderByLead } from "@/lib/agents";
 import { usd } from "@/lib/format";
 import type { PreStock } from "@/lib/market";
-import { useWriteTx } from "@/lib/use-write-tx";
-import { useWalletUi } from "@/lib/wallet";
+import { describeWalletError, useWalletUi } from "@/lib/wallet";
 
 /**
  * §4 Creator Studio.
@@ -42,7 +51,17 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
   const chosen = useMemo(() => assets.find((a) => a.symbol === asset), [assets, asset]);
   const client = useSolanaClient();
   const { address } = useWalletUi();
-  const { state: write, run } = useWriteTx();
+  const session = useWalletSession();
+
+  // Where the `$AGENT` mint comes from. Clawpump is the normal path; the
+  // self-owned DBC launch is the fallback if it falls through.
+  const [source, setSource] = useState<"clawpump" | "self">("clawpump");
+  const [deploy, setDeploy] = useState<
+    | { k: "idle" }
+    | { k: "busy"; label: string }
+    | { k: "done"; mint: string }
+    | { k: "error"; error: string }
+  >({ k: "idle" });
 
   // Preflight only runs when it can matter — an RPC round trip per check is not
   // worth spending on step 1 of a form.
@@ -69,19 +88,57 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
   }, [step, chosen, client]);
 
   const ready = Boolean(checks && checks.every((c) => c.ok === true));
-  const canDeploy = Boolean(address && chosen && agentTokenMint.length >= 32 && agentSigner.length >= 32);
+  const canDeploy = Boolean(
+    address &&
+      chosen &&
+      agentSigner.length >= 32 &&
+      (source === "self" || agentTokenMint.length >= 32),
+  );
+
+  /** Decode a server-built tx, sign it with the wallet, relay it. */
+  const signAndSend = async (tx: string): Promise<string> => {
+    if (!session?.signTransaction) throw new Error("This wallet cannot sign in the browser.");
+    const decoded = getTransactionDecoder().decode(getBase64Encoder().encode(tx));
+    const signed = await session.signTransaction(decoded as never);
+    const wire = getBase64EncodedWireTransaction(signed as never);
+    const res = await submitTx(wire);
+    if ("error" in res) throw new Error(res.error);
+    return res.signature;
+  };
 
   /**
-   * Two program-side transactions. The DBC pool that mints the token is
-   * Clawpump's, so the mint is an input; we register it and stand up its vault.
+   * Deploy. Two sources, one outcome: a registered agent with a dividend vault.
+   *
+   * - **Clawpump:** the mint already exists, so it is register + vault.
+   * - **Self-owned:** the app creates the DBC config and pool first (one
+   *   transaction), reads the mint DBC created, then registers and vaults it.
    */
   const onDeploy = async () => {
     if (!address || !chosen) return;
-    const registered = await run(() =>
-      buildRegisterAgentTx(address, agentTokenMint, chosen.mint, agentSigner, feeBps),
-    );
-    if (registered) {
-      await run(() => buildInitializeVaultTx(address, agentTokenMint, chosen.mint, 0));
+    try {
+      let mint = agentTokenMint;
+
+      if (source === "self") {
+        setDeploy({ k: "busy", label: "Create config + pool…" });
+        const curve = await buildCreateAgentCurveTx(address, chosen.mint, name, symbol, feeBps);
+        if ("error" in curve) throw new Error(curve.error);
+        await signAndSend(curve.tx);
+        mint = curve.baseMint;
+      }
+
+      setDeploy({ k: "busy", label: "Register agent…" });
+      const register = await buildRegisterAgentTx(address, mint, chosen.mint, agentSigner, feeBps);
+      if ("error" in register) throw new Error(register.error);
+      await signAndSend(register.tx);
+
+      setDeploy({ k: "busy", label: "Create vault…" });
+      const vault = await buildInitializeVaultTx(address, mint, chosen.mint, 0);
+      if ("error" in vault) throw new Error(vault.error);
+      await signAndSend(vault.tx);
+
+      setDeploy({ k: "done", mint });
+    } catch (e) {
+      setDeploy({ k: "error", error: describeWalletError(e) });
     }
   };
 
@@ -116,9 +173,31 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
             <>
               <Head
                 t="Agent"
-                d="The Clawpump execution keypair and the basis threshold it will trade on."
+                d="Where the token comes from, the execution keypair, and the basis threshold it will trade on."
               />
-              <Field label="Agent signer (Clawpump keypair)" hint="base58 public key">
+              <div className="grid grid-cols-2 border border-edge">
+                {(
+                  [
+                    { v: "clawpump", label: "Clawpump token" },
+                    { v: "self", label: "Create the curve" },
+                  ] as const
+                ).map((o) => (
+                  <button
+                    key={o.v}
+                    type="button"
+                    onClick={() => setSource(o.v)}
+                    className={`px-3 py-2.5 font-mono text-[0.6875rem] tracking-[0.08em] uppercase transition-colors ${
+                      source === o.v ? "bg-raised text-signal" : "text-ink-faint hover:text-ink"
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              <Field
+                label="Agent signer"
+                hint={source === "clawpump" ? "Clawpump keypair · base58" : "the keypair the agent trades with · base58"}
+              >
                 <input
                   value={agentSigner}
                   onChange={(e) => setAgentSigner(e.target.value.trim())}
@@ -126,14 +205,22 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
                   className="w-full border-b border-edge bg-transparent pb-2 font-mono text-sm text-ink outline-none focus:border-signal"
                 />
               </Field>
-              <Field label="Agent token mint" hint="returned by your Clawpump DBC launch">
-                <input
-                  value={agentTokenMint}
-                  onChange={(e) => setAgentTokenMint(e.target.value.trim())}
-                  placeholder="DVdtWw6y8Aet4oLP741ZpYoS5VoGa6Dr11qFWEsfQfwM"
-                  className="w-full border-b border-edge bg-transparent pb-2 font-mono text-sm text-ink outline-none focus:border-signal"
-                />
-              </Field>
+              {source === "clawpump" ? (
+                <Field label="Agent token mint" hint="returned by your Clawpump DBC launch">
+                  <input
+                    value={agentTokenMint}
+                    onChange={(e) => setAgentTokenMint(e.target.value.trim())}
+                    placeholder="DVdtWw6y8Aet4oLP741ZpYoS5VoGa6Dr11qFWEsfQfwM"
+                    className="w-full border-b border-edge bg-transparent pb-2 font-mono text-sm text-ink outline-none focus:border-signal"
+                  />
+                </Field>
+              ) : (
+                <p className="font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
+                  The app will create the Meteora DBC config and pool itself, quoted in w{asset},
+                  and the `$AGENT` mint is created in that transaction. Use this only if Clawpump is
+                  unavailable.
+                </p>
+              )}
               <Field label="Minimum basis to act" hint="bps · net of ~600bps round-trip cost">
                 <input
                   value={minEdge}
@@ -237,7 +324,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
             <>
               <Head
                 t="Deploy"
-                d="Three transactions against the vault program, then one against Meteora's DBC."
+                d="One DBC transaction to create the curve (self-owned only), then register the agent and create its vault."
               />
 
               {/* Preflight. The useful thing this page can do before a wallet is
@@ -290,30 +377,31 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
               </dl>
 
               <button
-                disabled={!canDeploy || write.status === "signing" || write.status === "sending"}
+                disabled={!canDeploy || deploy.k === "busy"}
                 onClick={() => void onDeploy()}
                 className="btn btn-primary mt-2 w-full disabled:opacity-50"
               >
-                {write.status === "signing"
-                  ? "Sign…"
-                  : write.status === "sending"
-                    ? "Sending…"
+                {deploy.k === "busy"
+                  ? deploy.label
+                  : source === "self"
+                    ? "Create curve + register + vault"
                     : "Register agent + create vault"}
               </button>
 
-              {write.status === "done" && (
-                <p className="font-mono text-[0.6875rem] break-all text-signal">
-                  Confirmed: {write.signature}
+              {deploy.k === "done" && (
+                <p className="font-mono text-[0.6875rem] leading-relaxed break-all text-signal">
+                  Deployed. $AGENT mint: {deploy.mint}
                 </p>
               )}
-              {write.status === "error" && (
-                <p className="text-xs leading-relaxed text-ember">{write.error}</p>
+              {deploy.k === "error" && (
+                <p className="text-xs leading-relaxed text-ember">{deploy.error}</p>
               )}
 
               <p className="font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
-                Two transactions: register the agent, then create its dividend vault. The DBC pool
-                that mints the token is Clawpump&apos;s — paste the mint it returns above. The
-                preflight reports mainnet readiness; the program is live on devnet.
+                {source === "self"
+                  ? "Three transactions: create the DBC config and pool, register the agent, then create its dividend vault. The config and mint keypairs are generated and discarded — they have no power after the transaction lands."
+                  : "Two transactions: register the agent, then create its dividend vault. The DBC pool that mints the token is Clawpump's — paste the mint it returns above."}{" "}
+                The preflight reports mainnet readiness; the program is live on devnet.
               </p>
             </>
           )}
