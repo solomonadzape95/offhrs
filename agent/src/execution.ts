@@ -57,6 +57,24 @@ export class DryRunAdapter implements ExecutionAdapter {
   }
 }
 
+/**
+ * Map Jupiter's route labels onto the on-chain `ArbVenue` enum.
+ *
+ * Jupiter is an aggregator, so a single quote can hop through several venues. We
+ * label the fill by the deepest venue in the route rather than calling everything
+ * "Jupiter" — that is what makes the execution log show the agent really routing
+ * across Raydium, Meteora and Orca rather than claiming it.
+ */
+function venueFromRoute(labels: string[]): ExecuteResult["venue"] {
+  const has = (needle: string) => labels.some((l) => l.toLowerCase().includes(needle));
+  if (has("meteora damm") || has("damm v2")) return "MeteoraDammV2";
+  if (has("meteora")) return "MeteoraDlmm";
+  if (has("raydium")) return "Raydium";
+  if (has("orca") || has("whirlpool")) return "Orca";
+  if (has("clawpump")) return "Clawpump";
+  return "Jupiter";
+}
+
 /** Direct DEX execution via Jupiter. No third-party account or approval needed. */
 export class JupiterAdapter implements ExecutionAdapter {
   readonly name = "jupiter";
@@ -86,7 +104,7 @@ export class JupiterAdapter implements ExecutionAdapter {
       executed: false, // swap tx construction is wired on Day 5 with the wallet signer
       amountIn: notional,
       amountOut: BigInt(q.outAmount),
-      venue: route.includes("Meteora DLMM") ? "MeteoraDlmm" : "Jupiter",
+      venue: venueFromRoute(route),
       detail: `quoted ${q.outAmount} raw via ${route.join(" -> ")} (send() pending wallet wiring)`,
     };
   }
