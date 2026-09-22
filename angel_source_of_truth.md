@@ -106,14 +106,20 @@ holder rewards, perps). The logged-out copy reads *"Your 75% fee share and any f
 wallet you launch with."* So the DBC→DAMM-v2 path is a real product feature, not just a chat answer —
 the docs simply never mention it.
 
-**Still open — one question (blocks the vault wiring, not the build):**
+**Confirmed 22 Sep (screenshots of the market picker):**
 
-1. Can the **Trading pair** be an arbitrary SPL mint — our `wPreStock` — or only a preset list
-   (SOL/USDC)? Everything follows from that: if yes, Clawpump launches our token on Meteora DBC with
-   the stock pair, and one token takes both the Clawpump and Meteora tracks.
-2. Confirm the fee share arrives **in the paired token** (`wPreStock`), and that the auto-buyback /
-   holder-rewards toggles can stay **off** so fees reach our stock vault rather than being converted
-   to SOL.
+- **Arbitrary pair: yes.** The picker has **"Use another Solana mint on Meteora"** with a *Paste a
+token mint* field — so our `wPreStock` can be the pair, and the preview shows `Fees received in`.
+- **DBC → DAMM v2: yes** (`Launch mode: Bonding curve → DAMM v2`).
+- **The 75% creator fee share and any first buy go to the wallet you launch with.** Strategies are
+auto-buyback, holder rewards (paid in **SOL or the agent token**) and perps.
+- ⚠️ The picker also lists **Ondo** and **Backpack** tokenized stocks. Do **not** pair with those —
+the PreStocks bounty forfeits on any non-PreStocks pre-IPO token. Stick to `wPreStock`.
+
+**To verify ourselves (no question needed):** paste the `wPreStock` mint into the picker and read
+`Fees received in` in the pair preview. If it reads `wPreStock`, fees arrive in the stock pair and we
+route them straight into the vault. Turn auto-buyback and holder rewards **off** so nothing is
+converted to SOL.
 
 ---
 

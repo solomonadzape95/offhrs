@@ -99,10 +99,12 @@ Pump.fun | Meteora**, **Launch mode: Bonding curve → DAMM v2**, a **Trading pa
 *"Meteora · fees paid in the paired token"*, and fee strategies (auto-buyback, holder rewards,
 perps). Logged-out copy: *"Your 75% fee share and any first buy go to the wallet you launch with."*
 
-**One question remains (blocks vault wiring, not the build):** can the **Trading pair** be an
-arbitrary SPL mint (`wPreStock`), or only a preset list? If arbitrary, one Clawpump-launched token is
-also the Meteora DBC pool and takes both tracks. Also confirm the fee share arrives in the paired
-token and the buyback/holder-rewards toggles can stay off.
+**Confirmed 22 Sep (market-picker screenshot):** **"Use another Solana mint on Meteora"** with a
+*Paste a token mint* field means the pair can be our `wPreStock`; the preview reports `Fees received
+in`. Launch mode is **Bonding curve → DAMM v2**, and the 75% fee share plus first buy go to the
+launch wallet. ⚠️ Avoid the **Ondo**/**Backpack** pairs in that picker — non-PreStocks pre-IPO tokens
+forfeit the PreStocks bounty. Verify the fee currency by pasting `wPreStock` and reading the preview;
+turn auto-buyback and holder rewards off.
 
 Useful Clawpump agent tools either way: `swap_quote`, `swap_execute`,
 `arbitrage_quote`, `arbitrage_prices`, `token_search`, `get_portfolio`, `dca_create`,
