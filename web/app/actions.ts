@@ -30,6 +30,7 @@ import {
   buildClaimTransaction,
   buildInitializeVaultTransaction,
   buildRegisterAgentTransaction,
+  buildSetPausedTransaction,
   buildStakeTransaction,
   buildUnstakeTransaction,
 } from "@/lib/program-tx";
@@ -309,6 +310,20 @@ export async function buildInitializeVaultTx(
       BigInt(minHoldSlots),
       blockhash,
     );
+    return { tx: serialize(tx) };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+export async function buildSetPausedTx(
+  owner: string,
+  agentId: string,
+  paused: boolean,
+): Promise<BuildTxResult> {
+  try {
+    const { blockhash } = await rpc().getLatestBlockhash("confirmed");
+    const tx = await buildSetPausedTransaction(owner, agentId, paused, blockhash);
     return { tx: serialize(tx) };
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) };

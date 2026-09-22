@@ -13,7 +13,7 @@ import fs from "node:fs";
 import { Connection, Keypair } from "@solana/web3.js";
 
 import { fetchAgents, fetchUserStake, PROGRAM_RPC_URL } from "../lib/chain";
-import { buildClaimTransaction, buildStakeTransaction, buildUnstakeTransaction } from "../lib/program-tx";
+import { buildClaimTransaction, buildSetPausedTransaction, buildStakeTransaction, buildUnstakeTransaction } from "../lib/program-tx";
 
 const conn = new Connection(PROGRAM_RPC_URL, "confirmed");
 const payer = Keypair.fromSecretKey(
@@ -35,7 +35,15 @@ async function main() {
   const owner = payer.publicKey.toBase58();
   const agents = await fetchAgents();
   if (agents.length === 0) throw new Error("no agents registered");
-  const agent = agents[0];
+  // Prefer an agent the wallet already stakes, so the round-trip has tokens to move.
+  let agent = agents[0];
+  for (const a of agents) {
+    const s = await fetchUserStake(a.vault, owner).catch(() => null);
+    if (s && s.stakedAmount > 0n) {
+      agent = a;
+      break;
+    }
+  }
   console.log(`owner ${owner}\nagent ${agent.pda}\n`);
 
   const before = await fetchUserStake(agent.vault, owner);
@@ -56,6 +64,11 @@ async function main() {
 
   const { blockhash: bh3 } = await conn.getLatestBlockhash("confirmed");
   await send("unstake", await buildUnstakeTransaction(owner, agent.pda, amount, bh3));
+
+  const { blockhash: bh4 } = await conn.getLatestBlockhash("confirmed");
+  await send("pause  ", await buildSetPausedTransaction(owner, agent.pda, true, bh4));
+  const { blockhash: bh5 } = await conn.getLatestBlockhash("confirmed");
+  await send("resume ", await buildSetPausedTransaction(owner, agent.pda, false, bh5));
 
   const after = await fetchUserStake(agent.vault, owner);
   console.log(`after  staked=${after?.stakedAmount ?? 0n} claimed=${after?.totalClaimed ?? 0n}`);

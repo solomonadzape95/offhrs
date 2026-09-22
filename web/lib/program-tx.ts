@@ -26,6 +26,7 @@ import {
   agentPda,
   fetchAgentByPda,
   fetchWrapper,
+  fetchWrappers,
   reservePda,
   rewardVaultPda,
   stakePda,
@@ -48,6 +49,7 @@ const DISC = {
   initializeWrapper: Uint8Array.from([143, 211, 228, 247, 131, 67, 40, 30]),
   registerAgent: Uint8Array.from([135, 157, 66, 195, 2, 113, 175, 30]),
   initializeVault: Uint8Array.from([48, 191, 163, 44, 71, 129, 63, 164]),
+  setPaused: Uint8Array.from([91, 60, 125, 192, 176, 225, 166, 218]),
 } as const;
 
 function u64le(v: bigint): Buffer {
@@ -256,7 +258,39 @@ export async function buildRegisterAgentTransaction(
   return tx;
 }
 
-/** `initialize_vault` — creates the staking + reward vaults for a registered agent. */
+/**
+ * `set_paused` on the agent's **wrapper** — the circuit breaker mirroring
+ * PreStocks' `pausableConfig`. It halts wrapping and unwrapping for the asset,
+ * not the agent's trading or the vault. Admin-only, enforced by `has_one = admin`.
+ */
+export async function buildSetPausedTransaction(
+  owner: string,
+  agentAddress: string,
+  paused: boolean,
+  blockhash: string,
+): Promise<Transaction> {
+  const agent = await fetchAgentByPda(agentAddress);
+  if (!agent) throw new Error("No agent at that address on this cluster.");
+
+  const wrappers = await fetchWrappers();
+  const wrapper = wrappers.find((w) => w.wrappedMint === agent.wrappedMint);
+  if (!wrapper) throw new Error("No wrapper for this agent's reward asset.");
+
+  const admin = new PublicKey(owner);
+  const tx = new Transaction().add(
+    new TransactionInstruction({
+      programId: PROGRAM_ID,
+      keys: [
+        { pubkey: admin, isSigner: true, isWritable: false },
+        { pubkey: wrapperConfigPda(wrapper.prestockMint), isSigner: false, isWritable: true },
+      ],
+      data: Buffer.concat([Buffer.from(DISC.setPaused), Buffer.from([paused ? 1 : 0])]),
+    }),
+  );
+  tx.feePayer = admin;
+  tx.recentBlockhash = blockhash;
+  return tx;
+}
 export async function buildInitializeVaultTransaction(
   owner: string,
   agentTokenMint: string,
