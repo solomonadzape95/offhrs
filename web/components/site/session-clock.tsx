@@ -79,9 +79,16 @@ export function SessionClock({ variant = "compact" }: { variant?: "compact" | "h
         </span>
       </div>
 
-      {/* Progress through the current state, dithered like everything else. */}
+      {/* Progress through the current state, dithered like everything else. The
+          width is derived from the visitor's clock, so the server's frame and the
+          client's differ by a hair — suppress the hydration warning rather than
+          let it paint the console. */}
       <div className="curve-track">
-        <div className="curve-fill" style={{ width: `${session.progress * 100}%` }} />
+        <div
+          className="curve-fill"
+          suppressHydrationWarning
+          style={{ width: `${session.progress * 100}%` }}
+        />
       </div>
 
       <div className="flex items-baseline justify-between font-mono text-xs text-ink-faint">

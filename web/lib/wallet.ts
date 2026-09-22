@@ -109,6 +109,19 @@ export function useWalletUi(): WalletUi {
 
   const session = useWalletSession();
 
+  // A wallet that never resolves its approval (a locked extension, a dropped RPC)
+  // used to leave the header saying "Connecting…" forever. Bound it, so the
+  // control returns to a clickable state and the person gets told what happened.
+  const [stalled, setStalled] = useState(false);
+  useEffect(() => {
+    if (!connecting) {
+      setStalled(false);
+      return;
+    }
+    const id = window.setTimeout(() => setStalled(true), 20_000);
+    return () => window.clearTimeout(id);
+  }, [connecting]);
+
   const connect = async (id: string): Promise<string | null> => {
     try {
       const next = await rawConnect(id);
@@ -120,7 +133,9 @@ export function useWalletUi(): WalletUi {
   };
 
   const status: WalletUiStatus = connecting
-    ? "connecting"
+    ? stalled
+      ? "error"
+      : "connecting"
     : connected
       ? "connected"
       : error
@@ -133,7 +148,11 @@ export function useWalletUi(): WalletUi {
     address: session?.account?.address?.toString() ?? null,
     connectorId: connectorId ?? null,
     status,
-    error: error ? describeWalletError(error, name) : null,
+    error: error
+      ? describeWalletError(error, name)
+      : stalled
+        ? "The wallet didn't respond. Check it for a pending approval, or try again."
+        : null,
     connectors,
     connect,
     disconnect,
