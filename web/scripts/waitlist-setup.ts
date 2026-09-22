@@ -57,6 +57,16 @@ async function main() {
 
   console.log(`segment id: ${segment.id}`);
   console.log(`contacts:   ${count} / ${WAITLIST_CAP}`);
+
+  // Sending readiness: DKIM + SPF must be verified. The domain status can read
+  // `partially_failed` when only the optional Receiving MX is missing, which does
+  // not block sending.
+  const domains = await resend.domains.list();
+  if (domains.error) throw new Error(`${domains.error.name}: ${domains.error.message}`);
+  const list = (domains.data?.data ?? []) as { name: string; status: string }[];
+  console.log("\ndomains:");
+  for (const d of list) console.log(`  ${d.name}  ${d.status}`);
+  console.log(`\nfrom (WAITLIST_FROM): ${process.env.WAITLIST_FROM ?? "Offhrs <hello@offhrs.fun>"}`);
 }
 
 main().catch((e) => {

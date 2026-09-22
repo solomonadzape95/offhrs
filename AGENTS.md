@@ -120,7 +120,9 @@ pnpm exec tsx web/scripts/launch-check.ts    # register_agent + initialize_vault
 pnpm exec tsx web/scripts/launch-curve-check.ts  # self-owned DBC config+pool (Clawpump fallback)
 
 # ── waitlist (Resend) ─────────────────────────────────────────────────
-pnpm exec tsx web/scripts/waitlist-setup.ts  # verify key, create the segment, print size
+pnpm exec tsx web/scripts/waitlist-setup.ts  # verify key, create the segment, print size + domains
+pnpm exec tsx web/scripts/waitlist-broadcast.ts "Subject"   # create a DRAFT to the list
+#   add --send to actually mail it; add --body email.html to use your own HTML
 ```
 
 ## 5. Layout
@@ -347,3 +349,21 @@ and is deliberately deferred until there is a second broadcast to segment.
 - **Setup / verify:** `pnpm exec tsx web/scripts/waitlist-setup.ts` lists segments, creates the
   waitlist one if missing, and prints the count.
 - Resend **upserts** on a duplicate email, so re-submitting never creates a second row.
+
+### Sending
+
+**The `from` address is set on our end, not by Resend.** It is a field in the API call —
+`WAITLIST_FROM`, default `Offhrs <hello@offhrs.fun>`. Any local part at the verified domain works
+(`hello@`, `waitlist@`, `team@`) and the display name is free text. `WAITLIST_REPLY_TO` sets the
+Reply-To header; replies only land somewhere if that address is a real mailbox.
+
+**Domain verification is about the domain, not the address.** `offhrs.fun` is added and its
+**DKIM and SPF records are verified** — those are the two that matter for sending. It reads
+`partially_failed` only because the optional **Receiving MX** record is absent; we do not receive
+mail, so that is fine and does not block a send. To get a clean `verified` badge, either add the MX
+record or turn off Receiving for the domain in Resend (do not add a conflicting apex MX if the
+domain already has mail elsewhere).
+
+**To send:** `pnpm exec tsx web/scripts/waitlist-broadcast.ts "Subject"` creates a **draft** in
+Resend for review; add `--send` to mail it, and `--body email.html` to supply your own HTML. The
+script warns when the sending domain is not verified. Nothing in the app sends automatically.
