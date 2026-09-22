@@ -76,9 +76,12 @@ feed, and the `/launch` deploy transaction are downstream of it. The mainnet wal
   **Evidence (22 Sep, launch-UI screenshots):** the page has **Launchpad: Pump.fun | Meteora**,
   **Launch mode: Bonding curve → DAMM v2**, a **Trading pair** selector (*"fees paid in the paired
   token"*), and fee strategies; the 75% share and first buy go to the launch wallet. So the DBC path
-  is real, not just a chat answer. **One question left:** can the Trading pair be an arbitrary SPL
-  mint (`wPreStock`) or only a preset list? If arbitrary, one token takes both tracks. The
-  `ClawpumpAdapter` in `agent/src/execution.ts` is still unverified — no API key.
+  is real, not just a chat answer. **Confirmed 22 Sep (market-picker screenshot):** *"Use another
+  Solana mint on Meteora"* + a Paste-a-token-mint field means the pair can be our `wPreStock`; the
+  preview reports `Fees received in`. ⚠️ Avoid the Ondo/Backpack pairs (non-PreStocks → forfeits the
+  PreStocks bounty). Verify the fee currency by pasting `wPreStock` and reading the preview; turn
+  auto-buyback and holder rewards off. The `ClawpumpAdapter` in `agent/src/execution.ts` is still
+  unverified — no API key.
 - **Pyth `pyth-indices`** — requested, not granted. `Equity.Index.OPENAI/ANTHROPIC` are gated on
   Hermes *and* absent on-chain. Not on the critical path; if granted it is a config change.
 
@@ -241,3 +244,57 @@ The landing page is now the design system. `web/DESIGN_SYSTEM.md` is the written
   `children`; nothing moves.
 - **The footer** is a full-bleed warp with the wordmark set as just `offhrs`, plus the named
   palette picker.
+
+---
+
+## 10. Product decisions and the build queue (22 Sep)
+
+Plain-language handover. A new session should read this after §1, before changing product behaviour.
+
+### What the product is
+
+People launch an AI trading agent. The agent gets its own token on a Meteora bonding curve, paired
+with a tokenized stock (a PreStock). The agent trades that stock while the normal market is closed,
+and the profit flows to the people holding the agent's token — paid out in the wrapped stock itself.
+Buyers are betting on the agent; holders earn from it. That is the whole idea.
+
+### Decisions we have made
+
+| Question | Decision | Why |
+|---|---|---|
+| How do holders earn? | **Stake the agent token** into the vault, which streams wrapped PreStock | pays in real equity, weighted by time held, and can't be gamed by a last-second staker |
+| Does the buyer see the staking step? | **No — auto-stake on purchase** | feels like hold-and-earn without an extra click |
+| How do buyers pay? | **USDC**, routed by the app (USDC → PreStock → wrap → buy the agent token) | nobody should have to understand wrapping |
+| When they sell, what do they get? | **Their choice: PreStock or USDC** | some want the stock, some want cash |
+| What are payouts denominated in? | **wrapped PreStock** (tokenized equity) | "paid in stock" means tokenized stock, not brokerage share certificates — that is a legal wall, not a technical one |
+| Which assets do we lead with? | **OpenAI** first (still private), **SpaceX** second (IPO'd) | the PreStocks bounty is about pre-IPO equity; SpaceX is the post-IPO example |
+| Who creates the token and curve? | **Clawpump**, with our `wPreStock` as the pair | one token then qualifies for both the Clawpump and Meteora DBC tracks, while our vault keeps the stock payouts |
+| Buyback / holder rewards? | **Off** | Clawpump pays those in SOL; paying in stock is the differentiator |
+
+### What is not built yet (the queue, roughly in order)
+
+1. **The agent-token buy box.** The swap on `/agent/[id]` trades the *PreStock*, not the agent token. There is currently no way to buy `$ORB`.
+2. **USDC routing on buy.** USDC → PreStock → wrap → buy, as one flow.
+3. **Auto-stake on purchase.**
+4. **Sale reward selection.** Sell `$ORB` → choose PreStock or USDC.
+5. **Self-owned DBC fallback.** Already proven on devnet (`experiments/day0-pool.ts`); use only if Clawpump falls through.
+6. **Mainnet deploy** (~2.9 SOL, refundable) and the real OpenAI/SpaceX wrappers.
+7. **One real browser signature.** Every instruction is proven with the local keypair on devnet; the wallet sign → relay half has not been clicked in a browser.
+8. **Demo video and submission.**
+
+### What runs on devnet, and what needs mainnet
+
+**Free on devnet:** the program, the wrapper (with mock PreStocks), our own DBC pool, buying and
+selling the agent token against that pool, staking, claiming, the agent's Pyth-attested signals and
+executions, and the vault streaming. In other words, the whole product loop can be built and
+tested for nothing.
+
+**Needs mainnet:** the real PreStocks tokens (they only exist there), Clawpump's launch (their
+product is mainnet), and the final demo. The `USDC → PreStock` leg specifically uses Jupiter, which
+is mainnet-only, so on devnet that leg is mocked.
+
+### Honest caveats to keep repeating
+
+The vault/staking layer came from the original spec, not from the simpler "buy and get paid" model,
+and it is the main source of confusion. Auto-staking is the fix that hides it. And the eight named
+agents on the site are still staged previews — only agents registered on-chain are real.
