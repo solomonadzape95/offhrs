@@ -3,7 +3,7 @@
 **Read this first.** It is the entry point for a fresh session. It says what the project is, what
 already works, how to run it, and what is broken or blocked.
 
-Last updated: **Tue 22 Sep 2026, ~07:00 UTC.**
+Last updated: **Tue 22 Sep 2026, ~15:00 UTC.**
 
 ---
 
@@ -13,7 +13,9 @@ Last updated: **Tue 22 Sep 2026, ~07:00 UTC.**
 equity** on Solana, and stream the proceeds to holders as the actual shares.
 
 Built for **Stocklana** (`https://hackathons.solana.com/hackathons/stocklana`).
-**Submissions close Fri 25 Sep 2026, 16:00 ET** — that is ~4.5 days from the timestamp above.
+**Submissions close Fri 25 Sep 2026, 16:00 ET** — ~3 days from the timestamp above. Only **one
+link** is required (GitHub, live demo, or video), so a devnet demo is a valid submission if the
+mainnet deploy does not land in time.
 
 The thesis, in one line: *the reference market closes, the tokenized marks keep trading, and that gap
 is the product.* It is measurable — see `day3_results.md`.
@@ -54,7 +56,9 @@ specific subsystem.
 | Streaming dividend vault | `day2_results.md` |
 | Pyth on-chain reads + attestation | `day3_results.md` |
 | Pyth-attested execution log | `day4_results.md` |
-| Frontend, 11 routes | `day6_results.md` |
+| Frontend — all routes build and serve | `day6_results.md`; `/waitlist` added since |
+| Waitlist (Resend segments) + beta gate | §11, §12; `web/scripts/waitlist-setup.ts` |
+| Brand assets — banner, pfp, OG card | `web/scripts/generate-brand-png.py` |
 | Wallet connect (Wallet Standard) | `/connect`, header menu |
 | **Swap signing** — real Jupiter tx, real signature | `web/scripts/swap-check.ts` |
 | **Agent-token trade** — DBC buy/sell + auto-stake | `web/scripts/trade-check.ts` lands buy+stake, sell→PreStock, wrap, unwrap on devnet |
@@ -67,6 +71,7 @@ on-chain — see `scripts/devnet-smoke.ts`. **Mainnet is the remaining spend: ~2
 rent**, not the 3.86 SOL earlier drafts assumed. Measured, not estimated: the devnet deploy moved the
 deploy wallet 11.30 → 8.41 SOL for the same 555 KB program. Every dashboard balance, the Activity
 feed, and the `/launch` deploy transaction are downstream of it. The mainnet wallet is empty.
+**See §13 for how to fund it, and the devnet fallback.**
 
 ### Open questions
 
@@ -97,6 +102,7 @@ cargo test --manifest-path programs/stock_vault/Cargo.toml   # 15 unit tests
 
 # ── frontend ──────────────────────────────────────────────────────────
 cd web
+pnpm exec next dev -p 3939                     # dev server (hot reload)
 pnpm exec next build && pnpm exec next start -p 3939
 
 # ── agent (off-chain runtime) ─────────────────────────────────────────
@@ -123,31 +129,38 @@ pnpm exec tsx web/scripts/launch-curve-check.ts  # self-owned DBC config+pool (C
 pnpm exec tsx web/scripts/waitlist-setup.ts  # verify key, create the segment, print size + domains
 pnpm exec tsx web/scripts/waitlist-broadcast.ts "Subject"   # create a DRAFT to the list
 #   add --send to actually mail it; add --body email.html to use your own HTML
+
+# ── brand assets (Pillow + fontTools) ─────────────────────────────────
+python3 web/scripts/generate-brand-png.py    # public/brand/{banner,pfp,og}.png
 ```
 
 ## 5. Layout
 
 ```
-angel/                        ← directory still says "angel"; the product is Offhrs
+offhours/                     ← directory on disk still says "angel"; the product is Offhrs
 ├── programs/stock_vault/     Anchor program — wrapper + registry + vault + Pyth + exec log
 │   └── src/{wrapper,state,vault,accum,pricing,signal,execution,registry,error,lib}.rs
 ├── tests/                    stock_vault.ts · vault.ts · pyth.ts · execution.ts
 ├── fixtures/                 real mainnet Pyth accounts, replayed into the local validator
 ├── agent/src/                off-chain agent runtime (config, market, signal, execution, chain)
 ├── experiments/              day0–day3 probes; the evidence behind the constraints
+├── scripts/                  devnet ops: status.ts, devnet-smoke.ts, devnet-pool.ts, deploy.sh
 ├── web/                      Next.js 16 frontend  ← the active work
-│   ├── app/(site)/           marketing: /, /explore, /connect, /launch, /agent/[id]
-│   ├── app/dashboard/        signed-in: Position, Activity, Agents, Profile
-│   ├── components/site/      nav (fixed bar + expanding centre menu), warp-field,
-│   │                         dither-backdrop, theme-provider, theme-toggle, logo,
-│   │                         agent-sigil, mechanics, agent-carousel, section,
-│   │                         figure-slot, glyph, faq, site-footer, session-clock
+│   ├── app/(site)/           marketing: /, /explore, /launch, /agent/[id], /vault, /terms, /privacy
+│   ├── app/(auth)/           bare chrome: /connect, /waitlist
+│   ├── app/app/              signed-in: Position, Activity, Agents, Profile, Vault
+│   ├── components/site/      nav, cta (beta gate), warp-field, dither-backdrop, theme-provider,
+│   │                         profile-menu, logo, waitlist-form, mechanics, agent-carousel,
+│   │                         section, glyph, faq, site-footer, session-clock, stat
+│   ├── components/app/       agent-trade, swap, vault-panel, launch-studio, agent-manage,
+│   │                         curve, curve-preview, basis, mark-vs-market, terminal, app-shell
 │   ├── components/ui/        icon (Phosphor + halftone), dither-icon
+│   ├── lib/                  market, session, wallet, deploy, agents, snapshot, format, theme,
+│   │                         beta, waitlist (Resend), trade (DBC), program-tx (stock_vault ixs),
+│   │                         jupiter, chain, portfolio, faq, use-write-tx, use-server-data
+│   ├── public/brand/         banner.png · pfp.png · og.png (generated)
 │   ├── DESIGN_SYSTEM.md      the tokens, palettes, rules and component inventory
-│   ├── components/app/       agent-trade (buy/sell + auto-stake), swap, app-shell,
-│   │                         launch-studio, curve-preview, terminal, vault-panel
-│   └── lib/                  market, session, wallet, deploy, agents, snapshot, format, theme,
-│                             trade (DBC), program-tx (stock_vault ixs), jupiter, chain
+│   └── scripts/              check scripts + generate-brand-png.py (see §4)
 └── day*.md                   per-day evidence logs
 ```
 
@@ -175,9 +188,11 @@ angel/                        ← directory still says "angel"; the product is O
    its own `package.json` with `{"type":"commonjs"}` — the root is `"type":"module"` for the
    experiments.
 
-5. **Fonts are self-hosted** (Satoshi, Geist Mono, Geist Pixel, Manosque). `next/font/google` made
-   the build network-dependent and failed on a 429. **Miso is the exception** — it comes from a CDN
-   `<link>` in `app/layout.tsx` because the files were not available locally.
+5. **Fonts are self-hosted.** `next/font/local` for Satoshi, Geist Mono, Geist Pixel and **EB
+   Garamond** (the display face, a variable woff2); **Skyscrapers** (the wordmark, and nothing else)
+   is a plain `@font-face` from `public/Skyscapers.ttf`. `next/font/google` made the build
+   network-dependent and failed on a 429 — do not reintroduce it. `Manosque-Regular.woff2` is still
+   on disk but no longer loaded.
 
 6. **Upstream reads are cached and de-duplicated** in `web/lib/market.ts`. Issued naively, the layout
    plus 8 agent pages produced a 429 storm that *baked "market data unavailable" into the prerendered
@@ -185,6 +200,10 @@ angel/                        ← directory still says "angel"; the product is O
    fallback. Do not remove them.
 
 7. **`anchor init` shells out to `yarn`**, which is not installed. Scaffolding still succeeds.
+
+8. **`NEXT_PUBLIC_BETA` is inlined at build time**, so flipping it needs a rebuild/redeploy, not an
+   env change on a running server. The waitlist counter is the opposite: that route is
+   `force-dynamic` and reads Resend per request — do **not** add `revalidate` back to it (§11).
 
 ## 7. The rename — what still says Angel
 
@@ -223,13 +242,16 @@ rename will break open editors and the paths quoted throughout the docs — do i
 
 ## 9. What to do next
 
-1. **Deploy the program** (~3.86 SOL mainnet; devnet is free and funded). That single action
-   unblocks the dashboard, the Activity feed and the `/launch` deploy path.
-2. **Wire Clawpump's DBC launch into the vault.** Confirm the three pending items above, then feed
-   the launch's token mint into `register_agent` / `initialize_vault`. Clawpump runs the curve and
-   the fee crank; we keep the stock-denominated `DividendVault`.
-3. **Day 7 — demo + submission:** record the end-to-end journey, write the submission, name the
-   open-source components. See `mvp_plan.md`.
+Ordered. §10 is the fuller product queue; this is the short version a fresh session should act on.
+
+1. **Find the ~2.9 SOL for the mainnet deploy.** This is the single blocker on the real product —
+   the real PreStocks wrappers, the mainnet demo, every dashboard number, the `/launch` deploy
+   path. It is **refundable rent**, not a fee. §13 covers who to ask and the devnet fallback.
+2. **One real browser signature.** Every instruction is proven with the local keypair on devnet —
+   including the self-owned DBC launch — but the wallet sign → relay half, and the multi-signer
+   co-sign for a self-owned curve, have not been clicked in a browser.
+3. **Demo video + submission.** Only one link is required (GitHub, live demo, or video), so a
+   devnet demo is a valid submission. Deadline Fri 25 Sep 16:00 ET.
 4. Optional: propagate the rename (§7).
 
 ## 9A. Frontend design system (added Sep 21, revised)
@@ -261,8 +283,10 @@ The landing page is now the design system. `web/DESIGN_SYSTEM.md` is the written
 - **Graphic slots.** The reference and vault sections still reserve art with
   `components/site/figure-slot.tsx` and name the brief. Replace the slot with the real asset as
   `children`; nothing moves.
-- **The footer** is a full-bleed warp with the wordmark set as just `offhrs`, plus the named
-  palette picker.
+- **The footer** is a full-bleed warp with the wordmark set as just `offhrs`, the social pills and
+  the site's index columns. The palette-picker components (`theme-toggle.tsx`) still exist but are
+  not rendered — the palette is fixed to Ion, and `NEXT_PUBLIC_BETA` (§12) hides the app entries
+  from the footer columns.
 
 ---
 
@@ -300,9 +324,22 @@ Buyers are betting on the agent; holders earn from it. That is the whole idea.
 
 **Verified on devnet:** `scripts/devnet-pool.ts` stands up a full tradable agent (mock PreStock → wrapper → DBC config + pool → `register_agent` + vault → first buy), and `web/scripts/trade-check.ts` quotes, builds, signs and lands **buy + auto-stake**, **sell → PreStock**, **wrap** and **unwrap**. The auto-stake delta equals the quoted minimum exactly.
 
+### Also shipped since (22 Sep)
+
+6. ✅ **Waitlist** (`/waitlist`, Resend segments, cap 200) — §11.
+7. ✅ **Beta mode** (`NEXT_PUBLIC_BETA`, default on): the waitlist is the only open action, app
+   entries are hidden from the marketing menu and footer, and the landing section CTAs render
+   disabled — §12.
+8. ✅ **Brand assets** — banner, pfp and a 1200×630 OG card, generated by
+   `web/scripts/generate-brand-png.py` and wired into the root metadata.
+9. ✅ **Copy pass** — plain language throughout ("tokenized shares of private companies", "official
+   mark", "the gap"). The claim is **"The market is closed. The gap isn't."** in the hero, the
+   mid-page band, the banner and the OG card.
+
 ### Still to do (the queue, roughly in order)
 
-1. **Mainnet deploy** (~2.9 SOL, refundable) and the real OpenAI/SpaceX wrappers.
+1. **Find funding for the mainnet deploy** (~2.9 SOL, refundable) — §13. Then deploy and mint the
+   real OpenAI/SpaceX wrappers.
 2. **One real browser signature.** Every instruction is proven with the local keypair on devnet — including the self-owned DBC launch — but the wallet sign → relay half, and the multi-signer co-sign for a self-owned curve, have not been clicked in a browser.
 3. **Demo video and submission.**
 
@@ -354,6 +391,10 @@ and is deliberately deferred until there is a second broadcast to segment.
 - **Setup / verify:** `pnpm exec tsx web/scripts/waitlist-setup.ts` lists segments, creates the
   waitlist one if missing, and prints the count.
 - Resend **upserts** on a duplicate email, so re-submitting never creates a second row.
+- **The counter is live, not cached.** The route is `export const dynamic = "force-dynamic"` and
+  reads Resend per request; the form calls `router.refresh()` after a join so the number moves
+  without a reload. It was briefly static (`revalidate = 60`), which froze the count at build time
+  and made a fresh signup still read `0/200`. **Do not add `revalidate` back.**
 
 ### Sending
 
@@ -372,3 +413,46 @@ domain already has mail elsewhere).
 **To send:** `pnpm exec tsx web/scripts/waitlist-broadcast.ts "Subject"` creates a **draft** in
 Resend for review; add `--send` to mail it, and `--body email.html` to supply your own HTML. The
 script warns when the sending domain is not verified. Nothing in the app sends automatically.
+
+---
+
+## 12. Beta mode
+
+`NEXT_PUBLIC_BETA` (documented in `web/.env.example`, defaults **on**) puts the product in
+invite-only mode:
+
+- the landing hero shows only **Join the waitlist**; the closing band's explore/launch buttons are
+  replaced by the waitlist CTA;
+- the marketing menu and footer hide the app entries — `/app`, `/vault`, `/launch`
+  (`APP_ENTRY_HREFS` in `lib/beta.ts`);
+- the landing section CTAs (board, mechanics, agents) render **disabled** through
+  `components/site/cta.tsx` — they stay in the layout but stop being links, with a title explaining
+  why.
+
+The flag is inlined at **build time**, so flipping it needs a rebuild/redeploy — not an env change
+on a running server. The one live action, the waitlist, is never rendered through `<Cta>`.
+
+---
+
+## 13. Deployment funding (the ~2.9 SOL)
+
+The mainnet program needs **~2.9 SOL of refundable rent** — measured on devnet, not estimated (§3).
+The mainnet wallet is empty. It is the only spend left, and it is a **float, not a fee**: close the
+program and the rent comes back.
+
+Who to ask, fastest first:
+
+1. **Buy ~3 SOL** and send it to the deploy wallet. Three days out, this is the only path that
+   reliably lands — and it is refundable.
+2. **Ask in the Stocklana / Colosseum Discord.** The hackathon runs on `hackathons.solana.com`
+   (Colosseum's platform); there is usually a support / hacker-help channel. Ask specifically about
+   a deploy stipend or partner infra credits. Worth asking; do not plan around it.
+3. **A teammate or friend with SOL** — again, a lend, not a spend.
+4. **Hosting and RPC are not the cost.** Vercel's free tier runs the Next.js app; Helius and
+   QuickNode free tiers cover the RPC. Check the hackathon page's Resources/Partners section for
+   credits before paying for anything.
+5. **Formal grants** (Solana Foundation Grants, Superteam) are real but too slow for this deadline.
+
+**Fallback.** The whole product loop runs on devnet for free, and the submission needs only **one
+link** (GitHub, live demo, or video) — so a devnet demo is a valid submission if the SOL does not
+land. The mainnet deploy only buys the *real* PreStocks wrappers and a mainnet demo.
