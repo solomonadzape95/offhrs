@@ -3,7 +3,7 @@
 **Read this first.** It is the entry point for a fresh session. It says what the project is, what
 already works, how to run it, and what is broken or blocked.
 
-Last updated: **Tue 22 Sep 2026, ~15:00 UTC.**
+Last updated: **Tue 22 Sep 2026, ~20:30 UTC.**
 
 ---
 
@@ -39,8 +39,9 @@ is the product.* It is measurable — see `day3_results.md`.
 | 2 | `stocklana_bounty_verification.md` | the bounties, and what disqualifies us |
 | 3 | `angel_source_of_truth.md` | the spec. **§1A overrides everything after it** |
 | 4 | `day0_results.md` | the constraint that shaped the whole architecture |
-| 5 | `day5_results.md` / `day6_results.md` | the frontend, current |
-| 6 | `mvp_plan.md` | day-by-day status and the risk register |
+| 5 | `day5_results.md` / `day6_results.md` | the frontend |
+| 6 | `day7_results.md` | the browser sign → relay path, current |
+| 7 | `mvp_plan.md` | day-by-day status and the risk register |
 
 `day1_results.md` … `day4_results.md` are per-day evidence logs. Read them when you need detail on a
 specific subsystem.
@@ -62,6 +63,7 @@ specific subsystem.
 | Wallet connect (Wallet Standard) | `/connect`, header menu |
 | **Swap signing** — real Jupiter tx, real signature | `web/scripts/swap-check.ts` |
 | **Agent-token trade** — DBC buy/sell + auto-stake | `web/scripts/trade-check.ts` lands buy+stake, sell→PreStock, wrap, unwrap on devnet |
+| **Browser sign → relay** — real Wallet Standard signature through the UI | `scripts/browser-sign-check.ts`; `day7_results.md` |
 | **Live on devnet** — program deployed | `FoVBZ…VLw`; `scripts/devnet-smoke.ts` runs wrapper → registry → streaming vault on-chain |
 
 ### Deployed on devnet; blocked on mainnet rent
@@ -113,6 +115,7 @@ pnpm exec tsx agent/src/index.ts --feeds               # known on-chain feeds
 # ── checks ────────────────────────────────────────────────────────────
 pnpm exec tsx web/scripts/session-check.ts   # 8 market-session cases
 pnpm exec tsx web/scripts/swap-check.ts      # decodes a real Jupiter tx
+pnpm exec tsx scripts/browser-sign-check.ts  # real browser sign → relay; dev server required (see §9)
 
 # ── ops scripts (cluster-agnostic; RPC_URL / ANCHOR_WALLET env) ───────
 pnpm exec tsx scripts/status.ts              # deployed? wrappers, agents
@@ -144,7 +147,8 @@ offhours/                     ← directory on disk still says "angel"; the prod
 ├── fixtures/                 real mainnet Pyth accounts, replayed into the local validator
 ├── agent/src/                off-chain agent runtime (config, market, signal, execution, chain)
 ├── experiments/              day0–day3 probes; the evidence behind the constraints
-├── scripts/                  devnet ops: status.ts, devnet-smoke.ts, devnet-pool.ts, deploy.sh
+├── scripts/                  devnet ops: status.ts, devnet-smoke.ts, devnet-pool.ts,
+│                             deploy.sh, browser-sign-check.ts
 ├── web/                      Next.js 16 frontend  ← the active work
 │   ├── app/(site)/           marketing: /, /explore, /launch, /agent/[id], /vault, /terms, /privacy
 │   ├── app/(auth)/           bare chrome: /connect, /waitlist
@@ -205,6 +209,15 @@ offhours/                     ← directory on disk still says "angel"; the prod
    env change on a running server. The waitlist counter is the opposite: that route is
    `force-dynamic` and reads Resend per request — do **not** add `revalidate` back to it (§11).
 
+9. **The contract reads are cached and de-duplicated** in `web/lib/chain.ts` (the same reason as #6,
+   for the program rather than the market). `getUserPosition` asks for the agent and wrapper sets
+   directly *and* through `fetchLiveAgents`, so one dashboard load fired **four concurrent
+   `getProgramAccounts` scans**; the public devnet RPC answers that with a 429 storm, the action's
+   `catch` returns an empty portfolio, and `/app/vault` says "no agent is registered" — which is a
+   lie. The in-flight de-dupe plus 30s TTL is what keeps the dashboard honest; single-account reads
+   (a stake, a wrapper, an execution) are never cached, so a write is visible at once. Do not remove
+   it.
+
 ## 7. The rename — what still says Angel
 
 The frontend is clean (zero occurrences). Everything else is not:
@@ -247,12 +260,12 @@ Ordered. §10 is the fuller product queue; this is the short version a fresh ses
 1. **Find the ~2.9 SOL for the mainnet deploy.** This is the single blocker on the real product —
    the real PreStocks wrappers, the mainnet demo, every dashboard number, the `/launch` deploy
    path. It is **refundable rent**, not a fee. §13 covers who to ask and the devnet fallback.
-2. **One real browser signature.** Every instruction is proven with the local keypair on devnet —
-   including the self-owned DBC launch — but the wallet sign → relay half, and the multi-signer
-   co-sign for a self-owned curve, have not been clicked in a browser.
-3. **Demo video + submission.** Only one link is required (GitHub, live demo, or video), so a
-   devnet demo is a valid submission. Deadline Fri 25 Sep 16:00 ET.
-4. Optional: propagate the rename (§7).
+2. **Demo video + submission.** The browser sign → relay path is now *verified* — a headless Wallet
+   Standard wallet drives the real `/app/vault` stake and the self-owned DBC multi-signer co-sign
+   through the app's own code (`scripts/browser-sign-check.ts`, `day7_results.md`). Only one link is
+   required (GitHub, live demo, or video), so a devnet demo is a valid submission. Deadline Fri
+   25 Sep 16:00 ET.
+3. Optional: propagate the rename (§7).
 
 ## 9A. Frontend design system (added Sep 21, revised)
 
@@ -335,13 +348,16 @@ Buyers are betting on the agent; holders earn from it. That is the whole idea.
 9. ✅ **Copy pass** — plain language throughout ("tokenized shares of private companies", "official
    mark", "the gap"). The claim is **"The market is closed. The gap isn't."** in the hero, the
    mid-page band, the banner and the OG card.
+10. ✅ **Browser sign → relay** — a headless Wallet Standard wallet drives the real `/app/vault`
+    stake through the app's own `decode → sign → encode → relay` path, and the self-owned DBC
+    **multi-signer co-sign** (config + base mint + wallet) — `scripts/browser-sign-check.ts`,
+    `day7_results.md`. This caught and fixed the `getProgramAccounts` 429 storm in `chain.ts`.
 
 ### Still to do (the queue, roughly in order)
 
 1. **Find funding for the mainnet deploy** (~2.9 SOL, refundable) — §13. Then deploy and mint the
    real OpenAI/SpaceX wrappers.
-2. **One real browser signature.** Every instruction is proven with the local keypair on devnet — including the self-owned DBC launch — but the wallet sign → relay half, and the multi-signer co-sign for a self-owned curve, have not been clicked in a browser.
-3. **Demo video and submission.**
+2. **Demo video and submission.**
 
 **Later, not a priority:** a direct **Raydium venue adapter** — execute on Raydium's pools itself
 instead of going through Jupiter. Jupiter already routes through Raydium, Meteora and Orca, so this
