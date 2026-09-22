@@ -242,7 +242,12 @@ The landing page is now the design system. `web/DESIGN_SYSTEM.md` is the written
   root layout resolves the stored choice before the first frame. The Warp shader reads its stops
   from the theme too, so nothing is left pointing at the old hue. Ember stays warnings-only in every
   palette.
-- **Manosque is the display face.** The Miso toggle, the CDN link and `data-display` are removed.
+- **Two typefaces, two jobs.** `.font-display` is **EB Garamond** (self-hosted variable woff2,
+  `next/font/local`), and carries every heading and display figure. `.font-wordmark` is
+  **Skyscrapers** (plain `@font-face` from `/public/Skyscapers.ttf`), used *only* by the brand
+  wordmark — the nav/connect/waitlist lockups and the giant footer wordmark. There is no font
+  toggle. The pre-paint script in the root layout resolves the stored palette before the first
+  frame.
 - **Phosphor icons**, dithered through a halftone mask (`components/ui/icon.tsx`). Lucide is gone.
 - **The header is fixed and three-tracked** — wordmark left, an expanding centre menu, controls
   right — so the hero is a true 100svh and no chrome takes a strip out of it. The centre menu *is* its

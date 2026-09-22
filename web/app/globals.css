@@ -3,6 +3,18 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ── The wordmark ──────────────────────────────────────────────────────
+   Skyscrapers is used for the brand wordmark and nothing else. Plain
+   `@font-face` from `/public` rather than `next/font/local`, so the face can be
+   swapped without a build step and a missing file falls back to the sans stack
+   instead of failing the build. ─────────────────────────────────────────── */
+@font-face {
+  font-family: "Skyscrapers";
+  src: url("/Skyscapers.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
    OFFHOURS — DESIGN SYSTEM
 
@@ -59,8 +71,10 @@
 
   --font-sans: var(--font-satoshi), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-  /* Manosque is the display face, full stop. Self-hosted, no toggle. */
-  --font-manosque: var(--font-manosque-face), Georgia, serif;
+  /* Display serif, used by every heading. */
+  --font-eb-garamond: var(--font-eb-garamond-face), Georgia, "Times New Roman", serif;
+  /* The brand wordmark, and only the wordmark. */
+  --font-wordmark: "Skyscrapers", var(--font-satoshi), ui-sans-serif, sans-serif;
 
   --container-app: 84rem;
 
@@ -74,10 +88,10 @@
   --glow-violet: 0 0 40px -8px var(--color-violet);
 }
 
-/* The display face. Bound to a variable so a component only ever asks for
+/* The display serif. Bound to a variable so a component only ever asks for
    `.font-display` and never for a family name. */
 :root {
-  --font-display: var(--font-manosque);
+  --font-display: var(--font-eb-garamond);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -158,6 +172,10 @@
   /* ── Display type ─────────────────────────────────────────────────── */
   .font-display {
     font-family: var(--font-display);
+  }
+
+  .font-wordmark {
+    font-family: var(--font-wordmark);
   }
 
   .text-display {

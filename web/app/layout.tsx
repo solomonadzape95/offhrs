@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import Script from "next/script";
 
 import { Providers } from "./providers";
 import "./globals.css";
@@ -36,15 +37,16 @@ const geistMono = localFont({
 });
 
 /**
- * Manosque — the default display face.
+ * EB Garamond — the display serif.
  *
- * Web-ready woff2 (39KB), self-hosted. A render-blocking fetch to a font host on
- * every visit is the thing worth avoiding, and this one is already on disk.
+ * A variable woff2 (44KB, latin), self-hosted through `next/font/local` so it is
+ * hashed and preloaded. The weight axis covers 400–800. It carries every heading
+ * and display figure; the wordmark is the one thing that does not use it.
  */
-const manosque = localFont({
-  variable: "--font-manosque-face",
+const ebGaramond = localFont({
+  variable: "--font-eb-garamond-face",
   display: "swap",
-  src: [{ path: "./fonts/Manosque-Regular.woff2", weight: "400", style: "normal" }],
+  src: [{ path: "./fonts/EBGaramond.woff2", weight: "400 800", style: "normal" }],
 });
 
 /**
@@ -67,6 +69,16 @@ export const metadata: Metadata = {
 };
 
 /**
+ * Resolve the stored palette before the first frame.
+ *
+ * The palette is persisted to localStorage and applied as `data-theme` on
+ * `<html>`. Without this, a returning visit paints the server default first and
+ * then swaps — a visible flash. `beforeInteractive` puts it in the initial HTML,
+ * ahead of React.
+ */
+const RESOLVE_APPEARANCE = `(function(){try{var t=localStorage.getItem("offhours-theme");if(t)document.documentElement.dataset.theme=t;}catch(e){}})();`;
+
+/**
  * The root holds only what *every* route needs: fonts, tokens, the Solana client
  * and the halftone. The marketing header lives in `(site)` and the app header in
  * `dashboard`, so neither tree renders the other's chrome.
@@ -76,14 +88,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="en"
       /* `dark` is fixed, not toggled: there is no light theme — only palettes.
-         `data-theme="ion"` is written into the server HTML itself, so the first
-         painted frame is already Ion. The palette is fixed; the provider mirrors
-         this on the client rather than deciding it. */
+         The default is written into the server HTML so the first painted frame
+         is already right; the pre-paint script overrides it from storage. */
       data-theme="ion"
-      className={`dark ${satoshi.variable} ${geistMono.variable} ${geistPixel.variable} ${manosque.variable} h-full antialiased`}
+      className={`dark ${satoshi.variable} ${geistMono.variable} ${geistPixel.variable} ${ebGaramond.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col">
+        <Script id="resolve-appearance" strategy="beforeInteractive">
+          {RESOLVE_APPEARANCE}
+        </Script>
         <Providers>{children}</Providers>
       </body>
     </html>

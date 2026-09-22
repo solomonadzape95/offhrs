@@ -145,7 +145,7 @@ export function Nav({ items = SITE_ITEMS, waitlist = false }: { items?: NavItem[
       <div className="relative mx-auto flex h-[4.75rem] max-w-app items-center justify-between gap-2 px-5 sm:px-8">
         <Link href="/" className="brand flex items-center gap-2.5">
           <Logo size={30} cell={1.8} className="brand-mark text-signal" title="Offhrs" />
-          <span className="brand-name font-display text-xl leading-none tracking-tight sm:text-2xl">
+          <span className="brand-name font-wordmark text-xl leading-none tracking-tight sm:text-2xl">
             offhrs
           </span>
         </Link>

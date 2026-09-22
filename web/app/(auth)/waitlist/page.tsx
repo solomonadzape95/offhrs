@@ -47,7 +47,7 @@ export default async function WaitlistPage() {
         <div className="mb-9 flex items-center justify-between gap-4">
           <Link href="/" className="brand flex items-center gap-3">
             <Logo size={30} cell={1.7} className="brand-mark text-signal" />
-            <span className="brand-name font-display text-xl leading-none tracking-tight">
+            <span className="brand-name font-wordmark text-xl leading-none tracking-tight">
               offhrs
             </span>
           </Link>

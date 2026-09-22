@@ -140,7 +140,7 @@ export function SiteFooter() {
       <div className="relative mt-20 overflow-hidden px-5 pt-6 sm:mt-24 sm:px-8 sm:pt-8">
         <h2
           aria-label="Offhrs"
-          className="font-display mx-auto max-w-app text-ink"
+          className="font-wordmark mx-auto max-w-app text-ink"
           style={{
             fontSize: "clamp(5rem, 24vw, 22rem)",
             lineHeight: 1.08,
