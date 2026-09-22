@@ -116,6 +116,9 @@ CLUSTER=devnet ./scripts/deploy.sh           # build + deploy + status
 
 # ── trade verification (needs devnet-pool.ts first) ───────────────────
 pnpm exec tsx web/scripts/trade-check.ts     # buy+auto-stake, sell→PreStock, wrap, unwrap
+
+# ── waitlist (Resend) ─────────────────────────────────────────────────
+pnpm exec tsx web/scripts/waitlist-setup.ts  # verify key, create the segment, print size
 ```
 
 ## 5. Layout
@@ -316,3 +319,29 @@ is mainnet-only, so on devnet that leg is mocked.
 The vault/staking layer came from the original spec, not from the simpler "buy and get paid" model,
 and it is the main source of confusion. Auto-staking is the fix that hides it. And the eight named
 agents on the site are still staged previews — only agents registered on-chain are real.
+
+---
+
+## 11. Waitlist (Resend)
+
+`/waitlist` is the pre-launch call to action: one non-scrolling screen with the Voronoi field
+behind a centred form. The landing page stays the pitch; the header's primary button and the
+hero's primary button both point here. It lives in the bare `(auth)` route group, so it carries
+none of the marketing chrome — arriving from a call to action should feel like a task.
+
+**Storage is Resend, not a database.** The list's only job is to receive broadcasts, and Resend
+is built for exactly that — no schema, no pool, no second system to keep in sync with the one
+that sends the email. Contacts live in the `Offhrs Waitlist` **segment** (Resend renamed
+*audiences* → *segments*); the app resolves it by name at runtime, so there is no id to
+configure. The form collects `email` (required) and `first name` (optional). Richer
+qualification (company, role, wallet) would need a Resend contact property or a Postgres table,
+and is deliberately deferred until there is a second broadcast to segment.
+
+- **Cap: 200** (`WAITLIST_CAP`), enforced before every insert, and well under Resend's
+  1,000-contact limit — so the cap is a product choice (a curated first cohort), not a technical
+  ceiling. A full list still reports an existing member as "already on it".
+- **Env:** `RESEND_API_KEY` in `web/.env.local` (gitignored; `web/.env.example` is the tracked
+  template). The key is server-only — the client bundle carries none of it.
+- **Setup / verify:** `pnpm exec tsx web/scripts/waitlist-setup.ts` lists segments, creates the
+  waitlist one if missing, and prints the count.
+- Resend **upserts** on a duplicate email, so re-submitting never creates a second row.
