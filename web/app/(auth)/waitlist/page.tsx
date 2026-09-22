@@ -64,7 +64,7 @@ export default async function WaitlistPage() {
 
         <h1 className="font-display text-3xl leading-tight text-balance text-ink sm:text-4xl">
           Get in before
-          <span className="text-signal">the market does.</span>
+          <span className="text-signal"> the market does.</span>
         </h1>
 
         <div className="mt-8">
