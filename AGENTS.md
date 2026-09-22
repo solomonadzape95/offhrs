@@ -3,7 +3,7 @@
 **Read this first.** It is the entry point for a fresh session. It says what the project is, what
 already works, how to run it, and what is broken or blocked.
 
-Last updated: **Mon 21 Sep 2026, ~19:00 UTC.**
+Last updated: **Tue 22 Sep 2026, ~07:00 UTC.**
 
 ---
 
@@ -57,6 +57,7 @@ specific subsystem.
 | Frontend, 11 routes | `day6_results.md` |
 | Wallet connect (Wallet Standard) | `/connect`, header menu |
 | **Swap signing** — real Jupiter tx, real signature | `web/scripts/swap-check.ts` |
+| **Agent-token trade** — DBC buy/sell + auto-stake | `web/scripts/trade-check.ts` lands buy+stake, sell→PreStock, wrap, unwrap on devnet |
 | **Live on devnet** — program deployed | `FoVBZ…VLw`; `scripts/devnet-smoke.ts` runs wrapper → registry → streaming vault on-chain |
 
 ### Deployed on devnet; blocked on mainnet rent
@@ -110,7 +111,11 @@ pnpm exec tsx web/scripts/swap-check.ts      # decodes a real Jupiter tx
 # ── ops scripts (cluster-agnostic; RPC_URL / ANCHOR_WALLET env) ───────
 pnpm exec tsx scripts/status.ts              # deployed? wrappers, agents
 pnpm exec tsx scripts/devnet-smoke.ts        # full on-chain path on devnet
+pnpm exec tsx scripts/devnet-pool.ts         # a tradable devnet agent (wrapper + DBC pool + vault)
 CLUSTER=devnet ./scripts/deploy.sh           # build + deploy + status
+
+# ── trade verification (needs devnet-pool.ts first) ───────────────────
+pnpm exec tsx web/scripts/trade-check.ts     # buy+auto-stake, sell→PreStock, wrap, unwrap
 ```
 
 ## 5. Layout
@@ -132,8 +137,10 @@ angel/                        ← directory still says "angel"; the product is O
 │   │                         figure-slot, glyph, faq, site-footer, session-clock
 │   ├── components/ui/        icon (Phosphor + halftone), dither-icon
 │   ├── DESIGN_SYSTEM.md      the tokens, palettes, rules and component inventory
-│   ├── components/app/       swap (live), app-shell, launch-studio, curve-preview, terminal
-│   └── lib/                  market, session, wallet, deploy, agents, snapshot, format, theme
+│   ├── components/app/       agent-trade (buy/sell + auto-stake), swap, app-shell,
+│   │                         launch-studio, curve-preview, terminal, vault-panel
+│   └── lib/                  market, session, wallet, deploy, agents, snapshot, format, theme,
+│                             trade (DBC), program-tx (stock_vault ixs), jupiter, chain
 └── day*.md                   per-day evidence logs
 ```
 
@@ -271,16 +278,21 @@ Buyers are betting on the agent; holders earn from it. That is the whole idea.
 | Who creates the token and curve? | **Clawpump**, with our `wPreStock` as the pair | one token then qualifies for both the Clawpump and Meteora DBC tracks, while our vault keeps the stock payouts |
 | Buyback / holder rewards? | **Off** | Clawpump pays those in SOL; paying in stock is the differentiator |
 
-### What is not built yet (the queue, roughly in order)
+### Built now — items 1–4 of the queue (22 Sep)
 
-1. **The agent-token buy box.** The swap on `/agent/[id]` trades the *PreStock*, not the agent token. There is currently no way to buy `$ORB`.
-2. **USDC routing on buy.** USDC → PreStock → wrap → buy, as one flow.
-3. **Auto-stake on purchase.**
-4. **Sale reward selection.** Sell `$ORB` → choose PreStock or USDC.
-5. **Self-owned DBC fallback.** Already proven on devnet (`experiments/day0-pool.ts`); use only if Clawpump falls through.
-6. **Mainnet deploy** (~2.9 SOL, refundable) and the real OpenAI/SpaceX wrappers.
-7. **One real browser signature.** Every instruction is proven with the local keypair on devnet; the wallet sign → relay half has not been clicked in a browser.
-8. **Demo video and submission.**
+1. ✅ **The agent-token buy box.** `/agent/[id]` now trades the agent's own `$AGENT` on its Meteora DBC curve, not the underlying PreStock. `web/lib/trade.ts` does pool discovery (`getPoolByBaseMint`), quoting and unsigned-transaction building server-side; `web/components/app/agent-trade.tsx` is the panel. Seeded previews still show the PreStock swap.
+2. ✅ **USDC routing on buy.** USDC → PreStock (Jupiter) → wrap → buy, as a stepped route where every leg is signed and its signature shown. Jupiter is mainnet-only, so on devnet the direct `wPreStock` path is the one that runs.
+3. ✅ **Auto-stake on purchase.** The bought `$AGENT` is staked into the dividend vault in the *same transaction* as the DBC swap, so rewards stream from the slot of purchase. The stake amount is the quote's slippage-guaranteed minimum, so the transaction can never revert because the curve delivered a hair less.
+4. ✅ **Sale reward selection.** A sale settles as `wPreStock` (hold), raw `PreStock` (unwrap, same tx), or USDC (unwrap + Jupiter route). If the `$AGENT` is staked, the route unstakes the shortfall first.
+
+**Verified on devnet:** `scripts/devnet-pool.ts` stands up a full tradable agent (mock PreStock → wrapper → DBC config + pool → `register_agent` + vault → first buy), and `web/scripts/trade-check.ts` quotes, builds, signs and lands **buy + auto-stake**, **sell → PreStock**, **wrap** and **unwrap**. The auto-stake delta equals the quoted minimum exactly.
+
+### Still to do (the queue, roughly in order)
+
+1. **Self-owned DBC fallback.** Already proven on devnet (`experiments/day0-pool.ts`); use only if Clawpump falls through.
+2. **Mainnet deploy** (~2.9 SOL, refundable) and the real OpenAI/SpaceX wrappers.
+3. **One real browser signature.** Every instruction is proven with the local keypair on devnet; the wallet sign → relay half has not been clicked in a browser.
+4. **Demo video and submission.**
 
 **Later, not a priority:** a direct **Raydium venue adapter** — execute on Raydium's pools itself
 instead of going through Jupiter. Jupiter already routes through Raydium, Meteora and Orca, so this
