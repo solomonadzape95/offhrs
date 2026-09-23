@@ -41,6 +41,10 @@ export function compactNumber(n: number, digits = 2): string {
   return n.toLocaleString(undefined, { maximumFractionDigits: 6 });
 }
 
+/** Raw integer amount + decimals -> compact display: `19675…` -> `196.75M`. */
+export const compactAmount = (raw: string | bigint, decimals = 9): string =>
+  compactNumber(Number(raw) / 10 ** decimals);
+
 /** A Pyth price (value + exponent) as a readable number. */
 export const pythPrice = (price: number | string, exponent: number) =>
   Number(price) * 10 ** exponent;
