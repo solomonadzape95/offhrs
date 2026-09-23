@@ -15,9 +15,41 @@ import { config } from "./config.js";
 const IDL_PATH = path.resolve(process.cwd(), "target/idl/stock_vault.json");
 
 export function loadKeypair(): Keypair {
+  // A host like Render has no keypair file, so an inline key wins when present.
+  // Accepts the JSON array a `solana-keygen` file holds, or base58.
+  const inline = process.env.AGENT_KEYPAIR?.trim();
+  if (inline) {
+    const bytes = inline.startsWith("[")
+      ? Uint8Array.from(JSON.parse(inline) as number[])
+      : base58Decode(inline);
+    return Keypair.fromSecretKey(bytes);
+  }
   return Keypair.fromSecretKey(
     Uint8Array.from(JSON.parse(fs.readFileSync(config.keypairPath, "utf8"))),
   );
+}
+
+const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+function base58Decode(s: string): Uint8Array {
+  const bytes: number[] = [0];
+  for (const ch of s) {
+    let carry = B58.indexOf(ch);
+    if (carry < 0) throw new Error("AGENT_KEYPAIR is not valid base58");
+    for (let i = 0; i < bytes.length; i++) {
+      carry += bytes[i] * 58;
+      bytes[i] = carry & 0xff;
+      carry >>= 8;
+    }
+    while (carry > 0) {
+      bytes.push(carry & 0xff);
+      carry >>= 8;
+    }
+  }
+  for (const ch of s) {
+    if (ch !== "1") break;
+    bytes.push(0);
+  }
+  return Uint8Array.from(bytes.reverse());
 }
 
 export function loadProgram(): { program: anchor.Program; provider: anchor.AnchorProvider } {
@@ -46,6 +78,47 @@ export const execPda = (programId: PublicKey, agent: PublicKey, index: number) =
     programId,
   )[0];
 };
+
+const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+
+export const vaultPda = (programId: PublicKey, mint: PublicKey) =>
+  PublicKey.findProgramAddressSync([Buffer.from("vault"), mint.toBuffer()], programId)[0];
+export const stakeVaultPda = (programId: PublicKey, vault: PublicKey) =>
+  PublicKey.findProgramAddressSync([Buffer.from("stake_vault"), vault.toBuffer()], programId)[0];
+export const rewardVaultPda = (programId: PublicKey, vault: PublicKey) =>
+  PublicKey.findProgramAddressSync([Buffer.from("reward_vault"), vault.toBuffer()], programId)[0];
+
+/**
+ * Route profit into the dividend vault.
+ *
+ * `logArb` only writes the record; this is the instruction that actually moves
+ * the money, and the only way a holder ever sees an accrued balance. The caller
+ * must be the agent's creator or its execution signer, and must already hold the
+ * wrapped PreStock it is depositing.
+ */
+export async function depositRewards(
+  program: anchor.Program,
+  agent: PublicKey,
+  agentMint: PublicKey,
+  rewardMint: PublicKey,
+  amount: bigint,
+  durationSlots: number,
+  depositorRewardAccount: PublicKey,
+) {
+  const vault = vaultPda(program.programId, agentMint);
+  return program.methods
+    .depositRewards(new anchor.BN(amount.toString()), new anchor.BN(durationSlots))
+    .accountsStrict({
+      depositor: program.provider.publicKey!,
+      agent,
+      vault,
+      rewardMint,
+      rewardVault: rewardVaultPda(program.programId, vault),
+      depositorRewardAccount,
+      rewardTokenProgram: TOKEN_PROGRAM_ID,
+    })
+    .rpc();
+}
 
 export async function readAgent(program: anchor.Program, agent: PublicKey) {
   return program.account.agent.fetch(agent);

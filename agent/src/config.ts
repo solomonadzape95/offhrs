@@ -48,6 +48,15 @@ export const config = {
   /** Notional per execution, raw quote units. */
   notional: BigInt(process.env.ANGEL_NOTIONAL ?? "1000000000"),
 
+  /**
+   * The `$AGENT` mint this runtime acts for.
+   *
+   * Required for any on-chain write. The `Agent` PDA is seeded by the `$AGENT`
+   * mint (`["agent", agent_token_mint]`), **not** by the PreStock mint, so the
+   * runtime cannot infer it from the symbol alone.
+   */
+  agentMint: process.env.ANGEL_AGENT_MINT,
+
   /** Reward stream duration when routing profit into the vault. */
   rewardDurationSlots: num(process.env.ANGEL_REWARD_SLOTS, 216_000),
 

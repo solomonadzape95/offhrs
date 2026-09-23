@@ -18,6 +18,7 @@
  */
 import fs from "node:fs";
 import { Connection, PublicKey } from "@solana/web3.js";
+import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 
 import * as chain from "../agent/src/chain.js";
 import { config } from "../agent/src/config.js";
@@ -61,6 +62,7 @@ async function main() {
 
   const account: any = await program.account.agent.fetch(agent);
   const start = Number(account.executionCount);
+  let totalProfit = 0n;
 
   for (let k = 0; k < count; k++) {
     const signal = await chain.recordSignal(program, agent, pyth, {
@@ -80,8 +82,39 @@ async function main() {
       amountOut,
       "meteoraDlmm",
     );
+    totalProfit += amountOut - amountIn;
     console.log(`#${start + k}  signal ${signal}`);
     console.log(`#${start + k}  exec   ${execution}`);
+  }
+
+  // Route the profit into the dividend vault. This is the step that makes holders
+  // earn: `log_arb` only writes the record, `deposit_rewards` moves the money.
+  const rewardMint: PublicKey = account.wrappedMint;
+  const depositorAta = getAssociatedTokenAddressSync(rewardMint, program.provider.publicKey!);
+  const held = await conn
+    .getTokenAccountBalance(depositorAta)
+    .then((b) => BigInt(b.value.amount))
+    .catch(() => 0n);
+
+  if (totalProfit > 0n && held >= totalProfit) {
+    const routed = await chain.depositRewards(
+      program,
+      agent,
+      new PublicKey(demo.agentTokenMint),
+      rewardMint,
+      totalProfit,
+      Number(process.env.SEED_ROUTE_SLOTS ?? "1000"),
+      depositorAta,
+    );
+    console.log(
+      `routed ${totalProfit} raw wPreStock into the vault over ${
+        process.env.SEED_ROUTE_SLOTS ?? "1000"
+      } slots — holders accrue from here\n  route  ${routed}`,
+    );
+  } else {
+    console.log(
+      `routing skipped: ${totalProfit} raw needed, ${held} held in the depositor's wPreStock account`,
+    );
   }
 
   console.log(`\nseeded ${count} execution(s) — open /app/activity`);

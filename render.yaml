@@ -1,0 +1,33 @@
+# Render blueprint — the off-chain agent runtime.
+#
+# Deploy: Render dashboard -> New -> Blueprint -> pick this repo. It creates one
+# background worker (no public URL, runs continuously) that sweeps every on-chain
+# agent on an interval.
+#
+# The worker is read-only until signer keys exist: the runner decides, but it does
+# not send. See agent/src/runner.ts.
+#
+# Render's free tier is web services only (they spin down). A background worker is
+# a paid instance — the credits cover it. `plan: starter` is the smallest.
+
+services:
+  - type: worker
+    name: offhrs-agent-runner
+    runtime: node
+    plan: starter
+    buildCommand: corepack enable && pnpm install --frozen-lockfile
+    startCommand: pnpm exec tsx agent/src/runner.ts --loop
+    autoDeploy: true
+    envVars:
+      - key: RPC_URL
+        sync: false # a dedicated devnet/mainnet RPC
+      - key: ANGEL_PROGRAM_ID
+        value: FoVBZRFCamH1HNMiVpNZV2QJxk9bSxWtQvKgmqZ1rVLw
+      - key: AGENT_SWEEP_SECONDS
+        value: "120"
+      - key: AGENT_COOLDOWN_SECONDS
+        value: "300"
+      - key: AGENT_KEYPAIR
+        sync: false # the signing key, once the runner can send
+      - key: AGENT_INCLUDE_CREATORS
+        sync: false # comma-separated allowlist of real users

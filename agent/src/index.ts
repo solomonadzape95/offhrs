@@ -12,7 +12,7 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 
 import { config, FEED_IDS, requireFeedId } from "./config.js";
-import { collectSnapshot, fetchPreStock, type MarketSnapshot } from "./market.js";
+import { collectSnapshot, type MarketSnapshot } from "./market.js";
 import { decide, shouldExecute, DEFAULT_PARAMS, type Decision } from "./signal.js";
 import { selectAdapter } from "./execution.js";
 import * as chain from "./chain.js";
@@ -96,7 +96,15 @@ async function onePass(conn: Connection, execute: boolean) {
   }
 
   const { program } = chain.loadProgram();
-  const agent = chain.agentPda(program.programId, new PublicKey(snap.prestock.mint));
+  // The Agent PDA is seeded by the `$AGENT` mint, not the PreStock mint. The old
+  // derivation used `snap.prestock.mint`, which can never match a registered
+  // agent — a latent bug that only a real write would have hit.
+  if (!config.agentMint) {
+    throw new Error(
+      "ANGEL_AGENT_MINT is required for on-chain writes (the $AGENT mint the Agent PDA is seeded by).",
+    );
+  }
+  const agent = chain.agentPda(program.programId, new PublicKey(config.agentMint));
 
   // 1. Attest the Pyth read. `logArb` requires this to exist, so the execution
   //    record can never be detached from real oracle data.
@@ -130,7 +138,10 @@ async function onePass(conn: Connection, execute: boolean) {
 /** Print the on-chain execution log — the §8 "live terminal" data source. */
 async function showExecutions() {
   const { program } = chain.loadProgram();
-  const agent = chain.agentPda(program.programId, new PublicKey((await fetchPreStock(config.symbol)).mint));
+  if (!config.agentMint) {
+    throw new Error("ANGEL_AGENT_MINT is required to read an agent's execution log.");
+  }
+  const agent = chain.agentPda(program.programId, new PublicKey(config.agentMint));
   const rows = await chain.readExecutions(program, agent);
   console.log(c.bold(`\n=== on-chain execution log (${agent.toBase58()}) ===`));
   if (!rows.length) {

@@ -73,7 +73,7 @@ specific subsystem.
 ### Deployed on devnet; blocked on mainnet rent
 
 **The program is live on devnet** (`FoVBZ…VLw`, upgrade authority `Duzj6…`) and the whole path runs
-on-chain — see `scripts/devnet-smoke.ts`. **Mainnet is the remaining spend: ~2.9 SOL of refundable
+on-chain — see `scripts/devnet-smoke.ts`. **Mainnet is the remaining spend: ~2.9 SOL of account
 rent**, not the 3.86 SOL earlier drafts assumed. Measured, not estimated: the devnet deploy moved the
 deploy wallet 11.30 → 8.41 SOL for the same 555 KB program. Every dashboard balance, the Activity
 feed, and the `/launch` deploy transaction are downstream of it. The mainnet wallet is empty.
@@ -114,6 +114,9 @@ pnpm exec next build && pnpm exec next start -p 3939
 # ── agent (off-chain runtime) ─────────────────────────────────────────
 ANGEL_ONCE=1 pnpm exec tsx agent/src/index.ts          # one read-only pass
 ANGEL_SYMBOL=OPENAI pnpm exec tsx agent/src/index.ts   # a different asset
+ANGEL_AGENT_MINT=<mint> pnpm exec tsx agent/src/index.ts --execute   # write for one agent
+pnpm exec tsx agent/src/runner.ts                      # every on-chain agent, filtered, read-only
+pnpm exec tsx agent/src/runner.ts --loop               # the hosted-service shape
 pnpm exec tsx agent/src/index.ts --feeds               # known on-chain feeds
 
 # ── checks ────────────────────────────────────────────────────────────
@@ -151,15 +154,16 @@ offhours/                     ← directory on disk still says "angel"; the prod
 │   └── src/{wrapper,state,vault,accum,pricing,signal,execution,registry,error,lib}.rs
 ├── tests/                    stock_vault.ts · vault.ts · pyth.ts · execution.ts
 ├── fixtures/                 real mainnet Pyth accounts, replayed into the local validator
-├── agent/src/                off-chain agent runtime (config, market, signal, execution, chain)
+├── agent/src/                off-chain agent runtime (config, market, signal, execution, chain, runner)
 ├── experiments/              day0–day3 probes; the evidence behind the constraints
 ├── scripts/                  devnet ops: status.ts, devnet-smoke.ts, devnet-pool.ts,
 │                             deploy.sh, browser-sign-check.ts, browser-launch-check.ts,
 │                             devnet-seed-exec.ts, lib/test-wallet.ts
 ├── web/                      Next.js 16 frontend  ← the active work
-│   ├── app/(site)/           marketing: /, /explore, /launch, /agent/[id], /vault, /terms, /privacy
+│   ├── app/(site)/           marketing: /, /explore, /launch, /agent/[id], /vault, /docs, /terms, /privacy
 │   ├── app/(auth)/           bare chrome: /connect, /waitlist
 │   ├── app/app/              signed-in: Position, Activity, Agents, Profile, Vault
+│   ├── app/asdfg/admin/      operator console, obscurely routed (wallet-gated): overview, wrappers, vaults, agents, activity
 │   ├── components/site/      nav, cta (beta gate), warp-field, dither-backdrop, theme-provider,
 │   │                         profile-menu, logo, waitlist-form, mechanics, agent-carousel,
 │   │                         section, glyph, faq, site-footer, session-clock, stat, page-loader
@@ -167,6 +171,7 @@ offhours/                     ← directory on disk still says "angel"; the prod
 │   │                         curve, curve-preview, basis, mark-vs-market, terminal, app-shell,
 │   │                         devnet-faucet
 │   ├── components/ui/        icon (Phosphor + halftone), dither-icon, info
+│   ├── components/docs/      docs-shell (sticky TOC + scroll-spy), code-block (copy)
 │   ├── lib/                  market, session, wallet, deploy, agents, snapshot, format, theme,
 │   │                         beta, waitlist (Resend), trade (DBC), program-tx (stock_vault ixs),
 │   │                         jupiter, chain, portfolio, faq, use-write-tx, use-server-data,
@@ -285,7 +290,7 @@ Ordered. §10 is the fuller product queue; this is the short version a fresh ses
 
 1. **Find the ~2.9 SOL for the mainnet deploy.** This is the single blocker on the real product —
    the real PreStocks wrappers, the mainnet demo, every dashboard number, the `/launch` deploy
-   path. It is **refundable rent**, not a fee. §13 covers who to ask and the devnet fallback.
+   path. It is **account rent**, not a fee. §13 covers who to ask and the devnet fallback.
 2. **Demo video + submission.** The browser sign → relay path is now *verified* — a headless Wallet
    Standard wallet drives the real `/app/vault` stake and the self-owned DBC multi-signer co-sign
    through the app's own code (`scripts/browser-sign-check.ts`, `day7_results.md`). Only one link is
@@ -396,7 +401,7 @@ Buyers are betting on the agent; holders earn from it. That is the whole idea.
 
 ### Still to do (the queue, roughly in order)
 
-1. **Find funding for the mainnet deploy** (~2.9 SOL, refundable) — §13. Then deploy and mint the
+1. **Find funding for the mainnet deploy** (~2.9 SOL of account rent) — §13. Then deploy and mint the
    real OpenAI/SpaceX wrappers.
 2. **Demo video and submission.**
 
@@ -493,18 +498,19 @@ on a running server. The one live action, the waitlist, is never rendered throug
 
 ## 13. Deployment funding (the ~2.9 SOL)
 
-The mainnet program needs **~2.9 SOL of refundable rent** — measured on devnet, not estimated (§3).
-The mainnet wallet is empty. It is the only spend left, and it is a **float, not a fee**: close the
-program and the rent comes back.
+The mainnet program needs **~2.9 SOL** — measured on devnet, not estimated (§3).
+The mainnet wallet is empty. It is the only spend left, and it is rent, not a fee. Ask for it as a
+**grant or sponsorship — never as a loan**: no repayment, no equity, nothing owed back. Do not use
+the words *loan*, *lend*, *float* or *repay* in any ask (see `sponsor_outreach.md`).
 
 Who to ask, fastest first:
 
 1. **Buy ~3 SOL** and send it to the deploy wallet. Three days out, this is the only path that
-   reliably lands — and it is refundable.
+   reliably lands.
 2. **Ask in the Stocklana / Colosseum Discord.** The hackathon runs on `hackathons.solana.com`
    (Colosseum's platform); there is usually a support / hacker-help channel. Ask specifically about
    a deploy stipend or partner infra credits. Worth asking; do not plan around it.
-3. **A teammate or friend with SOL** — again, a lend, not a spend.
+3. **A teammate or friend with SOL** — ask for a gift toward the deploy; nothing owed back.
 4. **Hosting and RPC are not the cost.** Vercel's free tier runs the Next.js app; Helius and
    QuickNode free tiers cover the RPC. Check the hackathon page's Resources/Partners section for
    credits before paying for anything.
@@ -522,8 +528,12 @@ A beta tester uses **their own wallet** and never imports a key. `Duzj6…` is t
 authority *and* the mock mints' authority, so handing it out would hand over the program. The
 on-ramp is a server-signed **faucet** instead.
 
-- **`web/lib/faucet.ts`** sends a connected wallet **0.5 SOL + 10 mock PreStock + 10 wPreStock**
-  (`faucetDevnet` in `app/actions.ts`). 10-minute cooldown per wallet; the faucet wallet refuses to
+- **`web/lib/faucet.ts`** sends a connected wallet **0.5 SOL + 10 mock PreStock + 10 wPreStock for every
+  mock wrapper on the cluster** (`faucetDevnet` in `app/actions.ts`). Funding every asset, not just the
+  demo one, is deliberate: `/launch` and the markets list *all* wrappers, so a tester who picked a
+  different asset used to get a wallet with none of the quote token that asset's curve spends — the buy
+  then failed in the SPL token program (`custom program error: 0x1`) and the old error mapper reported
+  it as "not enough SOL". 10-minute cooldown per wallet; the faucet wallet refuses to
   drop below 1 SOL. Devnet-gated — it refuses before touching a key on a mainnet `PROGRAM_RPC_URL`.
   The signing key is `FAUCET_SECRET_KEY` (the keypair contents as a JSON array or base58) on a
   deployment, or `FAUCET_KEYPAIR`/`ANCHOR_WALLET` (a file path) locally.
@@ -556,3 +566,40 @@ The local copies live in the gitignored `web/.env.local`; `web/.env.example` is 
 is no keypair file on the host, which is why the faucet reads `FAUCET_SECRET_KEY` first. Switching
 to Helius/QuickNode is only an env change and a redeploy (the `NEXT_PUBLIC_*` ones need the
 rebuild because they are inlined).
+
+---
+
+## 15. Docs & the operator console (23 Sep)
+
+Two new surfaces, both server-action backed like the rest of the write path.
+
+### `/docs` — the technicals
+
+- **Content** lives in `web/lib/docs.ts` as a typed tree (`DocGroup` → `DocSection` → `DocBlock`).
+  It is the source of truth for the *interface* — account seeds, instruction names and the two
+  invariants. Change the Rust, change this file second.
+- **Chrome** is `web/components/docs/docs-shell.tsx`: a sticky table of contents with an
+  `IntersectionObserver` scroll-spy, collapsing to a `<details>` on mobile, plus
+  `code-block.tsx` with a copy button.
+- **No docs framework was added on purpose.** Fumadocs/Nextra bring their own theme and routing,
+  which would fight `DESIGN_SYSTEM.md` and the custom header. The page is a normal `(site)` route
+  so it inherits the nav, footer, palette and fonts for free. If it ever needs many routes, revisit
+  that — one page with anchors is the right shape today.
+- The `Docs` entry is in `SITE_ITEMS` and the footer's Protocol column.
+
+### `/asdfg/admin` — the operator console
+
+- **Gate:** `web/lib/admin.ts` reads `NEXT_PUBLIC_ADMIN_ADDRESSES` (comma-separated), defaulting to
+  the deploy wallet `Duzj6…` plus the second operator key `Db5m…`. The route is obfuscated to keep it
+  out of the way. It is still cosmetic: every read is public chain data and the only privileged write
+  (`set_paused`) is enforced on chain by `has_one = admin`. The page never holds a key. Add the env
+  var to Vercel and the local `.env.local` to change who sees it.
+- **Reads:** `web/app/asdfg/admin/actions.ts` — `getAdminOverview`, `getAdminWrappers`,
+  `getAdminVaults`, `getAdminAgents` (includes the test agents `getLiveAgents` hides, flagged
+  `hidden`), `getAdminExecutions`.
+- **Actions:** pause/resume a wrapper (`buildSetPausedForWrapperTx`, a wrapper-addressed `set_paused`
+  builder) and close an agent (`buildCloseAgentTx`, creator-only on chain).
+- **Tabs:** Overview (deploy funding, health counters, system), Wrappers (with an invariant check),
+  Vaults (stream health), Agents, Activity.
+- Admins get an **Admin** entry in the account menu (`components/site/profile-menu.tsx`). The route is
+  **not** linked from the footer — it is reached by URL or the account menu.
