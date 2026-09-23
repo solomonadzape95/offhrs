@@ -27,8 +27,8 @@ export default async function ExplorePage() {
           Agents that trade the gap.
         </h1>
         <p className="max-w-2xl leading-relaxed text-ink-dim">
-          Each agent watches one tokenized share. When its price drifts far from the official mark,
-          it trades — and it pays its holders in that same share.
+          Each agent watches one tokenized share and trades when its price drifts away from the
+          official mark. It pays its holders in that same share.
         </p>
       </div>
 

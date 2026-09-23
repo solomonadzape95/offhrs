@@ -88,9 +88,8 @@ export default async function Home() {
 
           <p className="mt-6 max-w-xl text-base leading-relaxed text-ink-dim text-pretty sm:text-lg">
             Tokenized shares of private companies trade around the clock. The
-            regular stock market doesn&apos;t. Offhrs runs AI agents on the gap
-            between the two — and pays the people who back them in the shares
-            themselves.
+            stock market doesn&apos;t. Offhrs runs AI agents in the gap between
+            the two, and pays the people who back them in the shares themselves.
           </p>
 
           <div className="mt-9 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
@@ -130,14 +129,14 @@ export default async function Home() {
         <div className="relative grid items-start gap-12 lg:grid-cols-[1fr_1.05fr] lg:gap-20">
           <div>
             <h2 className="font-display text-statement max-w-3xl text-balance text-ink">
-              The proof is a timestamp.
+              The real market closes. The token keeps trading.
             </h2>
             <p className="mt-6 max-w-2xl leading-relaxed text-ink-dim">
-              Pyth puts each stock&apos;s price on chain with a{" "}
-              <span className="font-mono text-ink">publish_time</span> anyone
-              can read. When that timestamp stops moving, the real market has
-              closed. The tokenized shares keep trading anyway — and that is
-              when their prices drift.
+              Pyth writes each stock&apos;s price on chain with a{" "}
+              <span className="font-mono text-ink">publish_time</span> anyone can
+              read. When that timestamp stops moving, the real market is closed.
+              The tokenized share keeps trading, and that&apos;s when its price
+              drifts from the mark.
             </p>
 
             <div className="mt-10 grid grid-cols-2 gap-8">
@@ -201,7 +200,7 @@ export default async function Home() {
       <Section id="board" label="The board">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <h2 className="font-display text-statement max-w-3xl text-balance text-ink">
-            Tokenized shares, priced against their mark.
+            Every share, next to its official mark.
           </h2>
           <Cta href="/explore" className="nav-item">
             All agents →
@@ -264,8 +263,8 @@ export default async function Home() {
         </div>
 
         <p className="mt-6 max-w-3xl font-mono text-xs leading-relaxed text-ink-faint">
-          The gap is how far the token&apos;s price sits from its official mark.
-          Positive means it trades below the mark.
+          The gap is how far the token trades from its official mark. Positive
+          means it&apos;s trading below.
         </p>
       </Section>
 
@@ -280,7 +279,7 @@ export default async function Home() {
 
         <div className="relative">
           <h2 className="font-display text-statement max-w-3xl text-balance text-ink">
-            Three pieces. One of them is what we built.
+            How a trade gets made.
           </h2>
 
           <MechanicsGrid />
@@ -308,13 +307,13 @@ export default async function Home() {
         <div className="relative flex flex-wrap items-end justify-between gap-6">
           <div>
             <h2 className="font-display text-statement max-w-2xl text-balance text-ink">
-              Four desks, one thesis each.
+              The agents.
             </h2>
             <p className="mt-6 max-w-2xl leading-relaxed text-ink-dim">
-              Every agent runs the same idea with different settings: how wide
-              a gap counts as a trade, which company it watches, and how long
-              it will hold through the open. These four are a showcase; the
-              live market lists every agent registered on chain.
+              Each agent runs the same strategy with different settings: how big
+              a gap is worth trading, which company it watches, and how long it
+              holds. The four below are a showcase. The live market lists every
+              agent registered on chain.
             </p>
           </div>
           <Cta href="/explore" className="nav-item">
@@ -384,9 +383,8 @@ export default async function Home() {
             </h2>
             <p className="mt-6 text-lg leading-relaxed text-ink-dim">
               Every trade on an agent&apos;s curve pays a fee, and every trade
-              that closes the gap books a gain. Both flow into a pool that pays
-              you over time — in the tokenized shares themselves, not in a token
-              that tracks them.
+              that closes the gap books a gain. Both go into a pool that pays
+              holders over time, in the tokenized shares themselves.
             </p>
 
             <div className="mt-8 flex items-center gap-3">
@@ -397,7 +395,8 @@ export default async function Home() {
                 dither={false}
               />
               <p className="font-mono text-xs leading-relaxed text-ink-faint">
-                Rewards build up for every moment you hold. No snapshots to game.
+                Rewards build up the whole time you hold. There&apos;s no snapshot
+                to game.
               </p>
             </div>
           </div>
@@ -459,11 +458,10 @@ export default async function Home() {
         <div className="relative grid gap-12 lg:grid-cols-[0.75fr_1.25fr] lg:gap-20">
           <div>
             <h2 className="font-display text-statement text-balance text-ink">
-              The short answers.
+              Questions.
             </h2>
             <p className="mt-6 text-lg leading-relaxed text-ink-dim">
-              Including the two questions most projects leave out: is it
-              deployed, and what can go wrong.
+              The usual ones, plus what can go wrong.
             </p>
             <div className="mt-8 flex items-center gap-3">
               <Icon
@@ -473,7 +471,7 @@ export default async function Home() {
                 dither={false}
               />
               <span className="font-mono text-xs text-ink-faint">
-                Everything here is checkable on chain.
+                All of it is checkable on chain.
               </span>
             </div>
           </div>

@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Check, Copy, EnvelopeSimple, SignOut, SquaresFour, User, Vault, Wallet } from "@phosphor-icons/react";
+import { Check, Copy, EnvelopeSimple, ShieldCheck, SignOut, SquaresFour, User, Vault, Wallet } from "@phosphor-icons/react";
 
 import { DitherAvatar } from "@/components/site/dither-avatar";
 import { Icon } from "@/components/ui/icon";
+import { isAdmin } from "@/lib/admin";
 import { USER_AVATAR_HUE } from "@/lib/avatar";
 import { useWalletUi, shortAddress } from "@/lib/wallet";
 
@@ -128,6 +129,14 @@ export function ProfileMenu({
             <MenuLink href="/app/profile" icon={<Icon icon={User} size={15} dither={false} />}>
               Profile
             </MenuLink>
+            {isAdmin(address) && (
+              <MenuLink
+                href="/asdfg/admin"
+                icon={<Icon icon={ShieldCheck} size={15} dither={false} />}
+              >
+                Admin
+              </MenuLink>
+            )}
           </div>
 
           <div className="border-t border-edge p-1.5">

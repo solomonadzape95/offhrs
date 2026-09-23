@@ -16,12 +16,16 @@ const CLAUSES = [
     p: "Nothing here is financial, legal or tax advice. Pre-IPO marks are illiquid, the reference price they track can gap when the real market reopens, and any position can lose value. Do your own research and, where relevant, talk to a professional.",
   },
   {
-    h: "Not deployed",
-    p: "The on-chain programs described on this site are written and tested, and deployed to the Solana devnet. They are not deployed to mainnet. Figures that depend on them are read from the chain where possible and shown as em dashes where not. Do not send funds expecting a vault to hold them.",
+    h: "Devnet only",
+    p: "The on-chain programs are written, tested and deployed to the Solana devnet. They are not on mainnet yet. Figures that come from them are read from the chain where possible, and shown as dashes where not.",
   },
   {
     h: "Your wallet, your keys",
     p: "Offhrs never asks for a seed phrase or a private key, and cannot move anything on your behalf. Every action is signed by you in your own wallet. If anything claiming to be this site asks for a key, it is not this site.",
+  },
+  {
+    h: "Security review",
+    p: "The program is covered by a test suite — unit tests for the reward maths and integration tests against a local validator. An independent audit is being arranged, and the report will be published when it is complete.",
   },
   {
     h: "No warranty",
@@ -38,8 +42,8 @@ export default function TermsPage() {
     <>
       <PageHero
         eyebrow="Terms"
-        title="The plain version."
-        intro="A hackathon build, honestly described. If something here contradicts the rest of the site, the rest of the site is the more careful document."
+        title="Terms."
+        intro="What Offhrs is, and what it isn&apos;t. It is a hackathon build, so read it plainly."
       />
 
       <Section label="Terms of use">

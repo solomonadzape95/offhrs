@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import {
+  BookOpen,
   CaretDown,
   ClockCounterClockwise,
   EnvelopeSimple,
@@ -55,6 +56,7 @@ export interface NavItem {
 export const SITE_ITEMS: NavItem[] = [
   { href: "/#board", label: "The board", hint: "Every tokenized share, live", icon: Table },
   { href: "/#mechanics", label: "Mechanics", hint: "How the gap gets traded", icon: GearSix },
+  { href: "/docs", label: "Docs", hint: "How the protocol works", icon: BookOpen },
   { href: "/waitlist", label: "Waitlist", hint: "Early access to the first cohort", icon: EnvelopeSimple },
   { href: "/#faq", label: "FAQ", hint: "The short answers", icon: Question },
   { href: "/app", label: "Dashboard", hint: "Your position and payouts", icon: SquaresFour },

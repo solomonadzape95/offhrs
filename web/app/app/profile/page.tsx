@@ -27,8 +27,6 @@ const CAPABILITY = [
   { what: "PreStock wrapper", state: "live", note: "on-chain; delta-minted, 7 tests" },
   { what: "Dividend vault", state: "live", note: "streams per slot · 9 unit + 7 integration tests" },
   { what: "Execution log", state: "live", note: "Pyth-attested, 7 tests" },
-  { what: "Mainnet deploy", state: "blocked", note: "~2.9 SOL of refundable rent" },
-  { what: "Staking & claims", state: "blocked", note: "reads the chain; not yet wired to a tx" },
 ] as const;
 
 const TONE = {
@@ -120,9 +118,8 @@ export default function ProfilePage() {
             </div>
 
             <p className="max-w-2xl font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
-              &ldquo;Live&rdquo; means it runs on chain or against a live source now.
-              &ldquo;Blocked&rdquo; means it depends on the mainnet deploy (~2.9 SOL of refundable
-              rent) or on wiring a transaction to this UI.
+              &ldquo;Live&rdquo; means it runs on chain or against a live source now. The market
+              reads come from mainnet; the program runs on devnet.
             </p>
           </div>
 

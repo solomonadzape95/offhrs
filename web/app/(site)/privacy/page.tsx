@@ -34,8 +34,8 @@ export default function PrivacyPage() {
     <>
       <PageHero
         eyebrow="Privacy"
-        title="We cannot lose what we never collect."
-        intro="Offhrs is non-custodial and accountless by design. This page states exactly what that means for your data."
+        title="What we collect, and what we don&apos;t."
+        intro="Offhrs has no accounts and never holds your keys. Here is what that means for your data."
       />
 
       <Section label="Privacy">

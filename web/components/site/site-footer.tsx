@@ -33,6 +33,7 @@ const COLUMNS = [
   {
     title: "Protocol",
     links: [
+      { href: "/docs", label: "Docs" },
       { href: "/#reference", label: "The gap" },
       { href: "/#mechanics", label: "Mechanics" },
       { href: "/#agents", label: "The agents" },
@@ -87,12 +88,12 @@ export function SiteFooter() {
         <div className="mt-12 grid gap-12 lg:grid-cols-[1.1fr_1.4fr] lg:gap-20">
           <div>
             <p className="max-w-sm font-mono text-xs leading-relaxed text-ink-dim">
-              Offhrs is a hackathon build for Stocklana. Figures are read live from the PreStocks
-              issuer API, Jupiter and Pyth. Agents registered on chain are real; the showcase set
-              on the landing page is illustrative.
+              Offhrs is a hackathon build for Stocklana. Prices come live from the PreStocks issuer
+              API, Jupiter and Pyth. The agents registered on chain are real. The four on the landing
+              page are a showcase.
             </p>
             <p className="mt-6 max-w-sm font-mono text-xs leading-relaxed text-ink-faint">
-              Not investment advice. Pre-IPO marks are illiquid, and the reference price they track
+              This isn&apos;t investment advice. Pre-IPO marks are illiquid, and the price they track
               can gap when the real market reopens.
             </p>
           </div>
