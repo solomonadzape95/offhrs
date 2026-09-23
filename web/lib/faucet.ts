@@ -24,7 +24,6 @@
  * wallet's balance, which is why the low-water check exists.
  */
 import fs from "node:fs";
-import path from "node:path";
 import {
   Connection,
   Keypair,
@@ -41,7 +40,7 @@ import {
   getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
 
-import { PROGRAM_RPC_URL, fetchAgents, fetchWrappers } from "./chain";
+import { PROGRAM_RPC_URL, fetchWrappers } from "./chain";
 import { buildWrapTransaction } from "./program-tx";
 
 const ONE = 10n ** 9n;
@@ -122,35 +121,27 @@ function base58Decode(s: string): Uint8Array {
 type DemoAsset = { agent?: string; prestockMint: string; wrappedMint: string };
 
 /**
- * The asset the whole devnet demo is built around. Prefer the file
- * `devnet-pool.ts` wrote; fall back to the first registered agent that has a
- * wrapper, so a fresh cluster still works.
+ * Every mock PreStock the faucet can hand out.
+ *
+ * The old single-asset version funded *one* wrapper — whichever
+ * `.devnet-demo.json` named, or the first registered agent's. The launch and
+ * trade surfaces list **every** wrapper on the cluster, so a tester who picked a
+ * different asset got a wallet with none of the token that asset's curve is
+ * quoted in; the buy then failed inside the SPL token program with
+ * `custom program error: 0x1` ("insufficient funds"), which the old error mapper
+ * reported as "not enough SOL". Funding the whole set removes the mismatch:
+ * whichever asset the tester picks, the quote token is already there.
  */
-async function resolveAsset(): Promise<DemoAsset | null> {
-  for (const file of [
-    path.resolve(process.cwd(), "..", ".devnet-demo.json"),
-    path.resolve(process.cwd(), ".devnet-demo.json"),
-  ]) {
-    try {
-      const demo = JSON.parse(fs.readFileSync(file, "utf8")) as DemoAsset;
-      if (demo.prestockMint && demo.wrappedMint) return demo;
-    } catch {
-      // try the next location
-    }
+async function resolveAssets(): Promise<DemoAsset[]> {
+  const wrappers = await fetchWrappers();
+  const seen = new Set<string>();
+  const out: DemoAsset[] = [];
+  for (const w of wrappers) {
+    if (!w.prestockMint || !w.wrappedMint || seen.has(w.wrappedMint)) continue;
+    seen.add(w.wrappedMint);
+    out.push({ prestockMint: w.prestockMint, wrappedMint: w.wrappedMint });
   }
-
-  const [agents, wrappers] = await Promise.all([fetchAgents(), fetchWrappers()]);
-  for (const agent of agents) {
-    const wrapper = wrappers.find((w) => w.wrappedMint === agent.wrappedMint);
-    if (wrapper) {
-      return {
-        agent: agent.pda,
-        prestockMint: wrapper.prestockMint,
-        wrappedMint: wrapper.wrappedMint,
-      };
-    }
-  }
-  return null;
+  return out;
 }
 
 /**
@@ -258,89 +249,110 @@ export async function faucet(owner: string): Promise<FaucetResult> {
   }
 
   try {
-    const asset = await resolveAsset();
-    if (!asset) return { error: "No devnet demo asset is configured yet." };
+    const assets = await resolveAssets();
+    if (assets.length === 0) return { error: "No devnet mock assets are configured yet." };
 
     const conn = new Connection(PROGRAM_RPC_URL, "confirmed");
     if ((await conn.getBalance(provider.publicKey)) < PROVIDER_FLOOR + SOL_PER_REQUEST) {
       return { error: "The faucet wallet is low on SOL." };
     }
-    await ensureQuoteStock(conn, provider, asset.prestockMint, asset.wrappedMint);
 
-    const prestock = new PublicKey(asset.prestockMint);
-    const wrapped = new PublicKey(asset.wrappedMint);
-    const ownerRaw = getAssociatedTokenAddressSync(
-      prestock,
-      ownerKey,
-      false,
-      TOKEN_2022_PROGRAM_ID,
-    );
-    const ownerWrapped = getAssociatedTokenAddressSync(
-      wrapped,
-      ownerKey,
-      false,
-      TOKEN_PROGRAM_ID,
-    );
-    const providerWrapped = getAssociatedTokenAddressSync(
-      wrapped,
-      provider.publicKey,
-      false,
-      TOKEN_PROGRAM_ID,
-    );
+    // The SOL leg is sent once, with the first asset that lands.
+    let needsSol = (await conn.getBalance(ownerKey)) < SOL_BELOW;
+    let signature = "";
+    let funded = 0;
 
-    const tx = new Transaction();
-    if ((await conn.getBalance(ownerKey)) < SOL_BELOW) {
-      tx.add(
-        SystemProgram.transfer({
-          fromPubkey: provider.publicKey,
-          toPubkey: ownerKey,
-          lamports: SOL_PER_REQUEST,
-        }),
-      );
+    for (const asset of assets) {
+      try {
+        await ensureQuoteStock(conn, provider, asset.prestockMint, asset.wrappedMint);
+
+        const prestock = new PublicKey(asset.prestockMint);
+        const wrapped = new PublicKey(asset.wrappedMint);
+        const ownerRaw = getAssociatedTokenAddressSync(
+          prestock,
+          ownerKey,
+          false,
+          TOKEN_2022_PROGRAM_ID,
+        );
+        const ownerWrapped = getAssociatedTokenAddressSync(
+          wrapped,
+          ownerKey,
+          false,
+          TOKEN_PROGRAM_ID,
+        );
+        const providerWrapped = getAssociatedTokenAddressSync(
+          wrapped,
+          provider.publicKey,
+          false,
+          TOKEN_PROGRAM_ID,
+        );
+
+        const tx = new Transaction();
+        if (needsSol) {
+          tx.add(
+            SystemProgram.transfer({
+              fromPubkey: provider.publicKey,
+              toPubkey: ownerKey,
+              lamports: SOL_PER_REQUEST,
+            }),
+          );
+          needsSol = false;
+        }
+        tx.add(
+          createAssociatedTokenAccountIdempotentInstruction(
+            provider.publicKey,
+            ownerRaw,
+            ownerKey,
+            prestock,
+            TOKEN_2022_PROGRAM_ID,
+          ),
+          createAssociatedTokenAccountIdempotentInstruction(
+            provider.publicKey,
+            ownerWrapped,
+            ownerKey,
+            wrapped,
+            TOKEN_PROGRAM_ID,
+          ),
+          createMintToInstruction(
+            prestock,
+            ownerRaw,
+            provider.publicKey,
+            STOCK_PER_REQUEST,
+            [],
+            TOKEN_2022_PROGRAM_ID,
+          ),
+          createTransferInstruction(
+            providerWrapped,
+            ownerWrapped,
+            provider.publicKey,
+            STOCK_PER_REQUEST,
+            [],
+            TOKEN_PROGRAM_ID,
+          ),
+        );
+
+        const latest = await conn.getLatestBlockhash("confirmed");
+        tx.feePayer = provider.publicKey;
+        tx.recentBlockhash = latest.blockhash;
+        tx.sign(provider);
+
+        signature = await conn.sendRawTransaction(tx.serialize(), { skipPreflight: false });
+        await conn.confirmTransaction(
+          {
+            signature,
+            blockhash: latest.blockhash,
+            lastValidBlockHeight: latest.lastValidBlockHeight,
+          },
+          "confirmed",
+        );
+        funded += 1;
+      } catch {
+        // One odd wrapper (paused, wrong authority) must not sink the rest.
+        continue;
+      }
     }
-    tx.add(
-      createAssociatedTokenAccountIdempotentInstruction(
-        provider.publicKey,
-        ownerRaw,
-        ownerKey,
-        prestock,
-        TOKEN_2022_PROGRAM_ID,
-      ),
-      createAssociatedTokenAccountIdempotentInstruction(
-        provider.publicKey,
-        ownerWrapped,
-        ownerKey,
-        wrapped,
-        TOKEN_PROGRAM_ID,
-      ),
-      createMintToInstruction(
-        prestock,
-        ownerRaw,
-        provider.publicKey,
-        STOCK_PER_REQUEST,
-        [],
-        TOKEN_2022_PROGRAM_ID,
-      ),
-      createTransferInstruction(
-        providerWrapped,
-        ownerWrapped,
-        provider.publicKey,
-        STOCK_PER_REQUEST,
-        [],
-        TOKEN_PROGRAM_ID,
-      ),
-    );
 
-    const latest = await conn.getLatestBlockhash("confirmed");
-    tx.feePayer = provider.publicKey;
-    tx.recentBlockhash = latest.blockhash;
-    tx.sign(provider);
-
-    const signature = await conn.sendRawTransaction(tx.serialize(), { skipPreflight: false });
-    await conn.confirmTransaction(
-      { signature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
-      "confirmed",
-    );
+    if (funded === 0) return { error: "The faucet could not fund any asset on this cluster." };
 
     lastDrop.set(ownerKey.toBase58(), now);
     return { signature };

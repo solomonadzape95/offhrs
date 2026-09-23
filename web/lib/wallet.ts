@@ -46,6 +46,10 @@ export function describeWalletError(cause: unknown, walletName = "That wallet"):
 
   if (!raw) return `${walletName} could not be reached.`;
 
+  // Keep the raw text in the console: the friendly message below is a summary,
+  // and support needs the program logs when a transaction fails.
+  if (process.env.NODE_ENV !== "production") console.debug("[offhrs] raw error:", raw);
+
   if (/not installed|no provider|undefined is not an object|cannot read|not found/i.test(raw)) {
     return `${walletName} does not seem to be installed in this browser.`;
   }
@@ -55,8 +59,23 @@ export function describeWalletError(cause: unknown, walletName = "That wallet"):
   if (/locked/i.test(raw)) {
     return `${walletName} is locked. Unlock it and try again.`;
   }
-  if (/insufficient|0x1$|not enough/i.test(raw)) {
+  // SOL-specific phrasings come first. SPL's `InsufficientFunds` (custom program
+  // error 0x1) and the DBC SDK's own balance guards also say "insufficient", so
+  // matching that word alone sent people to the faucet for SOL when the shortfall
+  // was the token they were paying with.
+  if (
+    /insufficient lamports|insufficient funds for (rent|fee)|rent[- ]exempt|no record of a prior credit|debit an account/i.test(
+      raw,
+    )
+  ) {
     return "Not enough SOL to cover the network fee and rent.";
+  }
+  if (
+    /insufficient funds|insufficient token|custom program error: 0x1|0x1\b|not enough (token|liquidity)|insufficient liquidity/i.test(
+      raw,
+    )
+  ) {
+    return "Your wallet doesn't hold enough of the token this transaction spends. For a buy, that's the wPreStock you're paying with — or the amount is above what this agent's curve allows.";
   }
   if (/blockhash|expired|dropped/i.test(raw)) {
     return "The transaction expired before it landed. Try again.";

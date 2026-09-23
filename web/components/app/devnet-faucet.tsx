@@ -43,8 +43,9 @@ export function DevnetFaucet() {
         <div>
           <span className="label">Devnet beta</span>
           <p className="mt-1 max-w-md text-sm leading-relaxed text-ink-dim">
-            Get test SOL, mock PreStock and wPreStock so you can trade and stake with your own
-            wallet. Switch your wallet to <span className="text-ink">Devnet</span> to see them;
+            Get test SOL plus mock PreStock and wPreStock for{" "}
+            <span className="text-ink">every</span> devnet asset, so you can trade or stake whichever
+            one you pick. Switch your wallet to <span className="text-ink">Devnet</span> to see them;
             some wallets need the token mint added by hand.
           </p>
         </div>
