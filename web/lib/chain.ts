@@ -682,6 +682,8 @@ const HIDDEN_AGENT_CREATORS = new Set([
   "2Tf4FM8XAzG15hmyi2b5WU5nm2HaJxJr6tKmarn5rCPn",
   "Cxrg8bzNJ31ASS2D1o2F2kgZWnwgFs1i2PmKXUUr6jU",
   "FtsN8Z4Jreokop6ieszp43tTYHGqv7fryJ67o3khBGpE",
+  "2X9aab1UvabVbfHUCJqX5aF2SUCsegerE6evLeSWufkR",
+  "2bzf6MDmz43X1Zi1iisfYC7N3Ys3t8fs8ZXTvoqdyRom",
 ]);
 
 /**

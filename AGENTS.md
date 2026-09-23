@@ -3,7 +3,7 @@
 **Read this first.** It is the entry point for a fresh session. It says what the project is, what
 already works, how to run it, and what is broken or blocked.
 
-Last updated: **Wed 23 Sep 2026, ~01:00 UTC.**
+Last updated: **Wed 23 Sep 2026, ~01:30 UTC.**
 
 ---
 
@@ -67,6 +67,7 @@ specific subsystem.
 | **Devnet beta** — faucet + self-serve launch on mock assets | `web/lib/faucet.ts`, `scripts/browser-launch-check.ts`; §14 |
 | **Agent terminal** — real DBC curve, reserves, balances, Activity | `web/lib/trade.ts` `poolProgress`; `scripts/devnet-seed-exec.ts` |
 | **Cached server reads** — React Query across `/app` tabs | `web/app/providers.tsx`, `web/lib/use-server-data.ts` |
+| **close_agent + creator first buy** — deregister, and hold your own token on launch | program upgraded on devnet; `buildCloseAgentTransaction`, `buildBuyAgentTx` |
 | **Live on devnet** — program deployed | `FoVBZ…VLw`; `scripts/devnet-smoke.ts` runs wrapper → registry → streaming vault on-chain |
 
 ### Deployed on devnet; blocked on mainnet rent
@@ -387,6 +388,11 @@ Buyers are betting on the agent; holders earn from it. That is the whole idea.
     reusable `Info` popover explains bps, the migration threshold and the curve fee; a corner-square
     page loader covers slow routes; and the test agents left by the browser checks are hidden from the
     marketplace list (`HIDDEN_AGENT_CREATORS` in `chain.ts`).
+13. ✅ **`close_agent` + creator allocation** — the program gained `close_agent` (creator-only, and it
+    refuses while the vault has stakers, so deregistering cannot strand anyone); the manage desk has a
+    Close button. The launch flow asks **how much to buy at launch** and runs a DBC first buy, so the
+    creator holds their own token the moment the agent exists. The program was upgraded on devnet
+    (`solana program extend` was needed first — the new build is larger).
 
 ### Still to do (the queue, roughly in order)
 
@@ -529,8 +535,11 @@ on-ramp is a server-signed **faucet** instead.
   the real `/launch` UI through create-curve → register → vault, all signed in the browser.
 - **Activity data:** `scripts/devnet-seed-exec.ts` writes real rows — `record_signal` against the live
   devnet Pyth BTC account, then `log_arb` copying that attestation (AAPL is mainnet-only).
-- **Test clutter:** each browser-check run leaves a real agent behind (the program has no close
-  instruction). `HIDDEN_AGENT_CREATORS` in `web/lib/chain.ts` keeps them out of the marketplace list.
+- **Test clutter:** each browser-check run leaves a real agent behind. `browser-launch-check.ts` now
+  reuses a persistent tester wallet (`.devnet-tester.json`, gitignored), and `HIDDEN_AGENT_CREATORS`
+  in `web/lib/chain.ts` keeps those agents out of the marketplace list. Agents the *provider* created
+  can be genuinely removed with `close_agent` (a Close button on the manage desk) once their vault is
+  empty.
 
 Clawpump itself is still mainnet-only; the devnet launch is our own DBC curve. For a public beta,
 make a dedicated devnet wallet the mock mints' authority and put its key in `FAUCET_SECRET_KEY`, so

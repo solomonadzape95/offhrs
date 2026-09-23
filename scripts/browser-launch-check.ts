@@ -31,11 +31,18 @@ const CHAIN = "solana:devnet";
 
 async function main() {
   const tester =
-    process.env.TESTER_KEYPAIR && fs.existsSync(process.env.TESTER_KEYPAIR)
-      ? Keypair.fromSecretKey(
-          Uint8Array.from(JSON.parse(fs.readFileSync(process.env.TESTER_KEYPAIR, "utf8"))),
-        )
-      : Keypair.generate();
+    (() => {
+      const path = process.env.TESTER_KEYPAIR ?? new URL("../.devnet-tester.json", import.meta.url).pathname;
+      try {
+        return Keypair.fromSecretKey(
+          Uint8Array.from(JSON.parse(fs.readFileSync(path, "utf8"))),
+        );
+      } catch {
+        const kp = Keypair.generate();
+        fs.writeFileSync(path, JSON.stringify(Array.from(kp.secretKey)));
+        return kp;
+      }
+    })();
   const address = tester.publicKey.toBase58();
 
   console.log(`rpc     ${PROGRAM_RPC_URL}`);
