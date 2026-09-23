@@ -65,9 +65,9 @@ function Position() {
       <div className="grid grid-cols-2 gap-10 border-t border-edge pt-10 lg:grid-cols-4">
         <Stat
           label="Agent tokens"
-          value={data?.totals.staked ?? "—"}
+          value={data?.totals.total ?? "—"}
           loading={loading}
-          hint="staked across your agents"
+          hint={data ? `${data.totals.liquid} liquid · ${data.totals.staked} staked` : "your $AGENT"}
         />
         <Stat
           label="Equity accrued"
@@ -145,7 +145,7 @@ function Position() {
           <table className="w-full min-w-150 border-collapse">
             <thead>
               <tr className="border-b border-edge">
-                {["Agent", "Staked", "Accrued", "Yield asset", "Claim"].map((h, i) => (
+                {["Agent", "Liquid", "Staked", "Accrued", "Yield asset", "Claim"].map((h, i) => (
                   <th key={h} className={`label py-3 ${i === 0 ? "text-left" : "text-right"}`}>
                     {h}
                   </th>
@@ -165,6 +165,9 @@ function Position() {
                     <span className="ml-3 font-mono text-[0.625rem] tracking-[0.14em] text-ink-faint uppercase">
                       ${r.ticker}
                     </span>
+                  </td>
+                  <td className="tabular py-3.5 text-right font-mono text-sm text-ink-dim">
+                    {r.liquid}
                   </td>
                   <td className="tabular py-3.5 text-right font-mono text-sm text-ink-dim">
                     {r.staked}
@@ -187,7 +190,7 @@ function Position() {
               ))}
               {data && data.rows.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-6 font-mono text-sm text-ink-faint">
+                  <td colSpan={6} className="py-6 font-mono text-sm text-ink-faint">
                     No agents registered on this cluster yet.
                   </td>
                 </tr>

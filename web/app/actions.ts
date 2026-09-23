@@ -113,7 +113,7 @@ async function universe() {
 
 const EMPTY: Portfolio = {
   rows: [],
-  totals: { staked: "0", accrued: "0", claimable: "0", incomeToDate: "0" },
+  totals: { total: "0", liquid: "0", staked: "0", accrued: "0", claimable: "0", incomeToDate: "0" },
   equity: [],
   onChain: false,
 };
@@ -140,15 +140,17 @@ export async function getUserPosition(owner: string): Promise<Portfolio> {
   const slot = await fetchSlot().catch(() => 0);
 
   const rows: PositionRow[] = [];
+  let totalLiquid = 0n;
   let totalStaked = 0n;
   let totalAccrued = 0n;
   let totalIncome = 0n;
   const byWrapped = new Map<string, bigint>();
 
   for (const a of agents) {
-    const [stake, vault] = await Promise.all([
+    const [stake, vault, liquid] = await Promise.all([
       fetchUserStake(a.vault, owner).catch(() => null),
       fetchVaultByPda(a.vault).catch(() => null),
+      fetchTokenBalance(a.agentTokenMint, owner, "spl").catch(() => null),
     ]);
 
     const staked = stake?.stakedAmount ?? 0n;
@@ -164,12 +166,14 @@ export async function getUserPosition(owner: string): Promise<Portfolio> {
       ticker: l?.ticker ?? short,
       asset: l?.asset ?? "—",
       feeBps: a.dynamicFeeBps,
+      liquid: fmt(liquid ?? 0n, STAKE_DECIMALS),
       staked: fmt(staked, STAKE_DECIMALS),
       accrued: fmt(accrued, REWARD_DECIMALS),
       claimable: fmt(accrued, REWARD_DECIMALS),
       rewardMint: a.wrappedMint,
     });
 
+    totalLiquid += liquid ?? 0n;
     totalStaked += staked;
     totalAccrued += accrued;
     totalIncome += claimed;
@@ -189,6 +193,8 @@ export async function getUserPosition(owner: string): Promise<Portfolio> {
   return {
     rows,
     totals: {
+      total: fmt(totalLiquid + totalStaked, STAKE_DECIMALS),
+      liquid: fmt(totalLiquid, STAKE_DECIMALS),
       staked: fmt(totalStaked, STAKE_DECIMALS),
       accrued: fmt(totalAccrued, REWARD_DECIMALS),
       claimable: fmt(totalAccrued, REWARD_DECIMALS),
@@ -200,31 +206,25 @@ export async function getUserPosition(owner: string): Promise<Portfolio> {
 }
 
 export async function getUserAgents(owner: string): Promise<AgentView[]> {
-  try {
-    const live = await fetchLiveAgents(await universe());
-    return live
-      .filter((l) => l.creator === owner || l.agentSigner === owner)
-      .map((l) => ({
-        id: l.id,
-        name: l.name,
-        ticker: l.ticker,
-        asset: l.asset,
-        feeBps: l.feeBps,
-        creator: l.creator,
-        executionCount: l.executionCount,
-      }));
-  } catch {
-    return [];
-  }
+  // No catch: a rate-limited RPC must surface as an error, not as an empty list.
+  // "You haven't launched an agent" is a lie when the read simply failed.
+  const live = await fetchLiveAgents(await universe());
+  return live
+    .filter((l) => l.creator === owner || l.agentSigner === owner)
+    .map((l) => ({
+      id: l.id,
+      name: l.name,
+      ticker: l.ticker,
+      asset: l.asset,
+      feeBps: l.feeBps,
+      creator: l.creator,
+      executionCount: l.executionCount,
+    }));
 }
 
 /** Every agent registered on this cluster — the “other agents” grid. */
 export async function getLiveAgents(): Promise<LiveAgent[]> {
-  try {
-    return await fetchLiveAgents(await universe());
-  } catch {
-    return [];
-  }
+  return fetchLiveAgents(await universe());
 }
 
 export async function getUserExecutions(owner: string, limit = 50): Promise<ExecutionView[]> {

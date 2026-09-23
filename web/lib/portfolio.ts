@@ -15,6 +15,7 @@ export type PositionRow = {
   asset: string;
   feeBps: number;
   /** Human decimal strings, already scaled by the mint's decimals. */
+  liquid: string;
   staked: string;
   accrued: string;
   claimable: string;
@@ -30,6 +31,9 @@ export type EquityCard = {
 export type Portfolio = {
   rows: PositionRow[];
   totals: {
+    /** Liquid + staked `$AGENT`. */
+    total: string;
+    liquid: string;
     staked: string;
     accrued: string;
     claimable: string;

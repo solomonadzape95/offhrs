@@ -26,9 +26,11 @@ export default function AgentsPage() {
 
   const rows = mine.status === "ready" ? mine.data : [];
   const loadingMine = mine.status === "loading";
+  const errorMine = mine.status === "error" ? mine.error : null;
   const mineIds = new Set(rows.map((r) => r.id));
   const others = (all.status === "ready" ? all.data : []).filter((a) => !mineIds.has(a.id));
   const loadingOthers = all.status === "loading";
+  const errorOthers = all.status === "error" ? all.error : null;
 
   return (
     <section className="mx-auto max-w-app px-5 py-10 sm:px-8 sm:py-14">
@@ -59,6 +61,15 @@ export default function AgentsPage() {
               <div className="panel flex flex-col gap-3 p-6">
                 <span className="h-4 w-40 animate-pulse bg-raised" />
                 <span className="h-4 w-64 animate-pulse bg-raised" />
+              </div>
+            ) : errorMine ? (
+              <div className="panel flex flex-col gap-2 p-6">
+                <p className="text-sm leading-relaxed text-ember">
+                  Could not read the registry.
+                </p>
+                <p className="font-mono text-xs leading-relaxed text-ink-faint">
+                  {errorMine} — the RPC may be rate-limiting. Reload to retry.
+                </p>
               </div>
             ) : rows.length > 0 ? (
               <div className="panel overflow-x-auto rounded-none p-2 sm:p-3">
@@ -156,6 +167,10 @@ export default function AgentsPage() {
                   <div key={i} className="panel h-72 animate-pulse bg-surface" />
                 ))}
               </div>
+            ) : errorOthers ? (
+              <p className="font-mono text-sm leading-relaxed text-ember">
+                Could not read the marketplace. {errorOthers}
+              </p>
             ) : others.length > 0 ? (
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {others.map((a) => (

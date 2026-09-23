@@ -55,5 +55,9 @@ export function timeAgo(unixSeconds: number) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-export const utc = (unixSeconds: number) =>
-  new Date(unixSeconds * 1000).toISOString().replace("T", " ").slice(0, 19) + "Z";
+export const utc = (unixSeconds: number) => {
+  if (!Number.isFinite(unixSeconds)) return "—";
+  const d = new Date(unixSeconds * 1000);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toISOString().replace("T", " ").slice(0, 19) + "Z";
+};
