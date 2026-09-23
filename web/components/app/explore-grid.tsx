@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 
 import { AgentCard } from "@/components/app/agent-card";
-import { underlyingSymbol } from "@/lib/mock";
 import type { AgentSeed } from "@/lib/agents";
 import type { PreStock } from "@/lib/market";
 
@@ -35,12 +34,8 @@ export function ExploreGrid({
   const [filter, setFilter] = useState<string>("All");
 
   const rows = useMemo(() => {
-    // The card shows the real underlying's market figures, so a devnet `offSPACEX`
-    // agent reads the same numbers as its terminal.
-    const withAsset = agents.map((a) => ({
-      agent: a,
-      asset: bySymbol.get(underlyingSymbol(a.asset)),
-    }));
+    // The mock assets already carry the real underlying's market figures.
+    const withAsset = agents.map((a) => ({ agent: a, asset: bySymbol.get(a.asset) }));
 
     switch (filter) {
       case "All":

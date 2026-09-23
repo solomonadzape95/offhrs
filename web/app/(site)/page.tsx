@@ -20,9 +20,11 @@ import { WarpField } from "@/components/site/warp-field";
 import { Icon } from "@/components/ui/icon";
 import { AGENTS } from "@/lib/agents";
 import { BETA } from "@/lib/beta";
+import { fetchLiveAgents } from "@/lib/chain";
 import { FAQ } from "@/lib/faq";
 import { usd } from "@/lib/format";
 import { FROZEN_AFTER_SECS, fetchAllPreStocks, readPyth } from "@/lib/market";
+import { fetchUniverse } from "@/lib/universe";
 import { DitherIcon } from "@/components/ui/dither-icon";
 
 export const revalidate = 60;
@@ -45,6 +47,18 @@ export default async function Home() {
     fetchAllPreStocks().catch(() => []),
     readPyth().catch(() => null),
   ]);
+
+  // The registry, not the seeded showcase: the "Right now" block should report
+  // what is actually on chain.
+  const liveAgents = await fetchLiveAgents(
+    (await fetchUniverse().catch(() => [])).map((s) => ({ symbol: s.symbol, mint: s.mint })),
+  ).catch(() => []);
+
+  const printDate =
+    regime && Number.isFinite(regime.publishTime)
+      ? new Date(regime.publishTime * 1000)
+      : null;
+  const validPrint = printDate && !Number.isNaN(printDate.getTime()) ? printDate : null;
 
   const frozen = regime ? regime.stalenessSecs > FROZEN_AFTER_SECS : false;
   const dislocated = [...stocks].sort(
@@ -139,21 +153,9 @@ export default async function Home() {
               />
               <Stat
                 label="Last print"
-                value={
-                  regime
-                    ? new Date(regime.publishTime * 1000)
-                        .toISOString()
-                        .slice(11, 16)
-                    : "—"
-                }
+                value={validPrint ? validPrint.toISOString().slice(11, 16) : "—"}
                 unit="UTC"
-                hint={
-                  regime
-                    ? new Date(regime.publishTime * 1000)
-                        .toISOString()
-                        .slice(0, 10)
-                    : ""
-                }
+                hint={validPrint ? validPrint.toISOString().slice(0, 10) : ""}
               />
             </div>
           </div>
@@ -179,9 +181,9 @@ export default async function Home() {
             </div>
             <div className="bg-void p-6 sm:p-8">
               <Stat
-                label="Agents staged"
-                value={String(AGENTS.length)}
-                hint="registry seeded"
+                label="Agents live"
+                value={liveAgents.length > 0 ? String(liveAgents.length) : "—"}
+                hint={liveAgents.length > 0 ? "registered on chain" : "none registered yet"}
               />
             </div>
             <div className="bg-void p-6 sm:p-8">
@@ -284,7 +286,9 @@ export default async function Home() {
           <MechanicsGrid />
 
           <div className="mt-10 flex flex-wrap items-center gap-4">
-            <span className="label">{AGENTS.length} agents staged</span>
+            <span className="label">
+              {liveAgents.length > 0 ? `${liveAgents.length} agents live` : "Agent registry live"}
+            </span>
             <Cta href="/explore" className="btn btn-primary ml-auto">
               Open the market
             </Cta>
@@ -309,8 +313,8 @@ export default async function Home() {
             <p className="mt-6 max-w-2xl leading-relaxed text-ink-dim">
               Every agent runs the same idea with different settings: how wide
               a gap counts as a trade, which company it watches, and how long
-              it will hold through the open. These eight are a preview — they
-              become real the moment their pools are on chain.
+              it will hold through the open. These four are a showcase; the
+              live market lists every agent registered on chain.
             </p>
           </div>
           <Cta href="/explore" className="nav-item">
@@ -321,8 +325,8 @@ export default async function Home() {
         <AgentCarousel agents={AGENTS.slice(0, 4)} />
 
         <p className="mt-6 font-mono text-xs leading-relaxed text-ink-faint">
-          ⚠ The eight agents are staged previews. This rail reads real accounts
-          the moment each DBC pool exists on chain.
+          ⚠ The showcase desks are illustrative. The market lists the agents
+          registered on chain.
         </p>
       </Section>
 

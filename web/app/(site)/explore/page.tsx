@@ -1,6 +1,6 @@
 import { ExploreGrid } from "@/components/app/explore-grid";
 import { fetchLiveAgents } from "@/lib/chain";
-import { fetchAllPreStocks, readPyth, FROZEN_AFTER_SECS } from "@/lib/market";
+import { readPyth, FROZEN_AFTER_SECS } from "@/lib/market";
 import { fetchUniverse, isDevnet } from "@/lib/universe";
 import { LiveBadge } from "@/components/site/live-badge";
 
@@ -13,16 +13,13 @@ export const metadata = {
 
 /** §2 The Marketplace. */
 export default async function ExplorePage() {
-  const universe = await fetchUniverse().catch(() => []);
-  const [market, regime, live] = await Promise.all([
-    fetchAllPreStocks().catch(() => []),
+  const assets = await fetchUniverse().catch(() => []);
+  const [regime, live] = await Promise.all([
     readPyth().catch(() => null),
-    fetchLiveAgents(universe.map((s) => ({ symbol: s.symbol, mint: s.mint }))).catch(() => []),
+    fetchLiveAgents(assets.map((s) => ({ symbol: s.symbol, mint: s.mint }))).catch(() => []),
   ]);
 
-  // On devnet the agents carry `off`-prefixed mock symbols; the cards show the real
-  // underlying's market, so their figures match the agent terminal.
-  const assets = market.length > 0 ? market : universe;
+  // Only registrations that actually exist on chain. The preview set is gone.
   const agents = live;
 
   const frozen = regime ? regime.stalenessSecs > FROZEN_AFTER_SECS : false;
