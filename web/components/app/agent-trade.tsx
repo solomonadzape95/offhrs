@@ -394,7 +394,7 @@ export function AgentTrade({
               ? fmt(quote.quote.outAmount, outDecimals)
               : quote.k === "loading"
                 ? "…"
-                : "—"}
+                : "0"}
           </span>
         </div>
 
@@ -402,13 +402,13 @@ export function AgentTrade({
           <>
             <Row k="Price" v={`${quote.quote.price.toLocaleString(undefined, { maximumSignificantDigits: 6 })} ${wSymbol} / ${ticker}`} />
             {quote.usdcRoute && (
-              <Row k="USDC route" v={quote.usdcRoute.join(" → ") || "—"} />
+              <Row k="USDC route" v={quote.usdcRoute.join(" → ") || "n/a"} />
             )}
             {side === "sell" && payout !== "wprestock" && (
               <Row k="Settlement" v={`unwrapped to ${asset} in the same transaction`} />
             )}
             {side === "buy" && autoStake && (
-              <Row k="Auto-stake" v="on — staked in the same transaction" />
+              <Row k="Auto-stake" v="on, staked in the same transaction" />
             )}
             <Row
               k="Curve fee"
@@ -439,9 +439,6 @@ export function AgentTrade({
           >
             <span className="flex flex-col gap-0.5">
               <span className="label">Auto-stake on purchase</span>
-              <span className="text-xs leading-snug text-ink-faint">
-                Earn into the vault the moment you buy — no extra step.
-              </span>
             </span>
             <span
               className={`ml-4 h-5 w-9 shrink-0 rounded-full border transition-colors ${
@@ -515,34 +512,40 @@ export function AgentTrade({
         )}
 
         {/* Wallet balances */}
-        {address && data?.onChain && (
-          <div className="flex flex-col gap-1.5 border-t border-edge pt-4">
+        {address && (
+          <div className="flex flex-col gap-3 border-t border-edge pt-4">
             <span className="label">Your balances</span>
-            <div className="flex items-center justify-between font-mono text-xs text-ink-dim">
-              <span>Liquid {ticker}</span>
-              <span className="tabular">{fmt(data.balances.liquidAgent, data.baseDecimals)}</span>
-            </div>
-            <div className="flex items-center justify-between font-mono text-xs text-ink-dim">
-              <span>Staked {ticker}</span>
-              <span className="tabular">{fmt(data.balances.stakedAgent, data.baseDecimals)}</span>
-            </div>
-            <div className="flex items-center justify-between font-mono text-xs text-ink-dim">
-              <span>{wSymbol}</span>
-              <span className="tabular">{fmt(data.balances.wrapped, data.quoteDecimals)}</span>
-            </div>
-            <div className="flex items-center justify-between font-mono text-xs text-ink-dim">
-              <span>{asset}</span>
-              <span className="tabular">{fmt(data.balances.prestock, data.quoteDecimals)}</span>
-            </div>
+            {info.status === "loading" ? (
+              <div className="grid grid-cols-2 gap-px border border-edge bg-edge">
+                {[0, 1, 2, 3].map((i) => (
+                  <span
+                    key={i}
+                    className={`h-[4.5rem] animate-pulse bg-raised ${i < 2 ? "col-span-2" : ""}`}
+                  />
+                ))}
+              </div>
+            ) : data?.onChain ? (
+              <div className="grid grid-cols-2 gap-px border border-edge bg-edge">
+                <BalanceCell
+                  className="col-span-2"
+                  label={`Liquid ${ticker}`}
+                  value={fmt(data.balances.liquidAgent, data.baseDecimals)}
+                />
+                <BalanceCell
+                  className="col-span-2"
+                  label={`Staked ${ticker}`}
+                  value={fmt(data.balances.stakedAgent, data.baseDecimals)}
+                />
+                <BalanceCell label={wSymbol} value={fmt(data.balances.wrapped, data.quoteDecimals)} />
+                <BalanceCell label={asset} value={fmt(data.balances.prestock, data.quoteDecimals)} />
+              </div>
+            ) : null}
           </div>
         )}
 
         <p className="flex items-start gap-2 font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
           <Icon icon={Wallet} size={14} dither={false} />
-          <span>
-            Each step is signed in your wallet. Buying pays in {wSymbol}, redeemable 1:1 for{" "}
-            {asset}. USDC routes go through Jupiter on mainnet.
-          </span>
+          <span>Each step is signed in your wallet.</span>
         </p>
       </div>
     </div>
@@ -581,6 +584,24 @@ function Row({ k, v }: { k: string; v: string }) {
     <div className="flex items-baseline justify-between gap-4">
       <span className="label shrink-0">{k}</span>
       <span className="truncate font-mono text-xs text-ink-faint">{v}</span>
+    </div>
+  );
+}
+
+/** A single bordered balance cell — the figure carries the cell. */
+function BalanceCell({
+  label,
+  value,
+  className = "",
+}: {
+  label: string;
+  value: string;
+  className?: string;
+}) {
+  return (
+    <div className={`flex flex-col gap-1.5 bg-void p-4 ${className}`}>
+      <span className="label">{label}</span>
+      <span className="tabular font-mono text-xl leading-none text-ink">{value}</span>
     </div>
   );
 }

@@ -75,7 +75,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
               <h1 className="font-display text-3xl leading-none text-ink sm:text-4xl">
                 {agent.name}
               </h1>
-              <span className="font-mono text-xs tracking-[0.16em] text-ink-faint uppercase">
+              <span className="font-mono text-lg tracking-[0.16em] text-ink-dim uppercase">
                 ${agent.ticker}
               </span>
             </div>
@@ -124,7 +124,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
       t: Math.floor(Date.now() / 1000),
       kind: "attest",
       text:
-        `regime ${regimeState.toUpperCase()} — reference stale ${(regime.stalenessSecs / 3600).toFixed(1)}h` +
+        `regime ${regimeState.toUpperCase()}, reference stale ${(regime.stalenessSecs / 3600).toFixed(1)}h` +
         `  (last print ${new Date(regime.publishTime * 1000).toISOString()})`,
     },
     {
@@ -169,7 +169,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
               <h1 className="font-display text-3xl leading-none text-ink sm:text-4xl">
                 {agent.name}
               </h1>
-              <span className="font-mono text-xs tracking-[0.16em] text-ink-faint uppercase">
+              <span className="font-mono text-lg tracking-[0.16em] text-ink-dim uppercase">
                 ${agent.ticker}
               </span>
               <span className="border border-signal-dim/60 px-2 py-1 font-mono text-[0.625rem] tracking-[0.14em] text-signal uppercase">
@@ -179,15 +179,16 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
             <p className="max-w-xl text-sm leading-relaxed text-ink-dim">{agent.thesis}</p>
             {isMock(agent.asset) && (
               <p className="max-w-xl font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
-                Devnet mock — the reference market below is the live {underlyingSymbol(agent.asset)}{" "}
+                Devnet mock. The reference market below is the live {underlyingSymbol(agent.asset)}{" "}
                 market, not the mock&apos;s.
               </p>
             )}
           </div>
 
           <div className="flex flex-col items-end gap-2">
-            <span className="label">Gap</span>
+            <span className="label">Gap vs official mark</span>
             <Basis premiumBps={basisBps} size="lg" />
+            <span className="font-mono text-[0.625rem] text-ink-faint">100bps = 1%</span>
           </div>
         </div>
       </div>
@@ -203,19 +204,20 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
           <Terminal rows={rows} title={`${agent.ticker.toLowerCase()}.log`} />
 
           {dex && (
-            <div className="panel flex flex-col gap-4 p-6">
+            <div className="flex flex-col gap-3">
               <span className="label">Market detail</span>
-              <dl className="grid grid-cols-2 gap-x-8 gap-y-4 sm:grid-cols-3">
-                <Field k="Route" v={dex.route.join(" → ") || "—"} />
-                <Field k="Price impact" v={`${(dex.priceImpactPct * 100).toFixed(3)}%`} />
-                <Field
-                  k="Issuer price"
-                  v={`$${prestock.tokenPrice.toFixed(2)}`}
-                  hint="official"
+              <dl className="grid grid-cols-2 gap-px border border-edge bg-edge">
+                <DetailCell k="Route" v={dex.route.join(" → ") || "n/a"} />
+                <DetailCell k="Price impact" v={`${(dex.priceImpactPct * 100).toFixed(3)}%`} />
+                <DetailCell k="Issuer price" v={`$${prestock.tokenPrice.toFixed(2)}`} hint="official" />
+                <DetailCell k="Supply" v={compactNumber(prestock.supply)} />
+                <DetailCell
+                  k="Multiplier"
+                  v={multiplier ? `${multiplier.toFixed(4)}×` : "n/a"}
+                  hint="scaledUiAmount"
                 />
-                <Field k="Supply" v={compactNumber(prestock.supply)} />
-                <Field k="Implied valuation" v={usd(prestock.impliedValuation, { compact: true })} />
-                <Field k="Mark valuation" v={usd(prestock.markValuation, { compact: true })} />
+                <DetailCell k="Implied valuation" v={usd(prestock.impliedValuation, { compact: true })} />
+                <DetailCell k="Mark valuation" v={usd(prestock.markValuation, { compact: true })} />
               </dl>
             </div>
           )}
@@ -260,14 +262,10 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
           {/* Dividend claim box — §8 */}
           <div className="panel flex flex-col gap-4 p-6">
             <span className="label">Your dividends</span>
-            <div className="flex items-baseline justify-between">
-              <span className="font-mono text-xs text-ink-dim uppercase">Staked</span>
-              <span className="tabular font-mono text-sm text-ink">—</span>
-            </div>
-            <div className="flex items-baseline justify-between">
-              <span className="font-mono text-xs text-ink-dim uppercase">Uncollected</span>
-              <span className="tabular font-mono text-sm text-ink">—</span>
-            </div>
+            <dl className="grid grid-cols-2 gap-px border border-edge bg-edge">
+              <DetailCell k="Staked" v="0" />
+              <DetailCell k="Uncollected" v="0" />
+            </dl>
             {agent.onchain ? (
               <Link href="/app/vault" className="btn btn-primary mt-1 w-full">
                 Claim in the vault
@@ -278,8 +276,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
               </button>
             )}
             <p className="font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
-              Paid in the wrapped share, redeemable 1:1 for the real token. Rewards build up over
-              time — the longer you hold, the more you claim.
+              Paid in the wrapped share, redeemable 1:1.
             </p>
           </div>
         </div>
@@ -288,11 +285,11 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
   );
 }
 
-function Field({ k, v, hint }: { k: string; v: string; hint?: string }) {
+function DetailCell({ k, v, hint }: { k: string; v: string; hint?: string }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1.5 bg-void p-4">
       <dt className="label">{k}</dt>
-      <dd className="tabular font-mono text-sm break-words text-ink-dim">
+      <dd className="tabular font-mono text-base break-words text-ink-dim">
         {v}
         {hint && <span className="ml-2 text-ink-faint">{hint}</span>}
       </dd>
