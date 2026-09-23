@@ -9,10 +9,14 @@
  *   pnpm exec tsx agent/src/runner.ts              # one sweep, read-only
  *   pnpm exec tsx agent/src/runner.ts --loop       # sweep on an interval
  *
- * What this file is: discovery, filtering and the per-agent schedule. What it is
- * not yet: the send path. Executing for someone else's agent needs that agent's
- * `agent_signer` keypair, which the registry stores but nobody has handed over.
- * See the note at the bottom of this file.
+ * What this file is: discovery, filtering and the per-agent schedule. The pass it
+ * runs (`pass.ts`) signs with each agent's app-owned key. It is read-only until
+ * the program is on mainnet and the agent wallets are funded — see the note at the
+ * bottom.
+ *
+ * On devnet the assets are mocks and the equity feed is mainnet-only, so the
+ * snapshot is read from a separate mainnet connection (`MARKET_RPC_URL`) and the
+ * mock wrapper is mapped back to the real underlying symbol.
  *
  * Filtering is by creator. There is no on-chain beta flag, so:
  *   - `AGENT_INCLUDE_CREATORS` (allowlist) wins when set;
@@ -40,6 +44,28 @@ const BETA_CREATORS = new Set<string>([
   "2bzf6MDmz43X1Zi1iisfYC7N3Ys3t8fs8ZXTvoqdyRom",
 ]);
 
+/**
+ * Mirror of `IDENTITIES` in `web/lib/devnet-assets.ts`: devnet has no symbols on
+ * chain, so the mocks borrow the identity of the real shares they stand in for,
+ * assigned by sorted prestock mint. We map to the **underlying** symbol, because
+ * the snapshot is fetched from the real issuer API.
+ */
+const DEVNET_IDENTITIES = [
+  "SPACEX",
+  "OPENAI",
+  "ANDURIL",
+  "ANTHROPIC",
+  "NEURALINK",
+  "KALSHI",
+  "POLYMARKET",
+  "FIGUREAI",
+] as const;
+
+function devnetSymbol(prestockMint: string, sorted: string[]): string | null {
+  const i = sorted.indexOf(prestockMint);
+  return i < 0 ? null : DEVNET_IDENTITIES[i % DEVNET_IDENTITIES.length];
+}
+
 const list = (name: string) =>
   (process.env[name] ?? "")
     .split(",")
@@ -62,7 +88,12 @@ async function fetchSymbols(): Promise<Map<string, string>> {
   }
 }
 
-async function sweep(program: anchor.Program, conn: Connection, execute: boolean) {
+async function sweep(
+  program: anchor.Program,
+  conn: Connection,
+  marketConn: Connection,
+  execute: boolean,
+) {
   // `program.account` is untyped through the JSON IDL; the names match the Rust
   // account structs (`Agent`, `WrapperConfig`).
   const accounts = program.account as any;
@@ -78,6 +109,10 @@ async function sweep(program: anchor.Program, conn: Connection, execute: boolean
     ]),
   );
   const symbols = await fetchSymbols();
+  const isDevnet = config.rpcUrl.includes("devnet");
+  const sortedPrestockMints = (wrappers as any[])
+    .map((w) => w.account.prestockMint.toBase58())
+    .sort();
 
   const include = new Set(list("AGENT_INCLUDE_CREATORS"));
   const exclude = new Set([...BETA_CREATORS, ...list("AGENT_EXCLUDE_CREATORS")]);
@@ -102,7 +137,11 @@ async function sweep(program: anchor.Program, conn: Connection, execute: boolean
     const agentMint = account.agentTokenMint.toBase58();
     const wrappedMint = account.wrappedMint.toBase58();
     const prestockMint = wrappedToPrestock.get(wrappedMint) ?? null;
-    const symbol = prestockMint ? symbols.get(prestockMint) ?? null : null;
+    const symbol = prestockMint
+      ? isDevnet
+        ? devnetSymbol(prestockMint, sortedPrestockMints)
+        : symbols.get(prestockMint) ?? null
+      : null;
     const rows = await chain.readExecutions(program, publicKey, 1).catch(() => []);
     const lastAt = rows[0]?.executedAt ?? 0;
     const due = now - lastAt >= cooldown;
@@ -128,6 +167,7 @@ async function sweep(program: anchor.Program, conn: Connection, execute: boolean
       const pass = await runAgentPass({
         program: agentProgram,
         conn,
+        marketConn,
         agentMint: new PublicKey(agentMint),
         symbol,
         execute,
@@ -159,16 +199,17 @@ async function main() {
   const execute = args.includes("--execute");
   const { program } = chain.loadProgram();
   const conn = new Connection(config.rpcUrl, "confirmed");
+  const marketConn = new Connection(config.marketRpcUrl, "confirmed");
   const sweepSeconds = Number(process.env.AGENT_SWEEP_SECONDS ?? "120");
 
   console.log(
-    `runner  rpc=${config.rpcUrl}  backend=${config.execution}  ` +
+    `runner  rpc=${config.rpcUrl}  market=${config.marketRpcUrl}  backend=${config.execution}  ` +
       `mode=${execute ? "EXECUTE" : "read-only"}`,
   );
 
   const run = async () => {
     try {
-      await sweep(program, conn, execute);
+      await sweep(program, conn, marketConn, execute);
     } catch (e: unknown) {
       console.error(`sweep failed: ${e instanceof Error ? e.message : String(e)}`);
     }

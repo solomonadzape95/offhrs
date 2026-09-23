@@ -37,6 +37,11 @@ export type AgentPass = {
 export type RunAgentPassInput = {
   program: anchor.Program;
   conn: Connection;
+  /**
+   * RPC for the market snapshot's Pyth leg. Defaults to `conn`. On devnet, pass a
+   * mainnet connection — the program is on devnet but the equity feed is not.
+   */
+  marketConn?: Connection;
   /** The `$AGENT` mint. The `Agent` PDA is seeded by it, not by the PreStock. */
   agentMint: PublicKey;
   symbol: string;
@@ -49,7 +54,8 @@ export type RunAgentPassInput = {
 export async function runAgentPass(input: RunAgentPassInput): Promise<AgentPass> {
   const { program, conn, agentMint, symbol, execute } = input;
 
-  const snap = await collectSnapshot(conn, symbol, config.referenceFeed, config.frozenAfterSecs);
+  const market = input.marketConn ?? conn;
+  const snap = await collectSnapshot(market, symbol, config.referenceFeed, config.frozenAfterSecs);
   const decision = decide(snap);
 
   if (!shouldExecute(decision) || !execute) {

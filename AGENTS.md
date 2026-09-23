@@ -651,3 +651,26 @@ seed = HMAC-SHA256(AGENT_MASTER_SECRET, "agent-signer:" + agent_mint)
   the real PreStocks are on mainnet.
 - **Not the agent's curve.** The bot trades the *stock* against its mark. The
   `$AGENT` DBC buy/sell in `web/lib/trade.ts` is for holders, not the bot.
+
+---
+
+## 17. The multi-agent runner (23 Sep)
+
+`agent/src/runner.ts` enumerates every `Agent` on chain, filters by creator
+(`AGENT_INCLUDE_CREATORS` allowlist wins; otherwise the beta denylist plus
+`AGENT_EXCLUDE_CREATORS`), and runs `runAgentPass` per agent. `--loop` sweeps every
+`AGENT_SWEEP_SECONDS`. New user agents are picked up automatically — no config.
+
+- **Env:** `RPC_URL` (or `PROGRAM_RPC_URL`) is the **program** cluster;
+  `MARKET_RPC_URL` is the **market** RPC and defaults to mainnet, because the equity
+  feed is mainnet-only. On devnet the two differ: agents are read from devnet, the
+  snapshot from mainnet.
+- **Devnet:** the mocks have no symbol on chain, so `DEVNET_IDENTITIES` maps the
+  sorted wrappers back to the real underlying symbols (mirror of
+  `web/lib/devnet-assets.ts`), and the snapshot is the real market. The worker logs
+  live decisions on devnet even though it cannot trade there.
+- **Execute:** `--execute` signs with each agent's app-owned key (`agentSignerFor`).
+  Gated on funded agent wallets and a mainnet program — Jupiter is mainnet-only.
+- **Render:** `render.yaml` runs it as a background worker
+  (`node_modules/.bin/tsx agent/src/runner.ts --loop`). The build must **not** run
+  `corepack enable` (read-only `/usr/bin` on Render); it uses `corepack pnpm`.

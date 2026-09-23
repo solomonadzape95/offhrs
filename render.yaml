@@ -23,7 +23,9 @@ services:
     autoDeploy: true
     envVars:
       - key: RPC_URL
-        sync: false # a dedicated devnet/mainnet RPC
+        sync: false # a dedicated devnet RPC (the program's cluster)
+      - key: MARKET_RPC_URL
+        value: https://api.mainnet-beta.solana.com # the equity feed is mainnet-only
       - key: ANGEL_PROGRAM_ID
         value: FoVBZRFCamH1HNMiVpNZV2QJxk9bSxWtQvKgmqZ1rVLw
       - key: AGENT_SWEEP_SECONDS

@@ -9,8 +9,23 @@ const num = (v: string | undefined, d: number) => (v === undefined ? d : Number(
 const bool = (v: string | undefined, d = false) => (v === undefined ? d : v === "1" || v === "true");
 
 export const config = {
-  /** RPC for on-chain Pyth reads + program calls. */
-  rpcUrl: process.env.RPC_URL ?? "https://api.mainnet-beta.solana.com",
+  /**
+   * RPC for on-chain Pyth reads + program calls. `PROGRAM_RPC_URL` wins so the
+   * agent can share the web app's env names; `RPC_URL` is the older alias.
+   */
+  rpcUrl:
+    process.env.PROGRAM_RPC_URL ??
+    process.env.RPC_URL ??
+    "https://api.mainnet-beta.solana.com",
+
+  /**
+   * RPC for *market* reads (the Pyth equity feed, and the snapshot's Pyth leg).
+   *
+   * Separate from `rpcUrl` because the program can be on devnet while the equity
+   * feed is mainnet-only — the same split the web app makes between `RPC_URL` and
+   * `PROGRAM_RPC_URL`. On devnet, set this to a mainnet endpoint.
+   */
+  marketRpcUrl: process.env.MARKET_RPC_URL ?? "https://api.mainnet-beta.solana.com",
 
   /**
    * Where the agent executes. `dryrun` decides and logs but sends nothing, so
