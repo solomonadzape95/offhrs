@@ -10,6 +10,7 @@ import {
 } from "@solana/kit";
 
 import {
+  buildBuyAgentTx,
   buildCreateAgentCurveTx,
   buildInitializeVaultTx,
   buildRegisterAgentTx,
@@ -47,6 +48,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
 
   const [agentSigner, setAgentSigner] = useState("");
   const [agentTokenMint, setAgentTokenMint] = useState("");
+  const [creatorBuy, setCreatorBuy] = useState("1");
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [asset, setAsset] = useState(
@@ -105,10 +107,18 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
   );
 
   /** The steps the deploy will run, in order, for the chosen source. */
-  const deploySteps =
-    source === "self"
-      ? ["Create config + pool", "Register agent", "Create vault"]
-      : ["Register agent", "Create vault"];
+  const wSymbol = `w${asset}`;
+  const creatorBuyNum = Number(creatorBuy);
+  const creatorBuyRaw =
+    Number.isFinite(creatorBuyNum) && creatorBuyNum > 0
+      ? BigInt(Math.round(creatorBuyNum * 1e9))
+      : 0n;
+  const deploySteps = [
+    ...(source === "self" ? ["Create config + pool"] : []),
+    "Register agent",
+    "Create vault",
+    ...(creatorBuyRaw > 0n ? ["Buy your allocation"] : []),
+  ];
 
   /**
    * Decode a server-built tx, sign it with the wallet, relay it.
@@ -164,8 +174,21 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
       const vault = await buildInitializeVaultTx(address, mint, chosen.mint, 0);
       if ("error" in vault) throw new Error(vault.error);
       await signAndSend(vault.tx, step);
+      step += 1;
 
-      setDeploy({ k: "done", mint, pda: await agentPda(mint) });
+      const pda = await agentPda(mint);
+
+      // The creator's opening allocation. A DBC first buy, sent straight to the
+      // wallet — so launching leaves you holding your own token, not just a pool.
+      if (creatorBuyRaw > 0n) {
+        setDeploy({ k: "busy", step, phase: "building" });
+        const buy = await buildBuyAgentTx(address, pda, creatorBuyRaw.toString(), false);
+        if ("error" in buy) throw new Error(buy.error);
+        await signAndSend(buy.tx, step);
+        step += 1;
+      }
+
+      setDeploy({ k: "done", mint, pda });
     } catch (e) {
       setDeploy({ k: "error", error: describeWalletError(e), step });
     }
@@ -255,6 +278,21 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
                   if Clawpump is unavailable.
                 </p>
               )}
+              <Field
+                label="Buy at launch"
+                hint={`${wSymbol} · your opening allocation, bought on the curve`}
+              >
+                <input
+                  value={creatorBuy}
+                  onChange={(e) => setCreatorBuy(e.target.value.replace(/[^0-9.]/g, ""))}
+                  inputMode="decimal"
+                  className="tabular w-full border-b border-edge bg-transparent pb-2 font-mono text-sm text-ink outline-none focus:border-signal"
+                />
+                <span className="font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
+                  The rest of the supply goes on the curve. This buys yours at the opening price and
+                  sends it straight to your wallet, so you launch holding your own token.
+                </span>
+              </Field>
             </>
           )}
 
@@ -401,6 +439,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
                 <SummaryCell k="Token" v={name && symbol ? `${name} ($${symbol})` : "—"} />
                 <SummaryCell k="Dividend asset" v={asset} />
                 <SummaryCell k="Curve fee" v={`${(feeBps / 100).toFixed(1)}%`} />
+                <SummaryCell k="Your allocation" v={`${creatorBuy || "0"} ${wSymbol}`} />
                 <SummaryCell k="Pool currency" v={`w${asset}`} hint="zero-fee wrapper" />
               </dl>
 

@@ -157,7 +157,11 @@ export function CurvePreview({
       </div>
 
       {state.kind === "loading" && (
-        <p className="font-mono text-xs text-ink-faint">Computing…</p>
+        <div className="grid grid-cols-2 gap-px border border-edge bg-edge">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <span key={i} className={`h-16 animate-pulse bg-raised ${i === 0 ? "col-span-2" : ""}`} />
+          ))}
+        </div>
       )}
 
       {state.kind === "error" && (
@@ -166,17 +170,22 @@ export function CurvePreview({
 
       {state.kind === "ok" && (
         <>
-          <dl className="flex flex-col divide-y divide-edge/60">
-            <Row k="Total supply" v={`${state.data.supply} $AGENT`} />
-            <Row k="Curve points" v={String(state.data.points)} />
-            <Row
+          <dl className="grid grid-cols-2 gap-px border border-edge bg-edge">
+            <CurveCell className="col-span-2" k="Total supply" v={`${state.data.supply} $AGENT`} />
+            <CurveCell k="Curve points" v={String(state.data.points)} />
+            <CurveCell
               k="Start → end fee"
               v={`${(state.data.startingFeeBps / 100).toFixed(2)}% → ${(state.data.endingFeeBps / 100).toFixed(2)}%`}
             />
-            <Row k="Fee collected in" v={`${state.data.collectFeeMode} (w${symbol})`} />
-            <Row k="Initial price" v={`${state.data.initialPrice} w${symbol}`} />
-            <Row k="Migration at" v={`${state.data.migrationPrice} w${symbol}`} />
-            <Row
+            <CurveCell k="Initial price" v={`${state.data.initialPrice} w${symbol}`} />
+            <CurveCell k="Migration at" v={`${state.data.migrationPrice} w${symbol}`} />
+            <CurveCell
+              className="col-span-2"
+              k="Fee collected in"
+              v={`${state.data.collectFeeMode} (w${symbol})`}
+            />
+            <CurveCell
+              className="col-span-2"
               k="Migration threshold"
               v={`${state.data.threshold} w${symbol}`}
               hint="quote-token units, not dollars"
@@ -194,11 +203,21 @@ export function CurvePreview({
   );
 }
 
-function Row({ k, v, hint }: { k: string; v: string; hint?: string }) {
+function CurveCell({
+  k,
+  v,
+  hint,
+  className = "",
+}: {
+  k: string;
+  v: string;
+  hint?: string;
+  className?: string;
+}) {
   return (
-    <div className="flex items-baseline justify-between gap-4 py-2.5">
-      <dt className="label shrink-0">{k}</dt>
-      <dd className="text-right font-mono text-xs text-ink-dim">
+    <div className={`flex flex-col gap-1.5 bg-void p-4 ${className}`}>
+      <dt className="label">{k}</dt>
+      <dd className="tabular font-mono text-sm break-words text-ink-dim">
         {v}
         {hint && <span className="ml-2 text-ink-faint">{hint}</span>}
       </dd>
