@@ -64,7 +64,7 @@ export function AgentCard({ agent, asset }: { agent: AgentSeed; asset?: PreStock
       {/* Dividend badge — names the exact asset the vault streams */}
       <div className="flex flex-wrap items-center gap-2">
         <span className="border border-signal-dim/60 px-2 py-1 font-mono text-[0.625rem] tracking-[0.14em] text-signal uppercase">
-          yields {asset?.symbol ?? agent.asset}
+          yields {agent.asset}
         </span>
         <span className="font-mono text-[0.625rem] tracking-[0.14em] text-ink-faint uppercase">
           {agent.feeBps / 100}% curve fee

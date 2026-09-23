@@ -1,6 +1,6 @@
 import { ExploreGrid } from "@/components/app/explore-grid";
 import { fetchLiveAgents } from "@/lib/chain";
-import { readPyth, FROZEN_AFTER_SECS } from "@/lib/market";
+import { fetchAllPreStocks, readPyth, FROZEN_AFTER_SECS } from "@/lib/market";
 import { fetchUniverse, isDevnet } from "@/lib/universe";
 import { LiveBadge } from "@/components/site/live-badge";
 
@@ -13,17 +13,20 @@ export const metadata = {
 
 /** §2 The Marketplace. */
 export default async function ExplorePage() {
-  const stocks = await fetchUniverse().catch(() => []);
-  const [regime, live] = await Promise.all([
+  const universe = await fetchUniverse().catch(() => []);
+  const [market, regime, live] = await Promise.all([
+    fetchAllPreStocks().catch(() => []),
     readPyth().catch(() => null),
-    fetchLiveAgents(stocks.map((s) => ({ symbol: s.symbol, mint: s.mint }))).catch(() => []),
+    fetchLiveAgents(universe.map((s) => ({ symbol: s.symbol, mint: s.mint }))).catch(() => []),
   ]);
 
-  // Only registrations that actually exist on chain. The preview set is gone.
+  // On devnet the agents carry `off`-prefixed mock symbols; the cards show the real
+  // underlying's market, so their figures match the agent terminal.
+  const assets = market.length > 0 ? market : universe;
   const agents = live;
 
   const frozen = regime ? regime.stalenessSecs > FROZEN_AFTER_SECS : false;
-  const widest = [...stocks].sort((a, b) => Math.abs(b.premiumBps) - Math.abs(a.premiumBps))[0];
+  const widest = [...assets].sort((a, b) => Math.abs(b.premiumBps) - Math.abs(a.premiumBps))[0];
 
   return (
     <section className="mx-auto max-w-app px-5 py-14 sm:px-8 sm:py-20">
@@ -54,7 +57,7 @@ export default async function ExplorePage() {
       </div>
 
       <div className="mt-14">
-        <ExploreGrid agents={agents} assets={stocks} />
+        <ExploreGrid agents={agents} assets={assets} />
       </div>
 
       <p className="mt-14 border-t border-edge pt-6 font-mono text-xs leading-relaxed text-ink-faint">
