@@ -52,10 +52,17 @@ function base58Decode(s: string): Uint8Array {
   return Uint8Array.from(bytes.reverse());
 }
 
-export function loadProgram(): { program: anchor.Program; provider: anchor.AnchorProvider } {
+/**
+ * Load the program. Pass a keypair to act as a specific agent's signer; omit it
+ * and the operator key from `loadKeypair()` is used.
+ */
+export function loadProgram(keypair?: Keypair): {
+  program: anchor.Program;
+  provider: anchor.AnchorProvider;
+} {
   const idl = JSON.parse(fs.readFileSync(IDL_PATH, "utf8"));
   const connection = new Connection(config.rpcUrl, "confirmed");
-  const wallet = new anchor.Wallet(loadKeypair());
+  const wallet = new anchor.Wallet(keypair ?? loadKeypair());
   const provider = new anchor.AnchorProvider(connection, wallet, { commitment: "confirmed" });
   const program = new anchor.Program(idl, provider);
   return { program, provider };

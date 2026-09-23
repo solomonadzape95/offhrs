@@ -603,3 +603,34 @@ Two new surfaces, both server-action backed like the rest of the write path.
   Vaults (stream health), Agents, Activity.
 - Admins get an **Admin** entry in the account menu (`components/site/profile-menu.tsx`). The route is
   **not** linked from the footer — it is reached by URL or the account menu.
+
+---
+
+## 16. The agent trading key (23 Sep)
+
+The app owns the key that signs each agent's trades, so the bot can run around
+the clock without asking the creator to sign. There is no database, so the key is
+**derived**, not stored:
+
+```
+seed = HMAC-SHA256(AGENT_MASTER_SECRET, "agent-signer:" + agent_mint)
+```
+
+- **`web/lib/agent-keys.ts`** — server-only. `agentSignerAddress(mint)` is what the
+  launch registers as `agent_signer`; `agentSignerSecret(mint)` returns base58.
+  `buildRegisterAgentTx` derives the signer itself — the launch UI no longer asks
+  for one.
+- **`agent/src/agent-keys.ts`** — the runner half. Same derivation, same secret.
+- **Reveal** — the creator's manage page (`/app/agents/<pda>`, `agent-manage.tsx`)
+  shows the public key, and a "Reveal secret key" button. The reveal is gated by a
+  **wallet signature** over `offhrs-reveal-signer:<mint>:<unix>`, verified
+  server-side with WebCrypto Ed25519 (`revealAgentSigner` in `app/actions.ts`).
+  Do **not** weaken this to a bare address check — that would hand the key to
+  anyone who knows the creator's address.
+- **One secret, many agents.** The master secret must be set on the web app and on
+  the runner (`AGENT_MASTER_SECRET`). Rotating it invalidates every agent's signer.
+  A leak compromises every agent; with a database/KMS this should be a random key
+  per agent instead, and the interface would not change.
+- **Still missing for execution:** the runner is read-only. It needs (a) the
+  per-agent pass extracted to `agent/src/pass.ts`, and (b) the DBC execution
+  adapter (the buy/sell currently lives in `web/lib/trade.ts`).

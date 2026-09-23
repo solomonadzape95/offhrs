@@ -2,10 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { ArrowUpRight, Coins, Pause, Play } from "@phosphor-icons/react";
+import { useEffect, useState } from "react";
+import { useWalletSession } from "@solana/react-hooks";
+import { ArrowUpRight, Check, Coins, Copy, Download, Pause, Play } from "@phosphor-icons/react";
 
-import { buildCloseAgentTx, buildSetPausedTx } from "@/app/actions";
+import {
+  buildCloseAgentTx,
+  buildSetPausedTx,
+  getAgentSignerPublic,
+  revealAgentSigner,
+} from "@/app/actions";
 import { Curve } from "@/components/app/curve";
 import { DitherAvatar } from "@/components/site/dither-avatar";
 import { Stat } from "@/components/site/stat";
@@ -49,6 +55,74 @@ export function AgentManage({ agent, onchain }: { agent: AgentSeed; onchain?: Ma
   const [paused, setPaused] = useState(onchain?.paused ?? false);
   const { state: write, run } = useWriteTx(() => setPaused((p) => !p));
   const closing = useWriteTx(() => router.push("/app/agents"));
+
+  const session = useWalletSession();
+  const [signerPublic, setSignerPublic] = useState<string | null>(null);
+  const [secret, setSecret] = useState<{ base58: string; json: string } | null>(null);
+  const [revealing, setRevealing] = useState(false);
+  const [keyError, setKeyError] = useState<string | null>(null);
+  const [copied, setCopied] = useState<"public" | "secret" | null>(null);
+
+  useEffect(() => {
+    if (!onchain) return;
+    let cancelled = false;
+    void getAgentSignerPublic(onchain.pda).then((res) => {
+      if (!cancelled && "publicKey" in res) setSignerPublic(res.publicKey);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [onchain]);
+
+  const copy = async (text: string, which: "public" | "secret") => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(which);
+      window.setTimeout(() => setCopied(null), 1600);
+    } catch {
+      // Clipboard denied — the value is selectable anyway.
+    }
+  };
+
+  const onReveal = async () => {
+    if (!address || !onchain) return;
+    setKeyError(null);
+    if (!session?.signMessage) {
+      setKeyError("This wallet can't sign a message to prove ownership.");
+      return;
+    }
+    setRevealing(true);
+    try {
+      // A short, agent-specific, recent challenge. The server verifies the
+      // signature against the creator, so a spoofed address cannot get the key.
+      const issuedAt = Math.floor(Date.now() / 1000);
+      const message = `offhrs-reveal-signer:${onchain.agentTokenMint}:${issuedAt}`;
+      const signature = await session.signMessage(new TextEncoder().encode(message));
+      const signatureBase64 = btoa(String.fromCharCode(...signature));
+      const res = await revealAgentSigner(address, onchain.pda, message, signatureBase64);
+      if ("error" in res) {
+        setKeyError(res.error);
+      } else {
+        setSecret({ base58: res.secretKey, json: res.secretKeyJson });
+        setSignerPublic(res.publicKey);
+      }
+    } catch (e) {
+      setKeyError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRevealing(false);
+    }
+  };
+
+  const downloadKeypair = () => {
+    if (!secret) return;
+    const blob = new Blob([secret.json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(agent.ticker || "agent").toLowerCase()}-signer.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const busy = write.status === "signing" || write.status === "sending";
 
@@ -174,6 +248,83 @@ export function AgentManage({ agent, onchain }: { agent: AgentSeed; onchain?: Ma
           </div>
         </div>
       </div>
+
+      {onchain && (
+        <div className="panel flex flex-col gap-5 p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <span className="label">Trading key</span>
+              <p className="mt-1 max-w-lg text-sm leading-relaxed text-ink-dim">
+                Offhrs holds the key that signs this agent&apos;s trades. Copy it if you want to run
+                your own bot, or keep it somewhere safe.
+              </p>
+            </div>
+            <span className="border border-signal-dim/60 px-2 py-0.5 font-mono text-[0.625rem] tracking-[0.14em] text-signal uppercase">
+              app-owned
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className="label">Public key</span>
+            <div className="flex items-center gap-3 border border-edge bg-void px-4 py-3">
+              <span className="min-w-0 flex-1 truncate font-mono text-xs text-ink-dim">
+                {signerPublic ?? "—"}
+              </span>
+              <button
+                type="button"
+                disabled={!signerPublic}
+                onClick={() => signerPublic && void copy(signerPublic, "public")}
+                className="inline-flex shrink-0 items-center gap-1.5 font-mono text-[0.625rem] tracking-wider text-ink-faint uppercase transition-colors hover:text-signal disabled:opacity-40"
+              >
+                <Icon icon={copied === "public" ? Check : Copy} size={11} dither={false} />
+                {copied === "public" ? "Copied" : "Copy"}
+              </button>
+            </div>
+          </div>
+
+          {secret ? (
+            <div className="flex flex-col gap-2">
+              <span className="label">Secret key</span>
+              <div className="flex items-center gap-3 border border-ember/40 bg-void px-4 py-3">
+                <span className="min-w-0 flex-1 truncate font-mono text-xs text-ink">
+                  {secret.base58}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void copy(secret.base58, "secret")}
+                  className="inline-flex shrink-0 items-center gap-1.5 font-mono text-[0.625rem] tracking-wider text-ink-faint uppercase transition-colors hover:text-signal"
+                >
+                  <Icon icon={copied === "secret" ? Check : Copy} size={11} dither={false} />
+                  {copied === "secret" ? "Copied" : "Copy"}
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadKeypair}
+                  className="inline-flex shrink-0 items-center gap-1.5 font-mono text-[0.625rem] tracking-wider text-ink-faint uppercase transition-colors hover:text-signal"
+                >
+                  <Icon icon={Download} size={11} dither={false} />
+                  File
+                </button>
+              </div>
+              <p className="font-mono text-[0.6875rem] leading-relaxed text-ember">
+                Anyone with this key can trade this agent, and it stays valid if you disconnect.
+                Don&apos;t paste it anywhere you wouldn&apos;t paste a wallet key.
+              </p>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void onReveal()}
+              disabled={revealing}
+              className="btn btn-ghost self-start !px-4 !py-2.5 !text-xs disabled:opacity-50"
+            >
+              {revealing ? "Waiting for signature…" : "Reveal secret key"}
+            </button>
+          )}
+
+          {keyError && <p className="text-xs leading-relaxed text-ember">{keyError}</p>}
+        </div>
+      )}
 
       {onchain && (
         <div className="panel flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">

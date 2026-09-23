@@ -29,5 +29,7 @@ services:
         value: "300"
       - key: AGENT_KEYPAIR
         sync: false # the signing key, once the runner can send
+      - key: AGENT_MASTER_SECRET
+        sync: false # must match the web app's, or the runner cannot sign for agents
       - key: AGENT_INCLUDE_CREATORS
         sync: false # comma-separated allowlist of real users

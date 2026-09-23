@@ -13,7 +13,7 @@
  * they return empty data rather than throwing, so a page renders an honest empty
  * state instead of an error boundary.
  */
-import { Connection } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 
 import {
   fetchAgentByPda,
@@ -43,6 +43,7 @@ import {
   buildWrapTransaction,
 } from "@/lib/program-tx";
 import { buildBuyTransaction, buildSellTransaction, loadPool, quoteTrade } from "@/lib/trade";
+import { agentSignerAddress, agentSignerFor, agentSignerSecret } from "@/lib/agent-keys";
 import { buildCreateAgentCurve } from "@/lib/launch";
 import { faucet } from "@/lib/faucet";
 import { fetchUniverse } from "@/lib/universe";
@@ -320,10 +321,12 @@ export async function buildRegisterAgentTx(
   owner: string,
   agentTokenMint: string,
   prestockMint: string,
-  agentSigner: string,
   feeBps: number,
 ): Promise<BuildTxResult> {
   try {
+    // The app owns the trading key. Derive its public key from the master secret
+    // and the agent mint; the runner derives the same keypair and signs with it.
+    const agentSigner = agentSignerAddress(agentTokenMint);
     const { blockhash } = await rpc().getLatestBlockhash("confirmed");
     const tx = await buildRegisterAgentTransaction(
       owner,
@@ -358,6 +361,81 @@ export async function buildInitializeVaultTx(
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Agent trading key — app-owned, revealed only to the creator.
+// ---------------------------------------------------------------------------
+
+/** The public half of an agent's app-owned signer. Safe to show anyone. */
+export async function getAgentSignerPublic(
+  agentId: string,
+): Promise<{ publicKey: string } | { error: string }> {
+  try {
+    const agent = await fetchAgentByPda(agentId);
+    if (!agent) return { error: "No agent at that address on this cluster." };
+    return { publicKey: agentSignerAddress(agent.agentTokenMint) };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/**
+ * Reveal an agent's secret trading key to its creator.
+ *
+ * Gated by a wallet signature, not just the creator address: the caller signs a
+ * short, recent, agent-specific challenge and the server verifies it against the
+ * claimed owner. Without that, anyone could pass the creator's public address and
+ * walk off with the key.
+ */
+export async function revealAgentSigner(
+  owner: string,
+  agentId: string,
+  message: string,
+  signatureBase64: string,
+): Promise<{ secretKey: string; secretKeyJson: string; publicKey: string } | { error: string }> {
+  try {
+    const agent = await fetchAgentByPda(agentId);
+    if (!agent) return { error: "No agent at that address on this cluster." };
+    if (agent.creator !== owner) {
+      return { error: "Only the agent's creator can reveal its trading key." };
+    }
+
+    const prefix = `offhrs-reveal-signer:${agent.agentTokenMint}:`;
+    if (!message.startsWith(prefix)) return { error: "Unexpected challenge." };
+    const issuedAt = Number(message.slice(prefix.length));
+    if (!Number.isFinite(issuedAt) || Math.abs(Date.now() / 1000 - issuedAt) > 300) {
+      return { error: "That challenge expired. Try again." };
+    }
+
+    const verified = await verifyEd25519(owner, message, signatureBase64);
+    if (!verified) return { error: "The signature did not match the connected wallet." };
+
+    return {
+      secretKey: agentSignerSecret(agent.agentTokenMint),
+      secretKeyJson: JSON.stringify(Array.from(agentSignerFor(agent.agentTokenMint).secretKey)),
+      publicKey: agentSignerAddress(agent.agentTokenMint),
+    };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Verify a base64 ed25519 signature over `message` by the given wallet address. */
+async function verifyEd25519(
+  address: string,
+  message: string,
+  signatureBase64: string,
+): Promise<boolean> {
+  // `Uint8Array<ArrayBufferLike>` vs the DOM's `ArrayBufferView<ArrayBuffer>`
+  // mismatch is a TS lib artifact; the runtime bytes are the same.
+  const publicKey = new PublicKey(address).toBytes() as unknown as BufferSource;
+  const key = await crypto.subtle.importKey("raw", publicKey, { name: "Ed25519" }, false, [
+    "verify",
+  ]);
+  const signature = Buffer.from(signatureBase64, "base64") as unknown as BufferSource;
+  const data = new TextEncoder().encode(message) as unknown as BufferSource;
+  return crypto.subtle.verify({ name: "Ed25519" }, key, signature, data);
 }
 
 export async function buildSetPausedTx(

@@ -46,7 +46,6 @@ type DeployState =
 export function LaunchStudio({ assets }: { assets: PreStock[] }) {
   const [step, setStep] = useState(0);
 
-  const [agentSigner, setAgentSigner] = useState("");
   const [agentTokenMint, setAgentTokenMint] = useState("");
   const [creatorBuy, setCreatorBuy] = useState("1");
   const [name, setName] = useState("");
@@ -62,12 +61,6 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
   const client = useSolanaClient();
   const { address } = useWalletUi();
   const session = useWalletSession();
-
-  // Prefill the agent signer with the connected wallet — it is a public key, and a
-  // tester's own wallet is the sensible default. They can paste another.
-  useEffect(() => {
-    if (address && !agentSigner) setAgentSigner(address);
-  }, [address, agentSigner]);
 
   // Where the `$AGENT` mint comes from. Clawpump is the normal path; the
   // self-owned DBC launch is the fallback if it falls through.
@@ -100,10 +93,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
 
   const ready = Boolean(checks && checks.every((c) => c.ok === true));
   const canDeploy = Boolean(
-    address &&
-      chosen &&
-      agentSigner.length >= 32 &&
-      (source === "self" || agentTokenMint.length >= 32),
+    address && chosen && (source === "self" || agentTokenMint.length >= 32),
   );
 
   /** The steps the deploy will run, in order, for the chosen source. */
@@ -165,7 +155,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
       }
 
       setDeploy({ k: "busy", step, phase: "building" });
-      const register = await buildRegisterAgentTx(address, mint, chosen.mint, agentSigner, feeBps);
+      const register = await buildRegisterAgentTx(address, mint, chosen.mint, feeBps);
       if ("error" in register) throw new Error(register.error);
       await signAndSend(register.tx, step);
       step += 1;
@@ -195,7 +185,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
   };
 
   const canAdvance =
-    (step === 0 && agentSigner.length >= 32) ||
+    (step === 0 && (source === "self" || agentTokenMint.length >= 32)) ||
     (step === 1 && name.length > 1 && symbol.length >= 2) ||
     step === 2 ||
     step === 3 ||
@@ -246,18 +236,13 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
                   </button>
                 ))}
               </div>
-              <Field label="Agent signer" hint="the public key its trades are signed with">
-                <input
-                  value={agentSigner}
-                  onChange={(e) => setAgentSigner(e.target.value.trim())}
-                  placeholder="9BmQr4kLhVn2XcWpY7TfAd3sGzE6uJqRoP8vNbC1dHfM"
-                  className="w-full border-b border-edge bg-transparent pb-2 font-mono text-sm text-ink outline-none focus:border-signal"
-                />
-                <span className="font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
-                  A public key only — nothing is signed here. Prefilled with your connected wallet;
-                  leave it as is for a devnet test.
-                </span>
-              </Field>
+              <div className="border border-edge bg-surface/60 px-4 py-3">
+                <span className="label">Trading key</span>
+                <p className="mt-1.5 font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
+                  Offhrs creates and holds the key that signs this agent&apos;s trades, so the bot can
+                  run around the clock without asking you to sign. You stay the creator.
+                </p>
+              </div>
               {source === "clawpump" ? (
                 <Field label="Agent token mint" hint="the mint Clawpump created for your token">
                   <input
@@ -435,7 +420,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
               <CurvePreview feeBps={feeBps} symbol={asset} />
 
               <dl className="grid grid-cols-2 gap-px border border-edge bg-edge">
-                <SummaryCell className="col-span-2" k="Agent signer" v={agentSigner || "—"} />
+                <SummaryCell className="col-span-2" k="Trading key" v="Offhrs (app-owned)" />
                 <SummaryCell k="Token" v={name && symbol ? `${name} ($${symbol})` : "—"} />
                 <SummaryCell k="Dividend asset" v={asset} />
                 <SummaryCell k="Curve fee" v={`${(feeBps / 100).toFixed(1)}%`} />
