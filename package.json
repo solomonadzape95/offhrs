@@ -23,13 +23,5 @@
     "ts-mocha": "^11.1.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "bigint-buffer",
-      "bufferutil",
-      "utf-8-validate"
-    ]
   }
 }
