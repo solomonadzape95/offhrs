@@ -92,8 +92,20 @@ feed, and the `/launch` deploy transaction are downstream of it. The mainnet wal
   Solana mint on Meteora"* + a Paste-a-token-mint field means the pair can be our `wPreStock`; the
   preview reports `Fees received in`. ⚠️ Avoid the Ondo/Backpack pairs (non-PreStocks → forfeits the
   PreStocks bounty). Verify the fee currency by pasting `wPreStock` and reading the preview; turn
-  auto-buyback and holder rewards off. The `ClawpumpAdapter` in `agent/src/execution.ts` is still
-  unverified — no API key.
+  auto-buyback and holder rewards off. The `ClawpumpAdapter` in `agent/src/execution.ts` points at
+  `/api/mcp`, which returns the Next.js app shell (404) — that endpoint is wrong; the real API is
+  REST under `/api/v1/`.
+- **⚠️ Clawpump's API does NOT expose the Meteora custom-pair launch (23 Sep, probed live).** With a
+  real key, the only launch endpoints are `/api/v1/launch` and `/api/v1/launch/self-funded`, and both
+  launch on **pump.fun** (SOL-paired); `/api/v1/launch/pons` is Robinhood Chain. A preflight sent with
+  `launchpad: "meteora"` + `pairMint: <wPreStock>` **ignored both** and returned a pump.fun quote —
+  the `preflightToken` payload carries only `mintNonce` + `metadataUri`. Their docs have **zero** hits
+  for "damm" or "bonding", and fees are "collected from pump.fun creator vaults". **So the
+  custom-pair DBC launch above is UI-only.** The programmatic route for a stock-paired curve is our
+  own `lib/launch.ts` (already built); the Clawpump API only yields a pump.fun, SOL-paired token,
+  which loses "fees in the share" and does not reach DAMM v2 (Clawpump track only). The key lives in
+  the gitignored root `.env` as `CLAWPUMP_API_KEY` — **never commit it**. Confirm with Clawpump
+  whether the Meteora launch has or will get an API before building on it.
 - **Pyth `pyth-indices`** — requested, not granted. `Equity.Index.OPENAI/ANTHROPIC` are gated on
   Hermes *and* absent on-chain. Not on the critical path; if granted it is a config change.
 
