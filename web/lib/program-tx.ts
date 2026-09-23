@@ -331,13 +331,26 @@ export async function buildSetPausedTransaction(
   const wrapper = wrappers.find((w) => w.wrappedMint === agent.wrappedMint);
   if (!wrapper) throw new Error("No wrapper for this agent's reward asset.");
 
+  return buildSetPausedForWrapperTransaction(owner, wrapper.prestockMint, paused, blockhash);
+}
+
+/**
+ * `set_paused` on a wrapper addressed by its PreStock mint, without going
+ * through an agent. The admin surface pauses the circuit breaker directly.
+ */
+export function buildSetPausedForWrapperTransaction(
+  owner: string,
+  prestockMint: string,
+  paused: boolean,
+  blockhash: string,
+): Transaction {
   const admin = new PublicKey(owner);
   const tx = new Transaction().add(
     new TransactionInstruction({
       programId: PROGRAM_ID,
       keys: [
         { pubkey: admin, isSigner: true, isWritable: false },
-        { pubkey: wrapperConfigPda(wrapper.prestockMint), isSigner: false, isWritable: true },
+        { pubkey: wrapperConfigPda(prestockMint), isSigner: false, isWritable: true },
       ],
       data: Buffer.concat([Buffer.from(DISC.setPaused), Buffer.from([paused ? 1 : 0])]),
     }),

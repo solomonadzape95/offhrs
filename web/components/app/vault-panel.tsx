@@ -132,7 +132,8 @@ export function VaultPanel() {
             </div>
           ) : rows.length === 0 ? (
             <p className="mt-5 text-sm leading-relaxed text-ink-dim">
-              No agent is registered on this cluster yet, so there is nothing to stake into.
+              You don&apos;t hold any agent tokens yet. Buy one and it can start earning for you
+              straight away.
             </p>
           ) : (
             <>

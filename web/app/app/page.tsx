@@ -191,7 +191,7 @@ function Position() {
               {data && data.rows.length === 0 && (
                 <tr>
                   <td colSpan={6} className="py-6 font-mono text-sm text-ink-faint">
-                    No agents registered on this cluster yet.
+                    Nothing here yet — buy an agent token and it will show up as a position.
                   </td>
                 </tr>
               )}

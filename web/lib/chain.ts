@@ -456,6 +456,12 @@ export const fetchWrappers = () =>
   fetchAll(SIZE.WrapperConfig, DISC.WrapperConfig, decodeWrapper);
 export const fetchVaults = () =>
   fetchAll(SIZE.DividendVault, DISC.DividendVault, decodeVault);
+/**
+ * Every per-holder stake account. This is the only "user" record the protocol
+ * has, and it is enough: each account carries an owner, so a unique-owner count
+ * is a real holder count with no database behind it.
+ */
+export const fetchStakes = () => fetchAll(SIZE.UserStake, DISC.UserStake, decodeStake);
 
 async function decodeAt<T>(
   key: PublicKey,
@@ -562,6 +568,28 @@ export async function fetchMintDecimals(mint: string): Promise<number | null> {
   const info = await connection().getAccountInfo(new PublicKey(mint));
   if (!info) return null;
   return (info.data as Buffer)[44];
+}
+
+/** Lamport balance, in lamports. Used by the admin overview. */
+export async function fetchSolBalance(owner: string): Promise<number> {
+  return connection().getBalance(new PublicKey(owner), "confirmed");
+}
+
+/**
+ * Amount held by a token account addressed directly (a PDA reserve/vault), not
+ * by owner+mint. The SPL layout puts `amount` at offset 64 either way.
+ */
+export async function fetchTokenAccountAmount(account: string): Promise<bigint | null> {
+  const info = await connection().getAccountInfo(new PublicKey(account));
+  if (!info) return null;
+  return (info.data as Buffer).readBigUInt64LE(64);
+}
+
+/** Mint supply. `supply` is a u64 at offset 36 in the SPL and Token-2022 layouts. */
+export async function fetchMintSupply(mint: string): Promise<bigint | null> {
+  const info = await connection().getAccountInfo(new PublicKey(mint));
+  if (!info) return null;
+  return (info.data as Buffer).readBigUInt64LE(36);
 }
 
 /**
@@ -685,6 +713,9 @@ const HIDDEN_AGENT_CREATORS = new Set([
   "2X9aab1UvabVbfHUCJqX5aF2SUCsegerE6evLeSWufkR",
   "2bzf6MDmz43X1Zi1iisfYC7N3Ys3t8fs8ZXTvoqdyRom",
 ]);
+
+/** Whether an agent is test clutter hidden from the public marketplace list. */
+export const isHiddenCreator = (creator: string) => HIDDEN_AGENT_CREATORS.has(creator);
 
 /**
  * Every registered agent, joined with its asset symbol and token metadata. Pass

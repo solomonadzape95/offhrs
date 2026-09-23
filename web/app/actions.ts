@@ -35,6 +35,7 @@ import {
   buildCloseAgentTransaction,
   buildInitializeVaultTransaction,
   buildRegisterAgentTransaction,
+  buildSetPausedForWrapperTransaction,
   buildSetPausedTransaction,
   buildStakeTransaction,
   buildUnstakeTransaction,
@@ -154,10 +155,23 @@ export async function getUserPosition(owner: string): Promise<Portfolio> {
       fetchTokenBalance(a.agentTokenMint, owner, "spl").catch(() => null),
     ]);
 
+    const liquidRaw = liquid ?? 0n;
     const staked = stake?.stakedAmount ?? 0n;
     const debt = stake?.rewardDebt ?? 0n;
     const accrued = (stake?.accrued ?? 0n) + pendingOf(staked, vault ? projectAcc(vault, slot) : 0n, debt);
     const claimed = stake?.totalClaimed ?? 0n;
+
+    totalLiquid += liquidRaw;
+    totalStaked += staked;
+    totalAccrued += accrued;
+    totalIncome += claimed;
+    // Only assets with real equity behind them belong in the inventory.
+    if (accrued > 0n) byWrapped.set(a.wrappedMint, (byWrapped.get(a.wrappedMint) ?? 0n) + accrued);
+
+    // A position is only worth a row when the wallet actually holds something:
+    // liquid `$AGENT`, staked `$AGENT`, or equity accrued behind the stake.
+    if (liquidRaw === 0n && staked === 0n && accrued === 0n) continue;
+
     const l = liveById.get(a.pda);
     const short = a.agentTokenMint.slice(0, 4).toUpperCase();
 
@@ -167,18 +181,12 @@ export async function getUserPosition(owner: string): Promise<Portfolio> {
       ticker: l?.ticker ?? short,
       asset: l?.asset ?? "—",
       feeBps: a.dynamicFeeBps,
-      liquid: fmt(liquid ?? 0n, STAKE_DECIMALS),
+      liquid: fmt(liquidRaw, STAKE_DECIMALS),
       staked: fmt(staked, STAKE_DECIMALS),
       accrued: fmt(accrued, REWARD_DECIMALS),
       claimable: fmt(accrued, REWARD_DECIMALS),
       rewardMint: a.wrappedMint,
     });
-
-    totalLiquid += liquid ?? 0n;
-    totalStaked += staked;
-    totalAccrued += accrued;
-    totalIncome += claimed;
-    byWrapped.set(a.wrappedMint, (byWrapped.get(a.wrappedMint) ?? 0n) + accrued);
   }
 
   const equity = [...byWrapped.entries()].map(([wrappedMint, amount]) => {
@@ -360,6 +368,21 @@ export async function buildSetPausedTx(
   try {
     const { blockhash } = await rpc().getLatestBlockhash("confirmed");
     const tx = await buildSetPausedTransaction(owner, agentId, paused, blockhash);
+    return { tx: serialize(tx) };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** `set_paused` on a wrapper, addressed by its PreStock mint — the admin surface. */
+export async function buildSetPausedForWrapperTx(
+  owner: string,
+  prestockMint: string,
+  paused: boolean,
+): Promise<BuildTxResult> {
+  try {
+    const { blockhash } = await rpc().getLatestBlockhash("confirmed");
+    const tx = buildSetPausedForWrapperTransaction(owner, prestockMint, paused, blockhash);
     return { tx: serialize(tx) };
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) };
