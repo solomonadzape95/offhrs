@@ -19,6 +19,7 @@ import {
   submitTx,
 } from "@/app/actions";
 import { Icon } from "@/components/ui/icon";
+import { compactNumber } from "@/lib/format";
 import { useServerData } from "@/lib/use-server-data";
 import { describeWalletError, useWalletUi } from "@/lib/wallet";
 import {
@@ -67,6 +68,7 @@ const human = (raw: bigint | string, decimals: number) => Number(raw) / 10 ** de
 const fmt = (raw: bigint | string, decimals: number, max = 6) => {
   const n = human(raw, decimals);
   if (!Number.isFinite(n) || n === 0) return "0";
+  if (Math.abs(n) >= 1e6) return compactNumber(n);
   return n.toLocaleString(undefined, { maximumFractionDigits: max });
 };
 

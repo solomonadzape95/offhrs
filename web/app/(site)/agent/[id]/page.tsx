@@ -9,7 +9,7 @@ import { Swap } from "@/components/app/swap";
 import { Terminal, type TerminalRow } from "@/components/app/terminal";
 import { AGENTS, findAgent } from "@/lib/agents";
 import { fetchLiveAgentByPda } from "@/lib/chain";
-import { shortAddr, usd } from "@/lib/format";
+import { compactNumber, shortAddr, usd } from "@/lib/format";
 import { FROZEN_AFTER_SECS, fetchMarket } from "@/lib/market";
 import { poolProgress } from "@/lib/trade";
 import { fetchUniverse } from "@/lib/universe";
@@ -213,7 +213,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                   v={`$${prestock.tokenPrice.toFixed(2)}`}
                   hint="official"
                 />
-                <Field k="Supply" v={prestock.supply.toLocaleString(undefined, { maximumFractionDigits: 0 })} />
+                <Field k="Supply" v={compactNumber(prestock.supply)} />
                 <Field k="Implied valuation" v={usd(prestock.impliedValuation, { compact: true })} />
                 <Field k="Mark valuation" v={usd(prestock.markValuation, { compact: true })} />
               </dl>
@@ -240,13 +240,13 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                 <div className="flex items-baseline justify-between">
                   <span className="label">Tokens left</span>
                   <span className="tabular font-mono text-sm text-ink-dim">
-                    {compactRaw(curve.baseReserve, 6)}
+                    {compactNumber(Number(curve.baseReserve) / 1e6)}
                   </span>
                 </div>
                 <div className="flex items-baseline justify-between">
                   <span className="label">Raised</span>
                   <span className="tabular font-mono text-sm text-ink-dim">
-                    {compactRaw(curve.quoteReserve, 9)} {prestock.symbol}
+                    {compactNumber(Number(curve.quoteReserve) / 1e9)} {prestock.symbol}
                   </span>
                 </div>
               </>
@@ -298,14 +298,4 @@ function Field({ k, v, hint }: { k: string; v: string; hint?: string }) {
       </dd>
     </div>
   );
-}
-
-/** Raw integer amount + decimals -> a compact figure (k/m/b). */
-function compactRaw(raw: bigint, decimals: number): string {
-  const n = Number(raw) / 10 ** decimals;
-  const abs = Math.abs(n);
-  if (abs >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
-  if (abs >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
-  if (abs >= 1e3) return `${(n / 1e3).toFixed(2)}K`;
-  return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
 }

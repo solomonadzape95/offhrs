@@ -25,6 +25,22 @@ export function amount(raw: string | bigint, decimals = 9, digits = 4) {
   return v.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
+/**
+ * Compact a plain number for display: 1_000_000_000 -> "1B", 28_416_314 ->
+ * "28.42M". Below 1,000 it keeps decimals, so a small balance still reads as an
+ * amount rather than being rounded to nothing.
+ */
+export function compactNumber(n: number, digits = 2): string {
+  if (!Number.isFinite(n)) return "—";
+  const abs = Math.abs(n);
+  if (abs >= 1e12) return `${(n / 1e12).toFixed(digits)}T`;
+  if (abs >= 1e9) return `${(n / 1e9).toFixed(digits)}B`;
+  if (abs >= 1e6) return `${(n / 1e6).toFixed(digits)}M`;
+  if (abs >= 1e3) return `${(n / 1e3).toFixed(digits)}K`;
+  if (abs === 0) return "0";
+  return n.toLocaleString(undefined, { maximumFractionDigits: 6 });
+}
+
 /** A Pyth price (value + exponent) as a readable number. */
 export const pythPrice = (price: number | string, exponent: number) =>
   Number(price) * 10 ** exponent;

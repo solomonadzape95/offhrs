@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { compactNumber } from "@/lib/format";
+
 /**
  * Curve preview.
  *
@@ -124,7 +126,7 @@ export function CurvePreview({
         setState({
           kind: "ok",
           data: {
-            supply: Number(anyCfg.totalTokenSupply ?? 1_000_000_000).toLocaleString(),
+            supply: compactNumber(Number(anyCfg.totalTokenSupply ?? 1_000_000_000)),
             threshold: String(anyCfg.migrationQuoteThreshold ?? threshold),
             points: curve.length,
             startingFeeBps: feeBps,

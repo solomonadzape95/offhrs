@@ -12,6 +12,7 @@ import { useTheme } from "@/components/site/theme-provider";
 import { Icon } from "@/components/ui/icon";
 import { AGENT_AVATAR_COLOR } from "@/lib/avatar";
 import type { AgentSeed } from "@/lib/agents";
+import { compactNumber } from "@/lib/format";
 import { useWriteTx } from "@/lib/use-write-tx";
 import { useWalletUi } from "@/lib/wallet";
 
@@ -36,7 +37,7 @@ export type ManageData = {
 const fmtWPreStock = (raw: string) => {
   const n = Number(raw) / 1e9;
   if (!Number.isFinite(n) || n === 0) return "0";
-  return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  return compactNumber(n);
 };
 
 export function AgentManage({ agent, onchain }: { agent: AgentSeed; onchain?: ManageData | null }) {
