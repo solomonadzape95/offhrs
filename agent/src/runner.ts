@@ -197,7 +197,9 @@ async function sweep(
 async function main() {
   const args = process.argv.slice(2);
   const execute = args.includes("--execute");
-  const { program } = chain.loadProgram();
+  // Enumeration is read-only. When executing, each agent's own program is loaded
+  // below with that agent's derived key.
+  const { program } = chain.loadReadOnlyProgram();
   const conn = new Connection(config.rpcUrl, "confirmed");
   const marketConn = new Connection(config.marketRpcUrl, "confirmed");
   const sweepSeconds = Number(process.env.AGENT_SWEEP_SECONDS ?? "120");

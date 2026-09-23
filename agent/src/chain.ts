@@ -78,6 +78,20 @@ export function loadProgram(keypair?: Keypair): {
   return { program, provider };
 }
 
+/**
+ * A program for **reads only**.
+ *
+ * Anchor needs a wallet to build a provider, but reads never sign — so a throwaway
+ * key is enough. This is what lets the runner start on a host with no keypair file
+ * (Render). Writes must go through `loadProgram(agentSignerFor(mint))`.
+ */
+export function loadReadOnlyProgram(): {
+  program: anchor.Program;
+  provider: anchor.AnchorProvider;
+} {
+  return loadProgram(Keypair.generate());
+}
+
 export const agentPda = (programId: PublicKey, mint: PublicKey) =>
   PublicKey.findProgramAddressSync([Buffer.from("agent"), mint.toBuffer()], programId)[0];
 

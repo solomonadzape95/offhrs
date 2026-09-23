@@ -77,7 +77,7 @@ async function onePass(conn: Connection, execute: boolean) {
     );
   }
 
-  const { program } = chain.loadProgram();
+  const { program } = execute ? chain.loadProgram() : chain.loadReadOnlyProgram();
   const pass = await runAgentPass({
     program,
     conn,
@@ -109,7 +109,7 @@ async function onePass(conn: Connection, execute: boolean) {
 
 /** Print the on-chain execution log — the §8 "live terminal" data source. */
 async function showExecutions() {
-  const { program } = chain.loadProgram();
+  const { program } = chain.loadReadOnlyProgram();
   if (!config.agentMint) {
     throw new Error("ANGEL_AGENT_MINT is required to read an agent's execution log.");
   }
