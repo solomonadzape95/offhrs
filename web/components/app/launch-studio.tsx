@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useSolanaClient, useWalletSession } from "@solana/react-hooks";
 import {
@@ -14,9 +15,10 @@ import {
   buildRegisterAgentTx,
   submitTx,
 } from "@/app/actions";
-import { Curve } from "@/components/app/curve";
 import { CurvePreview } from "@/components/app/curve-preview";
-import { preflight, type Check } from "@/lib/deploy";
+import { DitherAvatar } from "@/components/site/dither-avatar";
+import { Info } from "@/components/ui/info";
+import { agentPda, preflight, type Check } from "@/lib/deploy";
 import { LEAD_ASSETS, orderByLead } from "@/lib/agents";
 import { usd } from "@/lib/format";
 import type { PreStock } from "@/lib/market";
@@ -37,7 +39,7 @@ const STEPS = ["Agent", "Token", "Dividend asset", "Curve fee", "Deploy"] as con
 type DeployState =
   | { k: "idle" }
   | { k: "busy"; step: number; phase: "building" | "signing" | "sending" }
-  | { k: "done"; mint: string }
+  | { k: "done"; mint: string; pda: string }
   | { k: "error"; error: string; step: number };
 
 export function LaunchStudio({ assets }: { assets: PreStock[] }) {
@@ -163,7 +165,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
       if ("error" in vault) throw new Error(vault.error);
       await signAndSend(vault.tx, step);
 
-      setDeploy({ k: "done", mint });
+      setDeploy({ k: "done", mint, pda: await agentPda(mint) });
     } catch (e) {
       setDeploy({ k: "error", error: describeWalletError(e), step });
     }
@@ -321,7 +323,14 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
             <>
               <Head t="Curve fee" d="What your token charges on each trade. The vault collects it in wPreStock." />
               <div className="flex items-baseline justify-between">
-                <span className="label">Fee tier</span>
+                <span className="flex items-center gap-1.5">
+                  <span className="label">Fee tier</span>
+                  <Info label="What the curve fee is">
+                    A trading fee charged on every buy and sell of the agent token. It accrues in the
+                    quote asset (wPreStock) and is the agent&apos;s income — the vault streams it to
+                    stakers. Higher means more income per trade but a less tradeable token.
+                  </Info>
+                </span>
                 <span className="figure text-2xl text-signal">{(feeBps / 100).toFixed(1)}%</span>
               </div>
               <input
@@ -387,29 +396,31 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
 
               <CurvePreview feeBps={feeBps} symbol={asset} />
 
-              <dl className="flex flex-col gap-3">
-                <Row k="Agent signer" v={agentSigner || "—"} />
-                <Row k="Token" v={name && symbol ? `${name} ($${symbol})` : "—"} />
-                <Row k="Dividend asset" v={asset} />
-                <Row k="Curve fee" v={`${(feeBps / 100).toFixed(1)}%`} />
-                <Row
-                  k="Pool currency"
-                  v={`w${asset} (zero-fee wrapper)`}
-                  hint="the raw share is rejected by the curve"
-                />
+              <dl className="grid grid-cols-2 gap-px border border-edge bg-edge">
+                <SummaryCell className="col-span-2" k="Agent signer" v={agentSigner || "—"} />
+                <SummaryCell k="Token" v={name && symbol ? `${name} ($${symbol})` : "—"} />
+                <SummaryCell k="Dividend asset" v={asset} />
+                <SummaryCell k="Curve fee" v={`${(feeBps / 100).toFixed(1)}%`} />
+                <SummaryCell k="Pool currency" v={`w${asset}`} hint="zero-fee wrapper" />
               </dl>
 
-              <button
-                disabled={!canDeploy || deploy.k === "busy"}
-                onClick={() => void onDeploy()}
-                className="btn btn-primary mt-2 w-full disabled:opacity-50"
-              >
-                {deploy.k === "busy"
-                  ? `${deploySteps[deploy.step] ?? "Deploying"}…`
-                  : source === "self"
-                    ? "Create curve + register + vault"
-                    : "Register agent + create vault"}
-              </button>
+              {deploy.k === "done" ? (
+                <Link href={`/agent/${deploy.pda}`} className="btn btn-primary mt-2 w-full">
+                  View agent
+                </Link>
+              ) : (
+                <button
+                  disabled={!canDeploy || deploy.k === "busy"}
+                  onClick={() => void onDeploy()}
+                  className="btn btn-primary mt-2 w-full disabled:opacity-50"
+                >
+                  {deploy.k === "busy"
+                    ? `${deploySteps[deploy.step] ?? "Deploying"}…`
+                    : source === "self"
+                      ? "Create curve + register + vault"
+                      : "Register agent + create vault"}
+                </button>
+              )}
 
               {deploy.k !== "idle" && <DeployProgress steps={deploySteps} deploy={deploy} />}
 
@@ -455,12 +466,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
         <div className="panel flex flex-col gap-5 p-6">
           <span className="label">Preview</span>
           <div className="flex items-center gap-3">
-            <span
-              aria-hidden
-              className="dither grid size-11 place-items-center border border-edge bg-raised font-mono text-[0.6875rem] text-ink-dim"
-            >
-              {(symbol || "AG").slice(0, 2)}
-            </span>
+            <DitherAvatar name={name || symbol || "agent"} className="size-11 shrink-0" />
             <div className="flex flex-col">
               <span className="text-base leading-tight text-ink">{name || "Unnamed agent"}</span>
               <span className="font-mono text-[0.625rem] tracking-[0.14em] text-ink-faint uppercase">
@@ -490,7 +496,9 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
             </span>
           </div>
 
-          <Curve progress={0} />
+          <span className="font-mono text-[0.625rem] text-ink-faint">
+            A new curve starts at its opening price; the fill begins when the first buy lands.
+          </span>
         </div>
       </div>
     </div>
@@ -601,11 +609,22 @@ function Field({
   );
 }
 
-function Row({ k, v, hint }: { k: string; v: string; hint?: string }) {
+/** A bordered summary cell — full width when the value is a long key. */
+function SummaryCell({
+  k,
+  v,
+  hint,
+  className = "",
+}: {
+  k: string;
+  v: string;
+  hint?: string;
+  className?: string;
+}) {
   return (
-    <div className="flex items-baseline justify-between gap-6 border-b border-edge/60 pb-2">
-      <dt className="label shrink-0">{k}</dt>
-      <dd className="truncate font-mono text-xs text-ink-dim">
+    <div className={`flex flex-col gap-1.5 bg-void p-4 ${className}`}>
+      <dt className="label">{k}</dt>
+      <dd className="font-mono text-sm break-words text-ink-dim">
         {v}
         {hint && <span className="ml-2 text-ink-faint">{hint}</span>}
       </dd>
