@@ -3,7 +3,7 @@
 **Read this first.** It is the entry point for a fresh session. It says what the project is, what
 already works, how to run it, and what is broken or blocked.
 
-Last updated: **Wed 23 Sep 2026, ~01:30 UTC.**
+Last updated: **Wed 23 Sep 2026, ~15:30 UTC.**
 
 ---
 
@@ -298,17 +298,29 @@ rename will break open editors and the paths quoted throughout the docs — do i
 
 ## 9. What to do next
 
-Ordered. §10 is the fuller product queue; this is the short version a fresh session should act on.
+Ordered. §10 is the fuller product queue; §16–17 cover the key model and the runner.
 
-1. **Find the ~2.9 SOL for the mainnet deploy.** This is the single blocker on the real product —
-   the real PreStocks wrappers, the mainnet demo, every dashboard number, the `/launch` deploy
-   path. It is **account rent**, not a fee. §13 covers who to ask and the devnet fallback.
-2. **Demo video + submission.** The browser sign → relay path is now *verified* — a headless Wallet
-   Standard wallet drives the real `/app/vault` stake and the self-owned DBC multi-signer co-sign
-   through the app's own code (`scripts/browser-sign-check.ts`, `day7_results.md`). Only one link is
-   required (GitHub, live demo, or video), so a devnet demo is a valid submission. Deadline Fri
-   25 Sep 16:00 ET.
-3. Optional: propagate the rename (§7).
+**Where we are (23 Sep).** The whole product loop runs on devnet and is committed. The Render
+worker (`render.yaml`, §17) is **live and read-only**, sweeping every 2 min. The app-owned trading
+key is built (§16). The mainnet prep is done: `Anchor.toml` has a `[programs.mainnet]` entry,
+`deploy.sh` normalises the cluster, and `demo_runbook.md` scripts the video.
+
+**The two engineering tasks left:**
+
+1. **`scripts/init-wrappers.ts`** — initialise `wPreStock` for the real mainnet PreStocks after
+   `deploy.sh`. Mechanical; skip any wrapper that already exists.
+2. **Agent-wallet funding** — at launch (or first run), send a small SOL + USDC float to the agent's
+   derived signer so the bot can trade. This is the last thing between the runner and a real trade.
+
+**Then the funding day:** `CLUSTER=mainnet-beta ./scripts/deploy.sh` → `init-wrappers.ts` → set
+`ANGEL_EXECUTION=jupiter` and add `--execute` to the Render start command.
+
+**In parallel — the deadline (Fri 25 Sep 16:00 ET):** record the demo from `demo_runbook.md`.
+Record **after the US close** so the reference is frozen and the agent actually acts. Only one link
+is required, so a devnet demo is a valid submission.
+
+**Also open:** Clawpump's API is pump.fun-only (§3) — the Meteora custom-pair launch is UI-only, so
+our self-owned DBC path is the programmatic launch. Optional: propagate the rename (§7).
 
 ## 9A. Frontend design system (added Sep 21, revised)
 
