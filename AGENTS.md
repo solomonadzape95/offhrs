@@ -3,7 +3,7 @@
 **Read this first.** It is the entry point for a fresh session. It says what the project is, what
 already works, how to run it, and what is broken or blocked.
 
-Last updated: **Tue 22 Sep 2026, ~21:30 UTC.**
+Last updated: **Wed 23 Sep 2026, ~01:00 UTC.**
 
 ---
 
@@ -65,6 +65,8 @@ specific subsystem.
 | **Agent-token trade** — DBC buy/sell + auto-stake | `web/scripts/trade-check.ts` lands buy+stake, sell→PreStock, wrap, unwrap on devnet |
 | **Browser sign → relay** — real Wallet Standard signature through the UI | `scripts/browser-sign-check.ts`; `day7_results.md` |
 | **Devnet beta** — faucet + self-serve launch on mock assets | `web/lib/faucet.ts`, `scripts/browser-launch-check.ts`; §14 |
+| **Agent terminal** — real DBC curve, reserves, balances, Activity | `web/lib/trade.ts` `poolProgress`; `scripts/devnet-seed-exec.ts` |
+| **Cached server reads** — React Query across `/app` tabs | `web/app/providers.tsx`, `web/lib/use-server-data.ts` |
 | **Live on devnet** — program deployed | `FoVBZ…VLw`; `scripts/devnet-smoke.ts` runs wrapper → registry → streaming vault on-chain |
 
 ### Deployed on devnet; blocked on mainnet rent
@@ -118,6 +120,7 @@ pnpm exec tsx web/scripts/session-check.ts   # 8 market-session cases
 pnpm exec tsx web/scripts/swap-check.ts      # decodes a real Jupiter tx
 pnpm exec tsx scripts/browser-sign-check.ts  # real browser sign → relay; dev server required (see §9)
 pnpm exec tsx scripts/browser-launch-check.ts # a fresh faucet-funded wallet launches an agent (§14)
+pnpm exec tsx scripts/devnet-seed-exec.ts    # real record_signal + log_arb rows for Activity (§14)
 
 # ── ops scripts (cluster-agnostic; RPC_URL / ANCHOR_WALLET env) ───────
 pnpm exec tsx scripts/status.ts              # deployed? wrappers, agents
@@ -151,22 +154,22 @@ offhours/                     ← directory on disk still says "angel"; the prod
 ├── experiments/              day0–day3 probes; the evidence behind the constraints
 ├── scripts/                  devnet ops: status.ts, devnet-smoke.ts, devnet-pool.ts,
 │                             deploy.sh, browser-sign-check.ts, browser-launch-check.ts,
-│                             lib/test-wallet.ts
+│                             devnet-seed-exec.ts, lib/test-wallet.ts
 ├── web/                      Next.js 16 frontend  ← the active work
 │   ├── app/(site)/           marketing: /, /explore, /launch, /agent/[id], /vault, /terms, /privacy
 │   ├── app/(auth)/           bare chrome: /connect, /waitlist
 │   ├── app/app/              signed-in: Position, Activity, Agents, Profile, Vault
 │   ├── components/site/      nav, cta (beta gate), warp-field, dither-backdrop, theme-provider,
 │   │                         profile-menu, logo, waitlist-form, mechanics, agent-carousel,
-│   │                         section, glyph, faq, site-footer, session-clock, stat
+│   │                         section, glyph, faq, site-footer, session-clock, stat, page-loader
 │   ├── components/app/       agent-trade, swap, vault-panel, launch-studio, agent-manage,
 │   │                         curve, curve-preview, basis, mark-vs-market, terminal, app-shell,
 │   │                         devnet-faucet
-│   ├── components/ui/        icon (Phosphor + halftone), dither-icon
+│   ├── components/ui/        icon (Phosphor + halftone), dither-icon, info
 │   ├── lib/                  market, session, wallet, deploy, agents, snapshot, format, theme,
 │   │                         beta, waitlist (Resend), trade (DBC), program-tx (stock_vault ixs),
 │   │                         jupiter, chain, portfolio, faq, use-write-tx, use-server-data,
-│   │                         faucet, devnet, devnet-assets
+│   │                         faucet, devnet, devnet-assets, universe, mock
 │   ├── public/brand/         banner.png · pfp.png · og.png (generated)
 │   ├── DESIGN_SYSTEM.md      the tokens, palettes, rules and component inventory
 │   └── scripts/              check scripts + generate-brand-png.py (see §4)
@@ -222,6 +225,23 @@ offhours/                     ← directory on disk still says "angel"; the prod
    lie. The in-flight de-dupe plus 30s TTL is what keeps the dashboard honest; single-account reads
    (a stake, a wrapper, an execution) are never cached, so a write is visible at once. Do not remove
    it.
+
+10. **The RPC is the whole ballgame.** The public devnet/mainnet endpoints rate-limit the app's
+    `getProgramAccounts` reads with 429s; the failures surface as empty dashboards, a marketplace
+    that reads as zero, and a wallet that sits on "Connecting…". Use a dedicated endpoint
+    (Helius/QuickNode) for `PROGRAM_RPC_URL` and `RPC_URL` at minimum. `NEXT_PUBLIC_SOLANA_RPC_URL`
+    ships to the browser, so keep it on the public endpoint or a separate restricted key. The Vercel
+    env is in §14.
+
+11. **Never put a real key in `web/.env.example`.** It is tracked. A Helius key was committed in two
+    local commits on 22 Sep; it was scrubbed with `git filter-branch` before any push, and the file
+    now uses `YOUR_HELIUS_KEY`. Real values live in the gitignored `web/.env.local` and the host's
+    env. **Rotate any key that was ever in a tracked file.**
+
+12. **`useServerData` is backed by React Query** (`web/app/providers.tsx`, 20s stale, invalidated on
+    every write). Do not replace it with a bare `useEffect` fetch — the `/app` tabs are separate
+    routes and would re-run the chain scans on every switch. `getUserAgents`/`getLiveAgents`
+    deliberately do **not** catch: a 429 must surface as an error, not as "you have no agents".
 
 ## 7. The rename — what still says Angel
 
@@ -360,6 +380,13 @@ Buyers are betting on the agent; holders earn from it. That is the whole idea.
 11. ✅ **Devnet beta on-ramp** — a server-signed faucet gives testers test SOL + mock PreStock +
     wPreStock, and `/launch` lists the devnet mock assets, so a fresh wallet can launch, trade and
     stake. §14; `scripts/browser-launch-check.ts`.
+12. ✅ **Devnet demo polish** — the agent terminal shows the real DBC curve, reserves and bordered
+    balance/market/dividend cells; Activity has real `ArbExecution` rows (`scripts/devnet-seed-exec.ts`);
+    the mock assets carry the real underlying's figures and are named `offSPACEX`; `/app` shows liquid
+    as well as staked `$AGENT`; the launch studio has a deploy progress rail and a View-agent state; a
+    reusable `Info` popover explains bps, the migration threshold and the curve fee; a corner-square
+    page loader covers slow routes; and the test agents left by the browser checks are hidden from the
+    marketplace list (`HIDDEN_AGENT_CREATORS` in `chain.ts`).
 
 ### Still to do (the queue, roughly in order)
 
@@ -387,8 +414,8 @@ is mainnet-only, so on devnet that leg is mocked.
 ### Honest caveats to keep repeating
 
 The vault/staking layer came from the original spec, not from the simpler "buy and get paid" model,
-and it is the main source of confusion. Auto-staking is the fix that hides it. And the eight named
-agents on the site are still staged previews — only agents registered on-chain are real.
+and it is the main source of confusion. Auto-staking is the fix that hides it. The landing carousel
+is a showcase; the marketplace lists only agents registered on chain.
 
 ---
 
@@ -500,6 +527,10 @@ on-ramp is a server-signed **faucet** instead.
   issuer API, so the self-owned DBC launch's preflight can actually pass for a tester.
 - **Verified:** `scripts/browser-launch-check.ts` funds a fresh keypair from the faucet, then drives
   the real `/launch` UI through create-curve → register → vault, all signed in the browser.
+- **Activity data:** `scripts/devnet-seed-exec.ts` writes real rows — `record_signal` against the live
+  devnet Pyth BTC account, then `log_arb` copying that attestation (AAPL is mainnet-only).
+- **Test clutter:** each browser-check run leaves a real agent behind (the program has no close
+  instruction). `HIDDEN_AGENT_CREATORS` in `web/lib/chain.ts` keeps them out of the marketplace list.
 
 Clawpump itself is still mainnet-only; the devnet launch is our own DBC curve. For a public beta,
 make a dedicated devnet wallet the mock mints' authority and put its key in `FAUCET_SECRET_KEY`, so

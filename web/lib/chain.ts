@@ -670,6 +670,21 @@ export async function toLiveAgent(
 }
 
 /**
+ * Devnet demo curation. The browser checks (`scripts/browser-launch-check.ts`)
+ * leave real agents behind, each created by a throwaway wallet, and the program
+ * has no close instruction — so they cannot be deleted on-chain. They are hidden
+ * from the *list* only: a direct `/agent/<pda>` link still resolves. Remove an
+ * address here if it ever becomes a real agent.
+ */
+const HIDDEN_AGENT_CREATORS = new Set([
+  "7fnhz4V3Wdax3r8yGU8zfE1sG4BNKcwLxVfwHJUbFEhv",
+  "EAzreuDuUYYhVGUKadmqLPgxbzHBqfScmsxbzsNhZ4pV",
+  "2Tf4FM8XAzG15hmyi2b5WU5nm2HaJxJr6tKmarn5rCPn",
+  "Cxrg8bzNJ31ASS2D1o2F2kgZWnwgFs1i2PmKXUUr6jU",
+  "FtsN8Z4Jreokop6ieszp43tTYHGqv7fryJ67o3khBGpE",
+]);
+
+/**
  * Every registered agent, joined with its asset symbol and token metadata. Pass
  * the PreStocks universe (from `market.ts`) to resolve symbols; without it agents
  * still appear, labelled by mint.
@@ -678,7 +693,8 @@ export async function fetchLiveAgents(prestocks: UniverseEntry[] = []): Promise<
   const [agents, wrappers] = await Promise.all([fetchAgents(), fetchWrappers()]);
   const byWrappedMint = assetByWrappedMint(wrappers);
   const byPrestockMint = new Map(prestocks.map((p) => [p.mint, p]));
-  return Promise.all(agents.map((a) => toLiveAgent(a, byWrappedMint, byPrestockMint)));
+  const live = await Promise.all(agents.map((a) => toLiveAgent(a, byWrappedMint, byPrestockMint)));
+  return live.filter((a) => !HIDDEN_AGENT_CREATORS.has(a.creator));
 }
 
 /** Resolve one agent by its PDA — the `/agent/[id]` route key. */

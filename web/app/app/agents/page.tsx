@@ -58,9 +58,39 @@ export default function AgentsPage() {
             <span className="label">Created by {address ? shortAddress(address) : "you"}</span>
 
             {loadingMine ? (
-              <div className="panel flex flex-col gap-3 p-6">
-                <span className="h-4 w-40 animate-pulse bg-raised" />
-                <span className="h-4 w-64 animate-pulse bg-raised" />
+              <div className="panel overflow-x-auto rounded-none p-2 sm:p-3">
+                <table className="w-full min-w-150 border-collapse">
+                  <thead>
+                    <tr className="border-b border-edge">
+                      {["Agent", "Mint", "Curve fee", "Yield asset", ""].map((h, i) => (
+                        <th key={h} className={`label py-3 ${i === 0 ? "pl-2 text-left" : "text-right"}`}>
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[0, 1, 2].map((i) => (
+                      <tr key={i} className="even:bg-signal/5">
+                        <td className="py-3.5 pl-2">
+                          <span className="block h-4 w-32 animate-pulse bg-raised" />
+                        </td>
+                        <td className="py-3.5 text-right">
+                          <span className="ml-auto block h-3 w-24 animate-pulse bg-raised" />
+                        </td>
+                        <td className="py-3.5 text-right">
+                          <span className="ml-auto block h-3 w-10 animate-pulse bg-raised" />
+                        </td>
+                        <td className="py-3.5 text-right">
+                          <span className="ml-auto block h-3 w-20 animate-pulse bg-raised" />
+                        </td>
+                        <td className="py-3.5 pr-2 text-right">
+                          <span className="ml-auto block h-3 w-12 animate-pulse bg-raised" />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             ) : errorMine ? (
               <div className="panel flex flex-col gap-2 p-6">
