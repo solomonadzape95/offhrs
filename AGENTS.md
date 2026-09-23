@@ -631,6 +631,11 @@ seed = HMAC-SHA256(AGENT_MASTER_SECRET, "agent-signer:" + agent_mint)
   the runner (`AGENT_MASTER_SECRET`). Rotating it invalidates every agent's signer.
   A leak compromises every agent; with a database/KMS this should be a random key
   per agent instead, and the interface would not change.
-- **Still missing for execution:** the runner is read-only. It needs (a) the
-  per-agent pass extracted to `agent/src/pass.ts`, and (b) the DBC execution
-  adapter (the buy/sell currently lives in `web/lib/trade.ts`).
+- **Execution:** `agent/src/pass.ts` is the one sequence (`record_signal` →
+  execute → `log_arb` → `deposit_rewards`), used by both the single-agent runtime
+  and the runner. The `jupiter` backend now builds, signs and sends the swap with
+  the agent's key. Two gates remain: the agent wallet must be **funded** with the
+  quote asset, and Jupiter is mainnet-only, so nothing trades until the program and
+  the real PreStocks are on mainnet.
+- **Not the agent's curve.** The bot trades the *stock* against its mark. The
+  `$AGENT` DBC buy/sell in `web/lib/trade.ts` is for holders, not the bot.

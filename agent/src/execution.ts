@@ -8,6 +8,8 @@
  * satisfies their bounty text is still open. Whichever way that resolves, only
  * this file changes.
  */
+import { Connection, Keypair, VersionedTransaction } from "@solana/web3.js";
+
 import { config } from "./config.js";
 import type { MarketSnapshot } from "./market.js";
 import type { Decision } from "./signal.js";
@@ -26,8 +28,22 @@ export interface ExecutionAdapter {
   readonly name: string;
   /** Whether the adapter can actually send transactions right now. */
   ready(): boolean;
-  execute(snap: MarketSnapshot, decision: Decision, notional: bigint): Promise<ExecuteResult>;
+  execute(
+    snap: MarketSnapshot,
+    decision: Decision,
+    notional: bigint,
+    ctx?: ExecutionContext,
+  ): Promise<ExecuteResult>;
 }
+
+/**
+ * What a sending adapter needs: the cluster to send on, and the key that pays.
+ * For an agent that key is the app-owned signer, never the operator's wallet.
+ */
+export type ExecutionContext = {
+  connection: Connection;
+  signer: Keypair;
+};
 
 /** Decides and reports, sends nothing. The default, so the engine is inspectable. */
 export class DryRunAdapter implements ExecutionAdapter {
@@ -39,6 +55,7 @@ export class DryRunAdapter implements ExecutionAdapter {
     snap: MarketSnapshot,
     decision: Decision,
     notional: bigint,
+    _ctx?: ExecutionContext,
   ): Promise<ExecuteResult> {
     // Model the fill at the live executable price, minus the slippage the quote
     // itself reports, so the logged profit is not wishful.
@@ -79,12 +96,13 @@ function venueFromRoute(labels: string[]): ExecuteResult["venue"] {
 export class JupiterAdapter implements ExecutionAdapter {
   readonly name = "jupiter";
   ready() {
-    return Boolean(config.keypairPath);
+    return true;
   }
   async execute(
     snap: MarketSnapshot,
     decision: Decision,
     notional: bigint,
+    ctx?: ExecutionContext,
   ): Promise<ExecuteResult> {
     // Route: USDC -> PreStock (buy the dislocated side).
     const url =
@@ -98,14 +116,51 @@ export class JupiterAdapter implements ExecutionAdapter {
     const route: string[] = (q.routePlan ?? [])
       .map((s: any) => s.swapInfo?.label)
       .filter(Boolean);
+    const venue = venueFromRoute(route);
+
+    if (!ctx) {
+      return {
+        backend: this.name,
+        executed: false,
+        amountIn: notional,
+        amountOut: BigInt(q.outAmount),
+        venue,
+        detail: `quoted ${q.outAmount} raw via ${route.join(" -> ")} (no signer)`,
+      };
+    }
+
+    // Build, sign and send. Jupiter returns a fully-built transaction; the agent
+    // signer is its fee payer, so the trade is paid for by the agent's own key.
+    const swapRes = await fetch("https://lite-api.jup.ag/swap/v1/swap", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        quoteResponse: q,
+        userPublicKey: ctx.signer.publicKey.toBase58(),
+        wrapAndUnwrapSol: true,
+        dynamicComputeUnitLimit: true,
+      }),
+    });
+    if (!swapRes.ok) throw new Error(`jupiter swap ${swapRes.status}`);
+    const { swapTransaction } = (await swapRes.json()) as { swapTransaction?: string };
+    if (!swapTransaction) throw new Error("jupiter returned no swap transaction");
+
+    const tx = VersionedTransaction.deserialize(Buffer.from(swapTransaction, "base64"));
+    tx.sign([ctx.signer]);
+    const signature = await ctx.connection.sendRawTransaction(tx.serialize(), {
+      skipPreflight: false,
+      maxRetries: 3,
+    });
+    await ctx.connection.confirmTransaction(signature, "confirmed");
 
     return {
       backend: this.name,
-      executed: false, // swap tx construction is wired on Day 5 with the wallet signer
+      executed: true,
       amountIn: notional,
       amountOut: BigInt(q.outAmount),
-      venue: venueFromRoute(route),
-      detail: `quoted ${q.outAmount} raw via ${route.join(" -> ")} (send() pending wallet wiring)`,
+      venue,
+      signature,
+      detail: `sent ${q.outAmount} raw via ${route.join(" -> ")}`,
     };
   }
 }
@@ -127,6 +182,7 @@ export class ClawpumpAdapter implements ExecutionAdapter {
     snap: MarketSnapshot,
     decision: Decision,
     notional: bigint,
+    _ctx?: ExecutionContext,
   ): Promise<ExecuteResult> {
     if (!this.ready()) throw new Error("CLAWPUMP_API_KEY not set");
 

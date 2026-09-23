@@ -11,10 +11,10 @@
  */
 import { Connection, PublicKey } from "@solana/web3.js";
 
-import { config, FEED_IDS, requireFeedId } from "./config.js";
-import { collectSnapshot, type MarketSnapshot } from "./market.js";
-import { decide, shouldExecute, DEFAULT_PARAMS, type Decision } from "./signal.js";
-import { selectAdapter } from "./execution.js";
+import { config, FEED_IDS } from "./config.js";
+import { type MarketSnapshot } from "./market.js";
+import { shouldExecute, DEFAULT_PARAMS, type Decision } from "./signal.js";
+import { runAgentPass } from "./pass.js";
 import * as chain from "./chain.js";
 
 const c = {
@@ -71,68 +71,40 @@ function report(snap: MarketSnapshot, d: Decision) {
 }
 
 async function onePass(conn: Connection, execute: boolean) {
-  const snap = await collectSnapshot(conn, config.symbol, config.referenceFeed, config.frozenAfterSecs);
-  const decision = decide(snap);
-  report(snap, decision);
-
-  const adapter = selectAdapter();
-  const actionable = shouldExecute(decision);
-
-  if (!actionable) {
-    console.log(c.dim(`  action     none (${adapter.name} backend idle)\n`));
-    return { snap, decision, executed: false };
-  }
-
-  if (!execute) {
-    console.log(
-      c.dim(`  action     actionable but read-only — set --execute to send (backend ${adapter.name})\n`),
-    );
-    return { snap, decision, executed: false };
-  }
-
-  if (!adapter.ready()) {
-    console.log(c.red(`  action     backend ${adapter.name} not ready — skipping\n`));
-    return { snap, decision, executed: false };
-  }
-
-  const { program } = chain.loadProgram();
-  // The Agent PDA is seeded by the `$AGENT` mint, not the PreStock mint. The old
-  // derivation used `snap.prestock.mint`, which can never match a registered
-  // agent — a latent bug that only a real write would have hit.
-  if (!config.agentMint) {
+  if (execute && !config.agentMint) {
     throw new Error(
       "ANGEL_AGENT_MINT is required for on-chain writes (the $AGENT mint the Agent PDA is seeded by).",
     );
   }
-  const agent = chain.agentPda(program.programId, new PublicKey(config.agentMint));
 
-  // 1. Attest the Pyth read. `logArb` requires this to exist, so the execution
-  //    record can never be detached from real oracle data.
-  const signalSig = await chain.recordSignal(program, agent, new PublicKey(snap.pyth.account), {
-    feedIdHex: requireFeedId(config.referenceFeed),
-    maxStalenessSecs: config.maxStalenessSecs,
-    frozenAfterSecs: config.frozenAfterSecs,
-  });
-  console.log(c.green(`  attested   record_signal ${signalSig}`));
-
-  // 2. Execute.
-  const result = await adapter.execute(snap, decision, config.notional);
-  console.log(c.dim(`  execute    ${result.backend}: ${result.detail}`));
-
-  // 3. Log it, copying the attestation onto the record.
-  const a: any = await chain.readAgent(program, agent);
-  const sig = await chain.logArb(
+  const { program } = chain.loadProgram();
+  const pass = await runAgentPass({
     program,
-    agent,
-    requireFeedId(config.referenceFeed),
-    Number(a.executionCount),
-    result.amountIn,
-    result.amountOut,
-    chain.venueFromAdapter(result.venue),
-  );
-  console.log(c.green(`  logged     log_arb #${a.executionCount} ${sig}\n`));
+    conn,
+    agentMint: config.agentMint ? new PublicKey(config.agentMint) : PublicKey.default,
+    symbol: config.symbol,
+    execute,
+  });
 
-  return { snap, decision, executed: true, signature: sig };
+  report(pass.snap, pass.decision);
+
+  if (!shouldExecute(pass.decision)) {
+    console.log(c.dim(`  action     none (${config.execution} backend idle)\n`));
+  } else if (!execute) {
+    console.log(
+      c.dim(`  action     actionable but read-only — set --execute to send (backend ${config.execution})\n`),
+    );
+  } else if (pass.executed) {
+    console.log(c.green(`  attested   record_signal ${pass.signalSignature}`));
+    if (pass.result) console.log(c.dim(`  execute    ${pass.result.backend}: ${pass.result.detail}`));
+    console.log(c.green(`  logged     log_arb ${pass.executionSignature}`));
+    if (pass.routeSignature) {
+      console.log(c.green(`  routed     deposit_rewards ${pass.routeSignature}`));
+    }
+    console.log("");
+  }
+
+  return pass;
 }
 
 /** Print the on-chain execution log — the §8 "live terminal" data source. */

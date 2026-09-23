@@ -21,12 +21,13 @@
  * `web/lib/chain.ts`.
  */
 import * as anchor from "@coral-xyz/anchor";
-import { Connection } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 
 import { config } from "./config.js";
 import * as chain from "./chain.js";
-import { collectSnapshot } from "./market.js";
-import { decide, shouldExecute } from "./signal.js";
+import { agentSignerFor } from "./agent-keys.js";
+import { runAgentPass } from "./pass.js";
+import { shouldExecute } from "./signal.js";
 
 /** Mirror of `HIDDEN_AGENT_CREATORS` in `web/lib/chain.ts`. */
 const BETA_CREATORS = new Set<string>([
@@ -62,9 +63,12 @@ async function fetchSymbols(): Promise<Map<string, string>> {
 }
 
 async function sweep(program: anchor.Program, conn: Connection, execute: boolean) {
+  // `program.account` is untyped through the JSON IDL; the names match the Rust
+  // account structs (`Agent`, `WrapperConfig`).
+  const accounts = program.account as any;
   const [agents, wrappers] = await Promise.all([
-    program.account.agent.all(),
-    program.account.wrapperConfig.all(),
+    accounts.agent.all(),
+    accounts.wrapperConfig.all(),
   ]);
 
   const wrappedToPrestock = new Map(
@@ -118,22 +122,32 @@ async function sweep(program: anchor.Program, conn: Connection, execute: boolean
     }
 
     try {
-      const snap = await collectSnapshot(conn, symbol, config.referenceFeed, config.frozenAfterSecs);
-      const decision = decide(snap);
-      const actionable = shouldExecute(decision);
+      // Each agent signs with its own app-owned key, derived from the master
+      // secret. The operator's keypair is only used to enumerate the registry.
+      const agentProgram = execute ? chain.loadProgram(agentSignerFor(agentMint)).program : program;
+      const pass = await runAgentPass({
+        program: agentProgram,
+        conn,
+        agentMint: new PublicKey(agentMint),
+        symbol,
+        execute,
+      });
       console.log(
-        `  signal  ${decision.direction}  edge ${decision.edgeBps}bps  ` +
-          `net ${decision.netEdgeBps}bps  regime ${snap.regime}`,
+        `  signal  ${pass.decision.direction}  edge ${pass.decision.edgeBps}bps  ` +
+          `net ${pass.decision.netEdgeBps}bps  regime ${pass.snap.regime}`,
       );
-      console.log(
-        `  action  ${
-          !actionable
-            ? "none"
-            : execute
-              ? "WOULD SEND — see the signer note in runner.ts"
-              : "actionable, read-only"
-        }`,
-      );
+      if (pass.executed) {
+        console.log(
+          `  executed log_arb ${pass.executionSignature}` +
+            (pass.routeSignature ? `\n  routed   deposit_rewards ${pass.routeSignature}` : ""),
+        );
+      } else {
+        console.log(
+          `  action  ${
+            !shouldExecute(pass.decision) ? "none" : execute ? "skipped" : "actionable, read-only"
+          }`,
+        );
+      }
     } catch (e: unknown) {
       console.log(`  error   ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -172,23 +186,16 @@ main().catch((e) => {
 });
 
 /*
- * Sending, when the keys exist
- * ----------------------------
- * A registered agent carries `agent_signer`, and the program lets that signer
- * (or the creator) call `record_signal`, `log_arb` and `deposit_rewards`. So a
- * hosted runner needs one keypair per agent. Three ways to get them, in order of
- * how much custody they require:
+ * Sending
+ * -------
+ * `runAgentPass` signs with the agent's app-owned key (`agentSignerFor`), so the
+ * runner trades as the agent, not as the operator. Two things still gate a real
+ * trade:
  *
- *   1. Platform-held signer (easiest to run). At launch, the app generates the
- *      `agent_signer` keypair, stores it encrypted (KMS / a secret manager), and
- *      registers its pubkey. The creator never holds it. This is the only model
- *      that works for a service that runs other people's agents.
- *   2. Creator-held signer (non-custodial). The creator runs their own bot, or
- *      signs a delegated session. More work, less trust required.
- *   3. One operator keypair reused as every agent's signer. Simplest, but a
- *      single leak drains every agent. Only acceptable for the devnet beta.
- *
- * The per-agent pass (`record_signal` -> execute -> `log_arb` -> `deposit_rewards`)
- * is the same code the single-agent runtime already has in `index.ts`; extracting
- * it to `pass.ts` and calling it here with a loaded keypair is the remaining step.
+ *   1. Funds. The agent's wallet must hold the quote asset before it can buy, and
+ *      the app must fund it at launch or on first run. An unfunded agent fails its
+ *      swap, which the pass surfaces as an error rather than a silent skip.
+ *   2. Cluster. Jupiter is mainnet-only, so `ANGEL_EXECUTION=jupiter` only does
+ *      anything once the program and the real PreStocks are on mainnet. On devnet
+ *      the runner stays on the `dryrun` backend.
  */
