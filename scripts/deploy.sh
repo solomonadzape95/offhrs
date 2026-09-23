@@ -16,16 +16,18 @@ CLUSTER="${CLUSTER:-devnet}"
 cd "$(dirname "$0")/.."
 
 case "$CLUSTER" in
-  mainnet-beta|mainnet) RPC="https://api.mainnet-beta.solana.com" ;;
-  devnet)                RPC="https://api.devnet.solana.com" ;;
-  *)                     RPC="${RPC:?set RPC for cluster $CLUSTER}" ;;
+  mainnet-beta|mainnet) RPC="https://api.mainnet-beta.solana.com"; ANCHOR_CLUSTER="mainnet" ;;
+  devnet)                RPC="https://api.devnet.solana.com"; ANCHOR_CLUSTER="devnet" ;;
+  *)                     RPC="${RPC:?set RPC for cluster $CLUSTER}"; ANCHOR_CLUSTER="$CLUSTER" ;;
 esac
 
 echo "→ build"
 anchor build
 
+# Anchor's cluster names are `mainnet` / `devnet`; `mainnet-beta` is the Solana CLI
+# spelling. Normalise so `CLUSTER=mainnet-beta` works.
 echo "→ deploy to $CLUSTER"
-anchor deploy --provider.cluster "$CLUSTER"
+anchor deploy --provider.cluster "$ANCHOR_CLUSTER"
 
 echo "→ status"
 RPC_URL="$RPC" pnpm exec tsx scripts/status.ts

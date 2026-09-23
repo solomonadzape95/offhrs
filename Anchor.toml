@@ -11,6 +11,9 @@ stock_vault = "FoVBZRFCamH1HNMiVpNZV2QJxk9bSxWtQvKgmqZ1rVLw"
 [programs.devnet]
 stock_vault = "FoVBZRFCamH1HNMiVpNZV2QJxk9bSxWtQvKgmqZ1rVLw"
 
+[programs.mainnet]
+stock_vault = "FoVBZRFCamH1HNMiVpNZV2QJxk9bSxWtQvKgmqZ1rVLw"
+
 [registry]
 url = "https://api.apr.dev"
 
