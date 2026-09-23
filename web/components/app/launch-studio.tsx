@@ -33,6 +33,13 @@ import { describeWalletError, useWalletUi } from "@/lib/wallet";
  */
 const STEPS = ["Agent", "Token", "Dividend asset", "Curve fee", "Deploy"] as const;
 
+/** Which deploy step is active, and what it is doing. Drives the progress rail. */
+type DeployState =
+  | { k: "idle" }
+  | { k: "busy"; step: number; phase: "building" | "signing" | "sending" }
+  | { k: "done"; mint: string }
+  | { k: "error"; error: string; step: number };
+
 export function LaunchStudio({ assets }: { assets: PreStock[] }) {
   const [step, setStep] = useState(0);
 
@@ -61,12 +68,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
   // Where the `$AGENT` mint comes from. Clawpump is the normal path; the
   // self-owned DBC launch is the fallback if it falls through.
   const [source, setSource] = useState<"clawpump" | "self">("clawpump");
-  const [deploy, setDeploy] = useState<
-    | { k: "idle" }
-    | { k: "busy"; label: string }
-    | { k: "done"; mint: string }
-    | { k: "error"; error: string }
-  >({ k: "idle" });
+  const [deploy, setDeploy] = useState<DeployState>({ k: "idle" });
 
   // Preflight only runs when it can matter — an RPC round trip per check is not
   // worth spending on step 1 of a form.
@@ -100,11 +102,28 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
       (source === "self" || agentTokenMint.length >= 32),
   );
 
-  /** Decode a server-built tx, sign it with the wallet, relay it. */
-  const signAndSend = async (tx: string): Promise<string> => {
+  /** The steps the deploy will run, in order, for the chosen source. */
+  const deploySteps =
+    source === "self"
+      ? ["Create config + pool", "Register agent", "Create vault"]
+      : ["Register agent", "Create vault"];
+
+  /**
+   * Decode a server-built tx, sign it with the wallet, relay it.
+   *
+   * The signature is the one step we do not control, so it is bounded: a wallet
+   * that never resolves its approval used to leave the button spinning forever.
+   */
+  const signAndSend = async (tx: string, step: number): Promise<string> => {
     if (!session?.signTransaction) throw new Error("This wallet cannot sign in the browser.");
     const decoded = getTransactionDecoder().decode(getBase64Encoder().encode(tx));
-    const signed = await session.signTransaction(decoded as never);
+    setDeploy({ k: "busy", step, phase: "signing" });
+    const signed = await withTimeout(
+      session.signTransaction(decoded as never),
+      120_000,
+      "The wallet didn't respond. Open it, approve the transaction, then try again.",
+    );
+    setDeploy({ k: "busy", step, phase: "sending" });
     const wire = getBase64EncodedWireTransaction(signed as never);
     const res = await submitTx(wire);
     if ("error" in res) throw new Error(res.error);
@@ -120,30 +139,33 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
    */
   const onDeploy = async () => {
     if (!address || !chosen) return;
+    let step = 0;
     try {
       let mint = agentTokenMint;
 
       if (source === "self") {
-        setDeploy({ k: "busy", label: "Create config + pool…" });
+        setDeploy({ k: "busy", step: 0, phase: "building" });
         const curve = await buildCreateAgentCurveTx(address, chosen.mint, name, symbol, feeBps);
         if ("error" in curve) throw new Error(curve.error);
-        await signAndSend(curve.tx);
+        await signAndSend(curve.tx, 0);
         mint = curve.baseMint;
+        step = 1;
       }
 
-      setDeploy({ k: "busy", label: "Register agent…" });
+      setDeploy({ k: "busy", step, phase: "building" });
       const register = await buildRegisterAgentTx(address, mint, chosen.mint, agentSigner, feeBps);
       if ("error" in register) throw new Error(register.error);
-      await signAndSend(register.tx);
+      await signAndSend(register.tx, step);
+      step += 1;
 
-      setDeploy({ k: "busy", label: "Create vault…" });
+      setDeploy({ k: "busy", step, phase: "building" });
       const vault = await buildInitializeVaultTx(address, mint, chosen.mint, 0);
       if ("error" in vault) throw new Error(vault.error);
-      await signAndSend(vault.tx);
+      await signAndSend(vault.tx, step);
 
       setDeploy({ k: "done", mint });
     } catch (e) {
-      setDeploy({ k: "error", error: describeWalletError(e) });
+      setDeploy({ k: "error", error: describeWalletError(e), step });
     }
   };
 
@@ -383,11 +405,13 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
                 className="btn btn-primary mt-2 w-full disabled:opacity-50"
               >
                 {deploy.k === "busy"
-                  ? deploy.label
+                  ? `${deploySteps[deploy.step] ?? "Deploying"}…`
                   : source === "self"
                     ? "Create curve + register + vault"
                     : "Register agent + create vault"}
               </button>
+
+              {deploy.k !== "idle" && <DeployProgress steps={deploySteps} deploy={deploy} />}
 
               {deploy.k === "done" && (
                 <p className="font-mono text-[0.6875rem] leading-relaxed break-all text-signal">
@@ -478,6 +502,81 @@ function Head({ t, d }: { t: string; d: string }) {
     <div className="flex flex-col gap-2">
       <h2 className="text-xl leading-snug font-medium text-ink">{t}</h2>
       <p className="max-w-lg text-sm leading-relaxed text-ink-dim">{d}</p>
+    </div>
+  );
+}
+
+/** Bound a promise we do not control — the wallet's approval, in practice. */
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(message)), ms)),
+  ]);
+}
+
+/**
+ * The deploy rail: which step is running, which are done, and what the running
+ * one is waiting on (our build, the wallet's approval, or the relay).
+ */
+function DeployProgress({ steps, deploy }: { steps: string[]; deploy: DeployState }) {
+  const active =
+    deploy.k === "busy"
+      ? deploy.step
+      : deploy.k === "done"
+        ? steps.length
+        : deploy.k === "error"
+          ? deploy.step
+          : -1;
+  const pct =
+    deploy.k === "done" ? 100 : active < 0 ? 0 : Math.round(((active + 0.5) / steps.length) * 100);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="h-1 w-full overflow-hidden bg-edge">
+        <div
+          className="h-full bg-signal transition-all duration-500"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <ol className="flex flex-col gap-2.5">
+        {steps.map((label, i) => {
+          const done = deploy.k === "done" || i < active;
+          const current = deploy.k === "busy" && i === active;
+          const failed = deploy.k === "error" && i === active;
+          return (
+            <li key={label} className="flex items-center gap-3">
+              <span
+                aria-hidden
+                className={`size-1.5 shrink-0 ${
+                  failed
+                    ? "bg-ember"
+                    : done
+                      ? "bg-signal"
+                      : current
+                        ? "animate-pulse bg-signal"
+                        : "bg-edge"
+                }`}
+              />
+              <span
+                className={`font-mono text-xs ${
+                  done || current || failed ? "text-ink" : "text-ink-faint"
+                }`}
+              >
+                {label}
+              </span>
+              {current && (
+                <span className="ml-auto font-mono text-[0.625rem] tracking-wider text-ink-faint uppercase">
+                  {deploy.phase === "building"
+                    ? "building…"
+                    : deploy.phase === "signing"
+                      ? "approve in wallet…"
+                      : "sending…"}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }
