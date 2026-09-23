@@ -74,6 +74,11 @@ pub mod stock_vault {
         registry::register_agent(ctx, agent_signer, dynamic_fee_bps)
     }
 
+    /// Close an agent registration. Creator only; the vault must have no stakers.
+    pub fn close_agent(ctx: Context<CloseAgent>) -> Result<()> {
+        registry::close_agent(ctx)
+    }
+
     // ---- dividend vault ---------------------------------------------------
 
     /// Create the staking + reward vault for a registered agent.

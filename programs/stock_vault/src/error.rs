@@ -31,6 +31,9 @@ pub enum AngelError {
     #[msg("Mint does not match the agent registration")]
     AgentMintMismatch,
 
+    #[msg("Cannot close an agent whose vault still has stakers")]
+    VaultNotDrained,
+
     // ---- dividend vault ----
     #[msg("Vault is not linked to this agent")]
     VaultAgentMismatch,

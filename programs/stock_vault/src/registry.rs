@@ -1,7 +1,8 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::Mint;
 
-use crate::state::Agent;
+use crate::error::AngelError;
+use crate::state::{Agent, DividendVault};
 
 /// Register an autonomous trading agent.
 ///
@@ -69,4 +70,44 @@ pub struct AgentRegistered {
     pub agent_token_mint: Pubkey,
     pub wrapped_mint: Pubkey,
     pub dynamic_fee_bps: u16,
+}
+
+/// Close an agent registration.
+///
+/// Only the creator may call it, and only once the vault has no stakers —
+/// deregistering must never strand someone's tokens. The vault and its token
+/// accounts are left in place; this removes the agent from the registry (and
+/// returns the agent account's rent to the creator).
+#[derive(Accounts)]
+pub struct CloseAgent<'info> {
+    #[account(mut)]
+    pub creator: Signer<'info>,
+
+    #[account(mut, close = creator, has_one = creator)]
+    pub agent: Account<'info, Agent>,
+
+    #[account(
+        seeds = [DividendVault::SEED, agent.agent_token_mint.as_ref()],
+        bump = vault.bump,
+        has_one = agent,
+    )]
+    pub vault: Account<'info, DividendVault>,
+}
+
+pub fn close_agent(ctx: Context<CloseAgent>) -> Result<()> {
+    require!(
+        ctx.accounts.vault.total_staked == 0,
+        AngelError::VaultNotDrained
+    );
+    emit!(AgentClosed {
+        agent: ctx.accounts.agent.key(),
+        creator: ctx.accounts.creator.key(),
+    });
+    Ok(())
+}
+
+#[event]
+pub struct AgentClosed {
+    pub agent: Pubkey,
+    pub creator: Pubkey,
 }

@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowUpRight, Coins, Pause, Play } from "@phosphor-icons/react";
 
-import { buildSetPausedTx } from "@/app/actions";
+import { buildCloseAgentTx, buildSetPausedTx } from "@/app/actions";
 import { Curve } from "@/components/app/curve";
 import { DitherAvatar } from "@/components/site/dither-avatar";
 import { Stat } from "@/components/site/stat";
@@ -43,15 +44,23 @@ const fmtWPreStock = (raw: string) => {
 export function AgentManage({ agent, onchain }: { agent: AgentSeed; onchain?: ManageData | null }) {
   const { theme } = useTheme();
   const { address } = useWalletUi();
+  const router = useRouter();
   const [hover, setHover] = useState(false);
   const [paused, setPaused] = useState(onchain?.paused ?? false);
   const { state: write, run } = useWriteTx(() => setPaused((p) => !p));
+  const closing = useWriteTx(() => router.push("/app/agents"));
 
   const busy = write.status === "signing" || write.status === "sending";
 
   const onTogglePause = () => {
     if (!address || !onchain) return;
     void run(() => buildSetPausedTx(address, onchain.pda, !paused));
+  };
+
+  const onClose = () => {
+    if (!address || !onchain) return;
+    if (!window.confirm("Close this agent registration? This cannot be undone.")) return;
+    void closing.run(() => buildCloseAgentTx(address, onchain.pda));
   };
 
   return (
@@ -165,6 +174,35 @@ export function AgentManage({ agent, onchain }: { agent: AgentSeed; onchain?: Ma
           </div>
         </div>
       </div>
+
+      {onchain && (
+        <div className="panel flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <span className="label">Deregister</span>
+            <p className="mt-1 max-w-md text-sm leading-relaxed text-ink-dim">
+              Close this agent&apos;s registration and return its rent. Only possible while no one
+              is staked; the token and its pool are left in place.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={
+              !address ||
+              closing.state.status === "signing" ||
+              closing.state.status === "sending"
+            }
+            onClick={onClose}
+            className="btn btn-ghost shrink-0 !px-4 !py-2.5 !text-xs text-ember disabled:opacity-50"
+          >
+            {closing.state.status === "signing" || closing.state.status === "sending"
+              ? "Closing…"
+              : "Close agent"}
+          </button>
+          {closing.state.status === "error" && (
+            <p className="text-xs leading-relaxed text-ember">{closing.state.error}</p>
+          )}
+        </div>
+      )}
 
       {write.status === "done" && (
         <p className="font-mono text-[0.6875rem] break-all text-signal">

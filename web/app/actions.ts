@@ -32,6 +32,7 @@ import {
 } from "@/lib/chain";
 import {
   buildClaimTransaction,
+  buildCloseAgentTransaction,
   buildInitializeVaultTransaction,
   buildRegisterAgentTransaction,
   buildSetPausedTransaction,
@@ -359,6 +360,17 @@ export async function buildSetPausedTx(
   try {
     const { blockhash } = await rpc().getLatestBlockhash("confirmed");
     const tx = await buildSetPausedTransaction(owner, agentId, paused, blockhash);
+    return { tx: serialize(tx) };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Deregister an agent. Creator only; the program requires an empty vault. */
+export async function buildCloseAgentTx(owner: string, agentId: string): Promise<BuildTxResult> {
+  try {
+    const { blockhash } = await rpc().getLatestBlockhash("confirmed");
+    const tx = await buildCloseAgentTransaction(owner, agentId, blockhash);
     return { tx: serialize(tx) };
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) };

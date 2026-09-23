@@ -50,6 +50,7 @@ const DISC = {
   registerAgent: Uint8Array.from([135, 157, 66, 195, 2, 113, 175, 30]),
   initializeVault: Uint8Array.from([48, 191, 163, 44, 71, 129, 63, 164]),
   setPaused: Uint8Array.from([91, 60, 125, 192, 176, 225, 166, 218]),
+  closeAgent: Uint8Array.from([52, 185, 104, 145, 157, 30, 87, 237]),
   wrap: Uint8Array.from([178, 40, 10, 189, 228, 129, 186, 140]),
   unwrap: Uint8Array.from([126, 175, 198, 14, 212, 69, 50, 44]),
 } as const;
@@ -202,6 +203,32 @@ export async function buildClaimTransaction(
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
       ],
       data: Buffer.from(DISC.claim),
+    }),
+  );
+  tx.feePayer = ownerKey;
+  tx.recentBlockhash = blockhash;
+  return tx;
+}
+
+/**
+ * `close_agent` — deregister an agent. Creator only, and only once the vault has
+ * no stakers; the program enforces both, so a wrong caller simply fails.
+ */
+export async function buildCloseAgentTransaction(
+  owner: string,
+  agentAddress: string,
+  blockhash: string,
+): Promise<Transaction> {
+  const { ownerKey, vault } = await context(owner, agentAddress);
+  const tx = new Transaction().add(
+    new TransactionInstruction({
+      programId: PROGRAM_ID,
+      keys: [
+        { pubkey: ownerKey, isSigner: true, isWritable: true },
+        { pubkey: new PublicKey(agentAddress), isSigner: false, isWritable: true },
+        { pubkey: vault, isSigner: false, isWritable: false },
+      ],
+      data: Buffer.from(DISC.closeAgent),
     }),
   );
   tx.feePayer = ownerKey;
