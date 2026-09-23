@@ -1,8 +1,6 @@
 import { ExploreGrid } from "@/components/app/explore-grid";
 import { fetchLiveAgents } from "@/lib/chain";
-import { readPyth, FROZEN_AFTER_SECS } from "@/lib/market";
 import { fetchUniverse, isDevnet } from "@/lib/universe";
-import { LiveBadge } from "@/components/site/live-badge";
 
 export const revalidate = 60;
 
@@ -14,16 +12,12 @@ export const metadata = {
 /** §2 The Marketplace. */
 export default async function ExplorePage() {
   const assets = await fetchUniverse().catch(() => []);
-  const [regime, live] = await Promise.all([
-    readPyth().catch(() => null),
-    fetchLiveAgents(assets.map((s) => ({ symbol: s.symbol, mint: s.mint }))).catch(() => []),
-  ]);
+  const live = await fetchLiveAgents(
+    assets.map((s) => ({ symbol: s.symbol, mint: s.mint })),
+  ).catch(() => []);
 
   // Only registrations that actually exist on chain. The preview set is gone.
   const agents = live;
-
-  const frozen = regime ? regime.stalenessSecs > FROZEN_AFTER_SECS : false;
-  const widest = [...assets].sort((a, b) => Math.abs(b.premiumBps) - Math.abs(a.premiumBps))[0];
 
   return (
     <section className="mx-auto max-w-app px-5 py-14 sm:px-8 sm:py-20">
