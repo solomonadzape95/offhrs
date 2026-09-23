@@ -11,6 +11,7 @@
  * stable regardless of the order `getProgramAccounts` returns them in.
  */
 import { fetchWrappers } from "./chain";
+import { mockSymbol } from "./mock";
 import type { PreStock } from "./market";
 
 /** The real PreStocks the devnet mocks stand in for, in a fixed order. */
@@ -32,8 +33,8 @@ export async function fetchDevnetAssets(): Promise<PreStock[]> {
   return wrappers.map((w, i) => {
     const identity = IDENTITIES[i % IDENTITIES.length];
     return {
-      symbol: identity.symbol,
-      name: identity.name,
+      symbol: mockSymbol(identity.symbol),
+      name: `${identity.name} (devnet mock)`,
       description: `Devnet mock standing in for ${identity.name}, carrying the same transfer-fee and permanent-delegate extensions as a real PreStock.`,
       mint: w.prestockMint,
       image: "",

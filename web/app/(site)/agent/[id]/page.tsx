@@ -13,6 +13,7 @@ import { shortAddr, usd } from "@/lib/format";
 import { FROZEN_AFTER_SECS, fetchMarket } from "@/lib/market";
 import { poolProgress } from "@/lib/trade";
 import { fetchUniverse } from "@/lib/universe";
+import { isMock, underlyingSymbol } from "@/lib/mock";
 
 export const revalidate = 30;
 
@@ -46,7 +47,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
   const agent = await resolveAgent(id);
   if (!agent) notFound();
 
-  const market = await fetchMarket(agent.asset).catch(() => null);
+  const market = await fetchMarket(underlyingSymbol(agent.asset)).catch(() => null);
   if (!market) {
     if (!agent.onchain) {
       return (
@@ -172,10 +173,16 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                 ${agent.ticker}
               </span>
               <span className="border border-signal-dim/60 px-2 py-1 font-mono text-[0.625rem] tracking-[0.14em] text-signal uppercase">
-                yields {prestock.symbol}
+                yields {agent.asset}
               </span>
             </div>
             <p className="max-w-xl text-sm leading-relaxed text-ink-dim">{agent.thesis}</p>
+            {isMock(agent.asset) && (
+              <p className="max-w-xl font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
+                Devnet mock — the reference market below is the live {underlyingSymbol(agent.asset)}{" "}
+                market, not the mock&apos;s.
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col items-end gap-2">
@@ -217,7 +224,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
         {/* Right column */}
         <div className="flex flex-col gap-6">
           {agent.onchain ? (
-            <AgentTrade agentId={agent.id} ticker={agent.ticker} asset={prestock.symbol} />
+            <AgentTrade agentId={agent.id} ticker={agent.ticker} asset={agent.asset} />
           ) : (
             <Swap symbol={prestock.symbol} mint={prestock.mint} decimals={9} />
           )}

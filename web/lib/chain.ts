@@ -25,6 +25,7 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 
 import { AGENT_IDENTITY_BY_ASSET } from "./agents";
+import { underlyingSymbol } from "./mock";
 
 export const PROGRAM_ID = new PublicKey(
   process.env.ANGEL_PROGRAM_ID ?? "FoVBZRFCamH1HNMiVpNZV2QJxk9bSxWtQvKgmqZ1rVLw",
@@ -646,7 +647,7 @@ export async function toLiveAgent(
   }
 
   const short = agent.agentTokenMint.slice(0, 4).toUpperCase();
-  const identity = prestock ? AGENT_IDENTITY_BY_ASSET[prestock.symbol] : undefined;
+  const identity = prestock ? AGENT_IDENTITY_BY_ASSET[underlyingSymbol(prestock.symbol)] : undefined;
   return {
     id: agent.pda,
     name: meta?.name || identity?.name || (prestock ? `${prestock.symbol} desk` : `Agent ${short}`),
