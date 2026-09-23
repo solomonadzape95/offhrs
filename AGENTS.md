@@ -671,6 +671,9 @@ seed = HMAC-SHA256(AGENT_MASTER_SECRET, "agent-signer:" + agent_mint)
   live decisions on devnet even though it cannot trade there.
 - **Execute:** `--execute` signs with each agent's app-owned key (`agentSignerFor`).
   Gated on funded agent wallets and a mainnet program — Jupiter is mainnet-only.
+- **IDL:** `agent/src/chain.ts` loads `agent/idl/stock_vault.json` (committed), falling
+  back to `target/idl/`. `target/` is gitignored, so a host that never ran `anchor
+  build` (Render) can still start. **Re-copy it after any program change.**
 - **Render:** `render.yaml` runs it as a background worker
   (`node_modules/.bin/tsx agent/src/runner.ts --loop`). The build must **not** run
   `corepack enable` (read-only `/usr/bin` on Render); it uses `corepack pnpm`.

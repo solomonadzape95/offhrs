@@ -1,0 +1,2341 @@
+{
+  "address": "FoVBZRFCamH1HNMiVpNZV2QJxk9bSxWtQvKgmqZ1rVLw",
+  "metadata": {
+    "name": "stock_vault",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Angel — wrapped PreStock + dividend vault"
+  },
+  "docs": [
+    "Angel — `stock_vault`",
+    "",
+    "Two problems, one program.",
+    "",
+    "**1. Raw PreStocks are unusable as a DBC quote asset.** They are Token-2022",
+    "mints carrying a non-zero `transferFeeConfig` (50bps today, 100bps from epoch",
+    "1039) plus `permanentDelegate`, `pausableConfig`, `scaledUiAmountConfig` and",
+    "friends. Meteora's DBC rejects them with `QuoteMintHasNonZeroTransferFee`",
+    "(6081), and a token badge does not help — a badge cannot authorise a non-zero",
+    "transfer fee. So we mint a 1:1-backed, zero-fee **classic SPL** wrapper, which",
+    "is permissionless-supported by DBC. That is what makes a stock-paired bonding",
+    "curve possible at all.",
+    "",
+    "**2. Dividends need a vault that cannot be farmed.** `DividendVault` streams",
+    "wrapped PreStock to `$AGENT` stakers over a duration rather than dropping",
+    "rewards in as a lump sum, so yield is paid for *time held* and a",
+    "stake-just-before-the-deposit gets ~nothing."
+  ],
+  "instructions": [
+    {
+      "name": "claim",
+      "docs": [
+        "Claim accrued wrapped PreStock (redeemable 1:1 for raw PreStock)."
+      ],
+      "discriminator": [
+        62,
+        198,
+        214,
+        193,
+        213,
+        159,
+        108,
+        210
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "reward_mint"
+        },
+        {
+          "name": "reward_vault",
+          "writable": true
+        },
+        {
+          "name": "user_reward_account",
+          "writable": true
+        },
+        {
+          "name": "user_stake",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  107,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "reward_token_program"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "close_agent",
+      "docs": [
+        "Close an agent registration. Creator only; the vault must have no stakers."
+      ],
+      "discriminator": [
+        52,
+        185,
+        104,
+        145,
+        157,
+        30,
+        87,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "agent"
+          ]
+        },
+        {
+          "name": "agent",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "agent.agent_token_mint",
+                "account": "Agent"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "deposit_rewards",
+      "docs": [
+        "Route trading fees / arbitrage profits in. Only the agent's creator or",
+        "its execution signer may call this. Rewards stream over `duration_slots`."
+      ],
+      "discriminator": [
+        52,
+        249,
+        112,
+        72,
+        206,
+        161,
+        196,
+        1
+      ],
+      "accounts": [
+        {
+          "name": "depositor",
+          "docs": [
+            "The agent's creator or its Clawpump execution signer — the only parties",
+            "allowed to fund the dividend stream."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "agent",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "reward_mint"
+        },
+        {
+          "name": "reward_vault",
+          "writable": true
+        },
+        {
+          "name": "depositor_reward_account",
+          "writable": true
+        },
+        {
+          "name": "reward_token_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "duration_slots",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize_vault",
+      "docs": [
+        "Create the staking + reward vault for a registered agent."
+      ],
+      "discriminator": [
+        48,
+        191,
+        163,
+        44,
+        71,
+        129,
+        63,
+        164
+      ],
+      "accounts": [
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "agent"
+          ]
+        },
+        {
+          "name": "agent",
+          "writable": true
+        },
+        {
+          "name": "staking_mint"
+        },
+        {
+          "name": "reward_mint"
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "agent.agent_token_mint",
+                "account": "Agent"
+              }
+            ]
+          }
+        },
+        {
+          "name": "stake_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  107,
+                  101,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "reward_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  119,
+                  97,
+                  114,
+                  100,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "staking_token_program"
+        },
+        {
+          "name": "reward_token_program"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "min_hold_slots",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize_wrapper",
+      "docs": [
+        "Create the wrapper mint + reserve for one PreStock mint."
+      ],
+      "discriminator": [
+        143,
+        211,
+        228,
+        247,
+        131,
+        67,
+        40,
+        30
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "prestock_mint",
+          "docs": [
+            "The raw PreStock mint (Token-2022, transfer-fee bearing)."
+          ]
+        },
+        {
+          "name": "wrapper_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  119,
+                  114,
+                  97,
+                  112,
+                  112,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "prestock_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "wrapped_mint",
+          "docs": [
+            "The wrapper mint. Deliberately a **classic SPL Token** mint so that it is",
+            "permissionless-supported as a Meteora DBC quote mint — this is the whole",
+            "reason the wrapper exists. Its mint authority is the `wrapper_config` PDA,",
+            "so only this program can ever create supply."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "reserve",
+          "docs": [
+            "PDA token account holding the raw PreStock backing every wrapped token."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  115,
+                  101,
+                  114,
+                  118,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "wrapper_config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "prestock_token_program"
+        },
+        {
+          "name": "wrapped_token_program"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "log_arb",
+      "docs": [
+        "Log an arbitrage execution. Requires the agent's Pyth `Signal`, whose",
+        "oracle fields are copied onto the record — so every logged trade is",
+        "Pyth-attested and cannot be fabricated."
+      ],
+      "discriminator": [
+        141,
+        133,
+        164,
+        197,
+        197,
+        107,
+        91,
+        19
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "agent",
+          "writable": true
+        },
+        {
+          "name": "signal",
+          "docs": [
+            "The agent's own Pyth signal. Must already have been recorded."
+          ]
+        },
+        {
+          "name": "execution",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  101,
+                  99
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "agent"
+              },
+              {
+                "kind": "arg",
+                "path": "index"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "index",
+          "type": "u64"
+        },
+        {
+          "name": "amount_in",
+          "type": "u64"
+        },
+        {
+          "name": "amount_out",
+          "type": "u64"
+        },
+        {
+          "name": "venue",
+          "type": {
+            "defined": {
+              "name": "ArbVenue"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "record_signal",
+      "docs": [
+        "Record a Pyth-attested market read (permissionless on-chain read; no API",
+        "key or entitlement needed, unlike the gated Hermes equity feeds)."
+      ],
+      "discriminator": [
+        122,
+        41,
+        88,
+        240,
+        85,
+        26,
+        27,
+        125
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "agent"
+        },
+        {
+          "name": "price_update",
+          "docs": [
+            "The Pyth `PriceUpdateV2` account. Owner is asserted before we parse it."
+          ]
+        },
+        {
+          "name": "signal",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  105,
+                  103,
+                  110,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "agent"
+              },
+              {
+                "kind": "arg",
+                "path": "expected_feed_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "expected_feed_id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "max_staleness_secs",
+          "type": "u64"
+        },
+        {
+          "name": "frozen_after_secs",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "register_agent",
+      "docs": [
+        "Register an agent and its revenue split."
+      ],
+      "discriminator": [
+        135,
+        157,
+        66,
+        195,
+        2,
+        113,
+        175,
+        30
+      ],
+      "accounts": [
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "agent",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  103,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "agent_token_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "agent_token_mint",
+          "docs": [
+            "The `$AGENT` mint. DBC creates this, so it must already exist."
+          ]
+        },
+        {
+          "name": "wrapped_mint",
+          "docs": [
+            "The wrapped PreStock the vault pays out (e.g. `wSPACEX`)."
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "agent_signer",
+          "type": "pubkey"
+        },
+        {
+          "name": "dynamic_fee_bps",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "set_paused",
+      "docs": [
+        "Circuit breaker. PreStocks can pause PreStock transfers via their",
+        "Token-2022 `pausableConfig`; this lets us halt cleanly from our side too."
+      ],
+      "discriminator": [
+        91,
+        60,
+        125,
+        192,
+        176,
+        225,
+        166,
+        218
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "wrapper_config"
+          ]
+        },
+        {
+          "name": "wrapper_config",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "paused",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "stake",
+      "docs": [
+        "Stake `$AGENT` to start earning wrapped PreStock."
+      ],
+      "discriminator": [
+        206,
+        176,
+        202,
+        18,
+        200,
+        209,
+        179,
+        108
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "staking_mint"
+        },
+        {
+          "name": "stake_vault",
+          "writable": true
+        },
+        {
+          "name": "user_stake_account",
+          "writable": true
+        },
+        {
+          "name": "user_stake",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  107,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "staking_token_program"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "unstake",
+      "docs": [
+        "Withdraw `$AGENT`. Accrued rewards stay claimable."
+      ],
+      "discriminator": [
+        90,
+        95,
+        107,
+        42,
+        205,
+        124,
+        50,
+        225
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "staking_mint"
+        },
+        {
+          "name": "stake_vault",
+          "writable": true
+        },
+        {
+          "name": "user_stake_account",
+          "writable": true
+        },
+        {
+          "name": "user_stake",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  107,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "staking_token_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "unwrap",
+      "docs": [
+        "Burn `wPreStock`, receive raw PreStock (less the PreStock transfer fee)."
+      ],
+      "discriminator": [
+        126,
+        175,
+        198,
+        14,
+        212,
+        69,
+        50,
+        44
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "prestock_mint",
+          "writable": true
+        },
+        {
+          "name": "wrapper_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  119,
+                  114,
+                  97,
+                  112,
+                  112,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "prestock_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "wrapped_mint",
+          "writable": true
+        },
+        {
+          "name": "reserve",
+          "writable": true
+        },
+        {
+          "name": "user_prestock",
+          "writable": true
+        },
+        {
+          "name": "user_wrapped",
+          "writable": true
+        },
+        {
+          "name": "prestock_token_program"
+        },
+        {
+          "name": "wrapped_token_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "wrap",
+      "docs": [
+        "Deposit raw PreStock, receive `wPreStock` 1:1 on the *received* amount."
+      ],
+      "discriminator": [
+        178,
+        40,
+        10,
+        189,
+        228,
+        129,
+        186,
+        140
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "prestock_mint",
+          "docs": [
+            "Raw PreStock mint. Pinned by the `wrapper_config` seeds below."
+          ],
+          "writable": true
+        },
+        {
+          "name": "wrapper_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  119,
+                  114,
+                  97,
+                  112,
+                  112,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "prestock_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "wrapped_mint",
+          "writable": true
+        },
+        {
+          "name": "reserve",
+          "writable": true
+        },
+        {
+          "name": "user_prestock",
+          "writable": true
+        },
+        {
+          "name": "user_wrapped",
+          "writable": true
+        },
+        {
+          "name": "prestock_token_program"
+        },
+        {
+          "name": "wrapped_token_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Agent",
+      "discriminator": [
+        47,
+        166,
+        112,
+        147,
+        155,
+        197,
+        86,
+        7
+      ]
+    },
+    {
+      "name": "ArbExecution",
+      "discriminator": [
+        226,
+        159,
+        254,
+        18,
+        155,
+        95,
+        73,
+        170
+      ]
+    },
+    {
+      "name": "DividendVault",
+      "discriminator": [
+        50,
+        106,
+        134,
+        112,
+        43,
+        207,
+        200,
+        150
+      ]
+    },
+    {
+      "name": "Signal",
+      "discriminator": [
+        20,
+        6,
+        227,
+        69,
+        183,
+        62,
+        78,
+        246
+      ]
+    },
+    {
+      "name": "UserStake",
+      "discriminator": [
+        102,
+        53,
+        163,
+        107,
+        9,
+        138,
+        87,
+        153
+      ]
+    },
+    {
+      "name": "WrapperConfig",
+      "discriminator": [
+        83,
+        239,
+        35,
+        66,
+        9,
+        218,
+        15,
+        226
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "AgentClosed",
+      "discriminator": [
+        72,
+        133,
+        207,
+        59,
+        220,
+        188,
+        201,
+        165
+      ]
+    },
+    {
+      "name": "AgentRegistered",
+      "discriminator": [
+        191,
+        78,
+        217,
+        54,
+        232,
+        100,
+        189,
+        85
+      ]
+    },
+    {
+      "name": "ArbLogged",
+      "discriminator": [
+        33,
+        20,
+        70,
+        102,
+        6,
+        102,
+        65,
+        190
+      ]
+    },
+    {
+      "name": "Claimed",
+      "discriminator": [
+        217,
+        192,
+        123,
+        72,
+        108,
+        150,
+        248,
+        33
+      ]
+    },
+    {
+      "name": "PauseChanged",
+      "discriminator": [
+        238,
+        188,
+        213,
+        78,
+        134,
+        209,
+        178,
+        218
+      ]
+    },
+    {
+      "name": "RewardsDeposited",
+      "discriminator": [
+        120,
+        19,
+        149,
+        33,
+        111,
+        163,
+        248,
+        156
+      ]
+    },
+    {
+      "name": "SignalRecorded",
+      "discriminator": [
+        145,
+        141,
+        4,
+        113,
+        206,
+        16,
+        69,
+        247
+      ]
+    },
+    {
+      "name": "Staked",
+      "discriminator": [
+        11,
+        146,
+        45,
+        205,
+        230,
+        58,
+        213,
+        240
+      ]
+    },
+    {
+      "name": "Unstaked",
+      "discriminator": [
+        27,
+        179,
+        156,
+        215,
+        47,
+        71,
+        195,
+        7
+      ]
+    },
+    {
+      "name": "Unwrapped",
+      "discriminator": [
+        25,
+        86,
+        93,
+        80,
+        145,
+        113,
+        86,
+        93
+      ]
+    },
+    {
+      "name": "VaultInitialized",
+      "discriminator": [
+        180,
+        43,
+        207,
+        2,
+        18,
+        71,
+        3,
+        75
+      ]
+    },
+    {
+      "name": "Wrapped",
+      "discriminator": [
+        11,
+        127,
+        145,
+        31,
+        206,
+        134,
+        73,
+        130
+      ]
+    },
+    {
+      "name": "WrapperInitialized",
+      "discriminator": [
+        190,
+        218,
+        152,
+        11,
+        69,
+        5,
+        69,
+        223
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "ZeroAmount",
+      "msg": "Amount must be greater than zero"
+    },
+    {
+      "code": 6001,
+      "name": "Paused",
+      "msg": "Wrapper is paused"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidPrestockMint",
+      "msg": "PreStock mint must be owned by the Token-2022 program"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidWrappedMint",
+      "msg": "Wrapped mint must be owned by the classic SPL Token program"
+    },
+    {
+      "code": 6004,
+      "name": "ReserveWentBackwards",
+      "msg": "Reserve balance decreased during transfer"
+    },
+    {
+      "code": 6005,
+      "name": "NothingReceived",
+      "msg": "Nothing received — the PreStock transfer fee consumed the whole amount"
+    },
+    {
+      "code": 6006,
+      "name": "InvariantBroken",
+      "msg": "Invariant violated: wrapped supply != reserve balance"
+    },
+    {
+      "code": 6007,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6008,
+      "name": "AgentMintMismatch",
+      "msg": "Mint does not match the agent registration"
+    },
+    {
+      "code": 6009,
+      "name": "VaultNotDrained",
+      "msg": "Cannot close an agent whose vault still has stakers"
+    },
+    {
+      "code": 6010,
+      "name": "VaultAgentMismatch",
+      "msg": "Vault is not linked to this agent"
+    },
+    {
+      "code": 6011,
+      "name": "NothingToClaim",
+      "msg": "Nothing to claim"
+    },
+    {
+      "code": 6012,
+      "name": "StakeLocked",
+      "msg": "Stake is still inside the anti-flash-loan hold window"
+    },
+    {
+      "code": 6013,
+      "name": "InsufficientStake",
+      "msg": "Insufficient staked balance"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidDuration",
+      "msg": "Duration must be greater than zero slots"
+    },
+    {
+      "code": 6015,
+      "name": "MathOverflow",
+      "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6016,
+      "name": "RewardVaultUnderfunded",
+      "msg": "Reward vault holds less than the vault accounting claims"
+    },
+    {
+      "code": 6017,
+      "name": "PythAccountOwnerMismatch",
+      "msg": "Pyth price account is not owned by the Pyth receiver program"
+    },
+    {
+      "code": 6018,
+      "name": "PythAccountTooSmall",
+      "msg": "Pyth account is too small to be a PriceUpdateV2"
+    },
+    {
+      "code": 6019,
+      "name": "PythWrongAccountType",
+      "msg": "Pyth account is not a PriceUpdateV2"
+    },
+    {
+      "code": 6020,
+      "name": "PythFeedIdMismatch",
+      "msg": "Pyth account carries a different feed id than expected"
+    },
+    {
+      "code": 6021,
+      "name": "StalePrice",
+      "msg": "Pyth price is older than the caller's staleness policy allows"
+    },
+    {
+      "code": 6022,
+      "name": "SignalAgentMismatch",
+      "msg": "Signal belongs to a different agent"
+    },
+    {
+      "code": 6023,
+      "name": "ExecutionIndexMismatch",
+      "msg": "Execution index does not match the agent's counter"
+    }
+  ],
+  "types": [
+    {
+      "name": "Agent",
+      "docs": [
+        "An autonomous trading agent and its revenue split."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "creator",
+            "docs": [
+              "Deploys the agent, sets fee parameters, receives creator royalties."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "agent_signer",
+            "docs": [
+              "The Clawpump bot's execution keypair. May route profits into the vault."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "agent_token_mint",
+            "docs": [
+              "The `$AGENT` mint (created by the Meteora DBC pool). This is the staking token."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "wrapped_mint",
+            "docs": [
+              "The wrapped PreStock (`wSPACEX` / `wOPENAI`) — the vault's reward token."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "dynamic_fee_bps",
+            "docs": [
+              "DBC dynamic fee tier, in bps (500 = 5%)."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "total_profits_routed",
+            "docs": [
+              "Historical arbitrage yield routed in, for the UI."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "execution_count",
+            "docs": [
+              "Number of arb executions logged. Doubles as the PDA index counter."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_profit_logged",
+            "docs": [
+              "Sum of logged execution profit, for the UI."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AgentClosed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "agent",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AgentRegistered",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "agent",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "agent_signer",
+            "type": "pubkey"
+          },
+          {
+            "name": "agent_token_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "wrapped_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "dynamic_fee_bps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ArbExecution",
+      "docs": [
+        "One logged arbitrage execution.",
+        "",
+        "The Pyth fields are **copied from the referenced `Signal`**, not supplied by",
+        "the caller. An execution therefore cannot be logged without a real, current,",
+        "correctly-identified oracle read behind it — which is what makes the",
+        "execution log evidence rather than a claim."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "agent",
+            "type": "pubkey"
+          },
+          {
+            "name": "index",
+            "type": "u64"
+          },
+          {
+            "name": "venue",
+            "type": {
+              "defined": {
+                "name": "ArbVenue"
+              }
+            }
+          },
+          {
+            "name": "amount_in",
+            "docs": [
+              "What the agent committed (quote-asset units)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "amount_out",
+            "docs": [
+              "What it got back (quote-asset units)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "profit",
+            "docs": [
+              "`amount_out.saturating_sub(amount_in)` — computed on-chain, not asserted."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "oracle",
+            "type": "pubkey"
+          },
+          {
+            "name": "feed_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "pyth_price",
+            "type": "i64"
+          },
+          {
+            "name": "pyth_exponent",
+            "type": "i32"
+          },
+          {
+            "name": "pyth_publish_time",
+            "type": "i64"
+          },
+          {
+            "name": "pyth_staleness_secs",
+            "type": "u64"
+          },
+          {
+            "name": "regime",
+            "type": {
+              "defined": {
+                "name": "MarketRegime"
+              }
+            }
+          },
+          {
+            "name": "executed_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ArbLogged",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "agent",
+            "type": "pubkey"
+          },
+          {
+            "name": "index",
+            "type": "u64"
+          },
+          {
+            "name": "venue",
+            "type": {
+              "defined": {
+                "name": "ArbVenue"
+              }
+            }
+          },
+          {
+            "name": "amount_in",
+            "type": "u64"
+          },
+          {
+            "name": "amount_out",
+            "type": "u64"
+          },
+          {
+            "name": "profit",
+            "type": "u64"
+          },
+          {
+            "name": "pyth_price",
+            "type": "i64"
+          },
+          {
+            "name": "pyth_publish_time",
+            "type": "i64"
+          },
+          {
+            "name": "regime",
+            "type": {
+              "defined": {
+                "name": "MarketRegime"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ArbVenue",
+      "docs": [
+        "Where an execution happened. Kept as an enum so the UI can group by venue",
+        "and the judge can see the agent really routed through multiple DEXes."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Jupiter"
+          },
+          {
+            "name": "Raydium"
+          },
+          {
+            "name": "MeteoraDlmm"
+          },
+          {
+            "name": "MeteoraDammV2"
+          },
+          {
+            "name": "Orca"
+          },
+          {
+            "name": "Clawpump"
+          },
+          {
+            "name": "Other"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Claimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "docs": [
+              "Paid in wrapped PreStock — redeemable 1:1 for the raw PreStock."
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DividendVault",
+      "docs": [
+        "Streams `wPreStock` rewards to `$AGENT` stakers.",
+        "",
+        "Rewards are **streamed over a duration** rather than dropped in as a lump",
+        "sum. This is the Synthetix `StakingRewards` pattern, and it is the reason",
+        "this vault is not flash-loanable: a lump-sum accumulator would hand a",
+        "proportional share of a deposit to anyone who staked in the same block,",
+        "whereas a stream pays for *time held*. Stake one slot before a deposit and",
+        "you earn one slot's worth.",
+        "",
+        "It also gives the doc's \"duration-weighted yield\" literally, with no",
+        "per-user bookkeeping."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "staking_mint",
+            "docs": [
+              "The `$AGENT` mint users must stake."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "reward_mint",
+            "docs": [
+              "The reward token — always the wrapped PreStock, never raw PreStock, so the",
+              "PreStock transfer fee is paid once on unwrap instead of on every claim."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "stake_vault",
+            "docs": [
+              "PDA token account holding staked `$AGENT`."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "reward_vault",
+            "docs": [
+              "PDA token account holding `wPreStock` rewards."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "agent",
+            "docs": [
+              "Authority allowed to deposit rewards (the agent's creator or signer)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "total_staked",
+            "type": "u64"
+          },
+          {
+            "name": "acc_reward_per_share",
+            "docs": [
+              "Scaled by `PRECISION`."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "reward_rate",
+            "docs": [
+              "Rewards per slot currently being streamed."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "reward_reserve",
+            "docs": [
+              "Deposited rewards not yet streamed out."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_distributed",
+            "docs": [
+              "Lifetime rewards actually streamed into the accumulator."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_update_slot",
+            "type": "u64"
+          },
+          {
+            "name": "min_hold_slots",
+            "docs": [
+              "Slots a stake must be held before rewards can be claimed."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketRegime",
+      "docs": [
+        "Whether the reference market behind a feed is currently live or frozen.",
+        "",
+        "This is the doc's \"Weekend Market Disconnect\" thesis encoded on-chain: an",
+        "equity feed whose `publish_time` stops advancing *is* the disconnect, and it",
+        "is measurable permissionlessly from the Pyth account itself."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Live"
+          },
+          {
+            "name": "Frozen"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PauseChanged",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "paused",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RewardsDeposited",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "depositor",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "duration_slots",
+            "type": "u64"
+          },
+          {
+            "name": "reward_rate",
+            "type": "u128"
+          },
+          {
+            "name": "reward_reserve",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Signal",
+      "docs": [
+        "The latest Pyth-attested market read for one (agent, feed) pair.",
+        "",
+        "Upserted by `record_signal`. It can only exist if a genuine `PriceUpdateV2`",
+        "account, owned by the Pyth receiver, carrying the expected feed id, and",
+        "inside the caller's staleness policy, was supplied — so the value is an",
+        "attestation rather than something the agent merely claims."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "agent",
+            "type": "pubkey"
+          },
+          {
+            "name": "oracle",
+            "docs": [
+              "The Pyth account this was decoded from."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "feed_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "price",
+            "type": "i64"
+          },
+          {
+            "name": "conf",
+            "type": "u64"
+          },
+          {
+            "name": "exponent",
+            "type": "i32"
+          },
+          {
+            "name": "publish_time",
+            "docs": [
+              "`publish_time` from the Pyth account."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "observed_at",
+            "docs": [
+              "Our clock when we recorded it."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "staleness_secs",
+            "type": "u64"
+          },
+          {
+            "name": "regime",
+            "type": {
+              "defined": {
+                "name": "MarketRegime"
+              }
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SignalRecorded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "agent",
+            "type": "pubkey"
+          },
+          {
+            "name": "oracle",
+            "type": "pubkey"
+          },
+          {
+            "name": "feed_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "price",
+            "type": "i64"
+          },
+          {
+            "name": "exponent",
+            "type": "i32"
+          },
+          {
+            "name": "publish_time",
+            "type": "i64"
+          },
+          {
+            "name": "staleness_secs",
+            "type": "u64"
+          },
+          {
+            "name": "regime",
+            "type": {
+              "defined": {
+                "name": "MarketRegime"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Staked",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "total_staked",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Unstaked",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "total_staked",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Unwrapped",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "docs": [
+              "Wrapped tokens burned. The user receives less than this — the PreStock",
+              "transfer fee applies again on the way out."
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserStake",
+      "docs": [
+        "Per-holder stake record."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "staked_amount",
+            "type": "u64"
+          },
+          {
+            "name": "reward_debt",
+            "docs": [
+              "`staked_amount * acc_reward_per_share / PRECISION` at last settle."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "accrued",
+            "docs": [
+              "Rewards settled but not yet withdrawn. Keeping this means `stake`/`unstake`",
+              "never silently forfeit accrued rewards."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_claimed",
+            "type": "u64"
+          },
+          {
+            "name": "last_stake_slot",
+            "docs": [
+              "Slot of the most recent stake. Anti-flash-loan retention lock."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultInitialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "agent",
+            "type": "pubkey"
+          },
+          {
+            "name": "staking_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "reward_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "min_hold_slots",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Wrapped",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "requested",
+            "docs": [
+              "What the user asked to wrap."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "received",
+            "docs": [
+              "What was actually credited to them (net of the PreStock transfer fee)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "fee",
+            "docs": [
+              "PreStock transfer fee burned by the mint's Token-2022 `transferFeeConfig`."
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WrapperConfig",
+      "docs": [
+        "Configuration + reserve bookkeeping for one wrapped PreStock.",
+        "",
+        "One `WrapperConfig` exists per PreStock mint (e.g. SPACEX, OPENAI). It owns",
+        "both the `wrapped_mint` (mint authority = this PDA) and the `reserve` token",
+        "account that holds the raw PreStock backing it.",
+        "",
+        "INVARIANT: `wrapped_mint.supply == reserve.amount`, enforced on every",
+        "wrap/unwrap. It can only be broken externally, by PreStocks exercising the",
+        "Token-2022 `permanentDelegate` on the PreStock mint — see `bad_debt()`."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "prestock_mint",
+            "docs": [
+              "The raw PreStock mint (Token-2022, transfer-fee bearing)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "wrapped_mint",
+            "docs": [
+              "Classic SPL mint, mint authority = this PDA. **This is the DBC quote asset.**"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "reserve",
+            "docs": [
+              "PDA token account holding the raw PreStock."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "admin",
+            "docs": [
+              "Admin allowed to pause and to seed the vault."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "prestock_decimals",
+            "docs": [
+              "Decimals of the raw PreStock mint (9 for the live PreStocks)."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "wrapped_decimals",
+            "docs": [
+              "Decimals of `wrapped_mint`. Always equal to `prestock_decimals`: the wrapper is",
+              "1:1 at the RAW amount level and therefore transparent to `scaledUiAmount`.",
+              "(Baking the multiplier in would mis-back every wrapper the moment it changed.)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "paused",
+            "docs": [
+              "Circuit breaker mirroring PreStocks' `pausableConfig`, which can halt",
+              "PreStock transfers out from under us."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "total_requested_in",
+            "docs": [
+              "Gross PreStock requested in."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_received_in",
+            "docs": [
+              "PreStock actually credited, net of transfer fees."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_fee_paid_in",
+            "docs": [
+              "PreStock transfer fees burned on the way in. Proves we read the extension."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_unwrapped",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WrapperInitialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "prestock_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "wrapped_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "reserve",
+            "type": "pubkey"
+          },
+          {
+            "name": "decimals",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}

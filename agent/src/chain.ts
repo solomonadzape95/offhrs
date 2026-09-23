@@ -12,7 +12,17 @@ import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 
 import { config } from "./config.js";
 
-const IDL_PATH = path.resolve(process.cwd(), "target/idl/stock_vault.json");
+/**
+ * The IDL the agent decodes accounts with. `target/` is gitignored (it is build
+ * output), so a committed copy lives in `agent/idl/` — the runner has to be able to
+ * start on a host that never ran `anchor build`. Prefer the local copy, fall back
+ * to the build output for development.
+ */
+const IDL_PATH =
+  [
+    path.resolve(process.cwd(), "agent/idl/stock_vault.json"),
+    path.resolve(process.cwd(), "target/idl/stock_vault.json"),
+  ].find((p) => fs.existsSync(p)) ?? path.resolve(process.cwd(), "agent/idl/stock_vault.json");
 
 export function loadKeypair(): Keypair {
   // A host like Render has no keypair file, so an inline key wins when present.
