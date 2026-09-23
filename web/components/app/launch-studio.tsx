@@ -38,7 +38,6 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
 
   const [agentSigner, setAgentSigner] = useState("");
   const [agentTokenMint, setAgentTokenMint] = useState("");
-  const [minEdge, setMinEdge] = useState("150");
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [asset, setAsset] = useState(
@@ -52,6 +51,12 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
   const client = useSolanaClient();
   const { address } = useWalletUi();
   const session = useWalletSession();
+
+  // Prefill the agent signer with the connected wallet — it is a public key, and a
+  // tester's own wallet is the sensible default. They can paste another.
+  useEffect(() => {
+    if (address && !agentSigner) setAgentSigner(address);
+  }, [address, agentSigner]);
 
   // Where the `$AGENT` mint comes from. Clawpump is the normal path; the
   // self-owned DBC launch is the fallback if it falls through.
@@ -143,7 +148,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
   };
 
   const canAdvance =
-    (step === 0 && agentSigner.length >= 32 && Number(minEdge) > 0) ||
+    (step === 0 && agentSigner.length >= 32) ||
     (step === 1 && name.length > 1 && symbol.length >= 2) ||
     step === 2 ||
     step === 3 ||
@@ -173,7 +178,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
             <>
               <Head
                 t="Agent"
-                d="Where the token comes from, who signs its trades, and the gap size it acts on."
+                d="Where the token comes from, and the public key its trades are signed with."
               />
               <div className="grid grid-cols-2 border border-edge">
                 {(
@@ -194,41 +199,38 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
                   </button>
                 ))}
               </div>
-              <Field
-                label="Agent signer"
-                hint={source === "clawpump" ? "Clawpump keypair · base58" : "the keypair the agent trades with · base58"}
-              >
+              <Field label="Agent signer" hint="the public key its trades are signed with">
                 <input
                   value={agentSigner}
                   onChange={(e) => setAgentSigner(e.target.value.trim())}
                   placeholder="9BmQr4kLhVn2XcWpY7TfAd3sGzE6uJqRoP8vNbC1dHfM"
                   className="w-full border-b border-edge bg-transparent pb-2 font-mono text-sm text-ink outline-none focus:border-signal"
                 />
+                <span className="font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
+                  A public key only — nothing is signed here. Prefilled with your connected wallet;
+                  leave it as is for a devnet test.
+                </span>
               </Field>
               {source === "clawpump" ? (
-                <Field label="Agent token mint" hint="returned by your Clawpump DBC launch">
+                <Field label="Agent token mint" hint="the mint Clawpump created for your token">
                   <input
                     value={agentTokenMint}
                     onChange={(e) => setAgentTokenMint(e.target.value.trim())}
                     placeholder="DVdtWw6y8Aet4oLP741ZpYoS5VoGa6Dr11qFWEsfQfwM"
                     className="w-full border-b border-edge bg-transparent pb-2 font-mono text-sm text-ink outline-none focus:border-signal"
                   />
+                  <span className="font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
+                    Clawpump launches the token and its curve; this registers that token with the
+                    dividend vault. Paste the address Clawpump gives you.
+                  </span>
                 </Field>
               ) : (
                 <p className="font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
-                  The app will create the Meteora DBC config and pool itself, quoted in w{asset},
-                  and the `$AGENT` mint is created in that transaction. Use this only if Clawpump is
-                  unavailable.
+                  The app creates the Meteora DBC config and pool itself, quoted in w{asset}, and the
+                  `$AGENT` mint is created in that transaction — there is no mint to paste. Use this
+                  if Clawpump is unavailable.
                 </p>
               )}
-              <Field label="Minimum gap to act" hint="bps · after ~600bps of round-trip costs">
-                <input
-                  value={minEdge}
-                  onChange={(e) => setMinEdge(e.target.value.replace(/[^0-9]/g, ""))}
-                  inputMode="numeric"
-                  className="tabular w-full border-b border-edge bg-transparent pb-2 font-mono text-sm text-ink outline-none focus:border-signal"
-                />
-              </Field>
             </>
           )}
 
@@ -368,7 +370,6 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
                 <Row k="Token" v={name && symbol ? `${name} ($${symbol})` : "—"} />
                 <Row k="Dividend asset" v={asset} />
                 <Row k="Curve fee" v={`${(feeBps / 100).toFixed(1)}%`} />
-                <Row k="Min gap" v={`${minEdge || "0"}bps`} />
                 <Row
                   k="Pool currency"
                   v={`w${asset} (zero-fee wrapper)`}
