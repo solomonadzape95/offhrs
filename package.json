@@ -2,6 +2,7 @@
   "name": "offhrs",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@12.4.2",
   "scripts": {
     "day0": "tsx experiments/day0-quote-mint.ts"
   },

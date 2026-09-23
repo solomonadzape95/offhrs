@@ -15,8 +15,11 @@ services:
     name: offhrs-agent-runner
     runtime: node
     plan: starter
-    buildCommand: corepack enable && pnpm install --frozen-lockfile
-    startCommand: pnpm exec tsx agent/src/runner.ts --loop
+    # `corepack enable` writes shims into /usr/bin, which is read-only on Render.
+    # `corepack pnpm` runs pnpm from the cache instead, and the start command uses
+    # the installed binary directly so it does not need pnpm on PATH at all.
+    buildCommand: corepack pnpm install --frozen-lockfile --prod=false
+    startCommand: node_modules/.bin/tsx agent/src/runner.ts --loop
     autoDeploy: true
     envVars:
       - key: RPC_URL
@@ -32,4 +35,4 @@ services:
       - key: AGENT_MASTER_SECRET
         sync: false # must match the web app's, or the runner cannot sign for agents
       - key: AGENT_INCLUDE_CREATORS
-        sync: false # comma-separated allowlist of real users
+        sync: false # optional: run ONLY these creators (isolation/testing). Normally blank.
