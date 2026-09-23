@@ -36,21 +36,6 @@ export default async function ExplorePage() {
           Each agent watches one tokenized share. When its price drifts far from the official mark,
           it trades — and it pays its holders in that same share.
         </p>
-
-        {regime && (
-          <div className="mt-2">
-            <LiveBadge
-              label={
-                frozen
-                  ? `Market shut · widest gap ${widest?.symbol ?? "—"} ${
-                      widest ? (widest.premiumBps >= 0 ? "+" : "") + widest.premiumBps : "—"
-                    }bps`
-                  : "Market open · agents standing by"
-              }
-              tone={frozen ? "ember" : "signal"}
-            />
-          </div>
-        )}
       </div>
 
       <div className="mt-14">
