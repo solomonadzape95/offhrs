@@ -44,6 +44,7 @@ import {
 } from "@/lib/program-tx";
 import { buildBuyExactOutTransaction, buildBuyTransaction, buildSellTransaction, loadPool, quoteTrade } from "@/lib/trade";
 import { agentSignerAddress, agentSignerFor, agentSignerSecret } from "@/lib/agent-keys";
+import { USDC } from "@/lib/jupiter";
 import { buildCreateAgentCurve } from "@/lib/launch";
 import { faucet } from "@/lib/faucet";
 import { fetchUniverse } from "@/lib/universe";
@@ -500,6 +501,21 @@ async function tradeContext(agentId: string) {
   // in the issuer's universe.
   const asset = known ?? (prestockMint ? prestockMint.slice(0, 4).toUpperCase() : "—");
   return { agent, prestockMint, asset };
+}
+
+/**
+ * Wallet balances for the PreStock swap box: USDC (classic SPL) and the raw
+ * PreStock (Token-2022). Best-effort — a missing account reads as zero.
+ */
+export async function getSwapBalances(
+  owner: string,
+  prestockMint: string,
+): Promise<{ usdc: string; prestock: string }> {
+  const [usdc, prestock] = await Promise.all([
+    fetchTokenBalance(USDC, owner, "spl").catch(() => null),
+    fetchTokenBalance(prestockMint, owner, "token-2022").catch(() => null),
+  ]);
+  return { usdc: (usdc ?? 0n).toString(), prestock: (prestock ?? 0n).toString() };
 }
 
 /**

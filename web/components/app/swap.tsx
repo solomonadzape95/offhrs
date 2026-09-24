@@ -13,6 +13,9 @@ import {
   type JupiterQuote,
   type JupiterSigner,
 } from "@/lib/jupiter";
+import { getSwapBalances } from "@/app/actions";
+import { Presets } from "@/components/ui/presets";
+import { useServerData } from "@/lib/use-server-data";
 import { useWalletUi, describeWalletError } from "@/lib/wallet";
 
 /**
@@ -68,6 +71,22 @@ export function Swap({
     if (!Number.isFinite(n) || n <= 0) return null;
     return BigInt(Math.floor(n * 10 ** inputDecimals));
   }, [amount, inputDecimals]);
+
+  // The wallet's balance on whichever side is being paid, so the field can offer
+  // a share of it instead of making the number up. Best-effort on devnet, where
+  // USDC and the real PreStocks do not exist.
+  const balances = useServerData(address ? `swap:${address}:${mint}` : null, () =>
+    getSwapBalances(address as string, mint),
+  );
+  const bal = balances.status === "ready" ? balances.data : null;
+  const inputBalanceNum =
+    side === "buy"
+      ? Number(bal?.usdc ?? 0) / 10 ** USDC_DECIMALS
+      : Number(bal?.prestock ?? 0) / 10 ** decimals;
+  const onPct = (pct: number) => {
+    if (!Number.isFinite(inputBalanceNum) || inputBalanceNum <= 0) return;
+    setAmount(String(+(inputBalanceNum * (pct / 100)).toFixed(inputDecimals)));
+  };
 
   // Quote as you type. 400ms is long enough to skip the intermediate keystrokes
   // of a number and short enough that the figure feels attached to the field.
@@ -155,7 +174,17 @@ export function Swap({
 
       <div className="flex flex-col gap-5 p-6">
         <label className="flex flex-col gap-2">
-          <span className="label">{side === "buy" ? "You pay (USDC)" : `You pay (${symbol})`}</span>
+          <span className="flex items-center justify-between gap-3">
+            <span className="label">{side === "buy" ? "You pay (USDC)" : `You pay (${symbol})`}</span>
+            <span className="flex items-center gap-2">
+              {inputBalanceNum > 0 && (
+                <span className="font-mono text-[0.625rem] text-ink-faint">
+                  {inputBalanceNum.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                </span>
+              )}
+              <Presets onPick={onPct} disabled={busy || inputBalanceNum <= 0} />
+            </span>
+          </span>
           <input
             value={amount}
             disabled={busy}
