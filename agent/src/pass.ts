@@ -56,14 +56,22 @@ export async function runAgentPass(input: RunAgentPassInput): Promise<AgentPass>
 
   const market = input.marketConn ?? conn;
   const snap = await collectSnapshot(market, symbol, config.referenceFeed, config.frozenAfterSecs);
-  const decision = decide(snap);
+  const rawDecision = decide(snap);
+  // `ANGEL_FORCE` runs the real pipeline with the direction forced, for demos.
+  const decision: Decision = config.force
+    ? {
+        ...rawDecision,
+        direction: config.force === "buy" ? "buy_prestock" : "sell_prestock",
+        regimeAllows: true,
+      }
+    : rawDecision;
 
-  if (!shouldExecute(decision) || !execute) {
+  if ((!config.force && !shouldExecute(decision)) || !execute) {
     return { snap, decision, executed: false };
   }
 
   const agent = chain.agentPda(program.programId, agentMint);
-  const adapter = selectAdapter();
+  const adapter = selectAdapter(agentMint);
   if (!adapter.ready()) {
     throw new Error(`execution backend "${adapter.name}" is not ready`);
   }

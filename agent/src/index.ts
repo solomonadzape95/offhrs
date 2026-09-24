@@ -88,13 +88,7 @@ async function onePass(conn: Connection, execute: boolean) {
 
   report(pass.snap, pass.decision);
 
-  if (!shouldExecute(pass.decision)) {
-    console.log(c.dim(`  action     none (${config.execution} backend idle)\n`));
-  } else if (!execute) {
-    console.log(
-      c.dim(`  action     actionable but read-only — set --execute to send (backend ${config.execution})\n`),
-    );
-  } else if (pass.executed) {
+  if (pass.executed) {
     console.log(c.green(`  attested   record_signal ${pass.signalSignature}`));
     if (pass.result) console.log(c.dim(`  execute    ${pass.result.backend}: ${pass.result.detail}`));
     console.log(c.green(`  logged     log_arb ${pass.executionSignature}`));
@@ -102,6 +96,12 @@ async function onePass(conn: Connection, execute: boolean) {
       console.log(c.green(`  routed     deposit_rewards ${pass.routeSignature}`));
     }
     console.log("");
+  } else if (!shouldExecute(pass.decision)) {
+    console.log(c.dim(`  action     none (${config.execution} backend idle)\n`));
+  } else if (!execute) {
+    console.log(
+      c.dim(`  action     actionable but read-only — set --execute to send (backend ${config.execution})\n`),
+    );
   }
 
   return pass;

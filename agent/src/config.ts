@@ -3,7 +3,7 @@
  * run dry, against devnet, or against mainnet without code changes.
  */
 
-export type ExecutionBackend = "dryrun" | "jupiter" | "clawpump";
+export type ExecutionBackend = "dryrun" | "jupiter" | "clawpump" | "dbc";
 
 const num = (v: string | undefined, d: number) => (v === undefined ? d : Number(v));
 const bool = (v: string | undefined, d = false) => (v === undefined ? d : v === "1" || v === "true");
@@ -77,6 +77,20 @@ export const config = {
 
   loopSeconds: num(process.env.ANGEL_LOOP_SECONDS, 60),
   once: bool(process.env.ANGEL_ONCE),
+
+  /**
+   * Demo override: force one direction even when the signal says `hold`.
+   *
+   * The strategy is deliberately conservative (it needs a basis bigger than the
+   * round-trip cost), so a quiet market produces no executions. Setting this to
+   * `buy` or `sell` runs the real pipeline — real attestation, real swap, real
+   * log — with the decision forced, so a devnet demo always has something to
+   * show. It does not change what is written on chain.
+   */
+  force:
+    process.env.ANGEL_FORCE === "buy" || process.env.ANGEL_FORCE === "sell"
+      ? (process.env.ANGEL_FORCE as "buy" | "sell")
+      : undefined,
 
   programId: process.env.ANGEL_PROGRAM_ID ?? "FoVBZRFCamH1HNMiVpNZV2QJxk9bSxWtQvKgmqZ1rVLw",
   keypairPath: process.env.ANCHOR_WALLET ?? `${process.env.HOME}/.config/solana/id.json`,

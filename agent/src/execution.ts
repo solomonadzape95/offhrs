@@ -8,7 +8,8 @@
  * satisfies their bounty text is still open. Whichever way that resolves, only
  * this file changes.
  */
-import { Connection, Keypair, VersionedTransaction } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, VersionedTransaction } from "@solana/web3.js";
+import { BN } from "@coral-xyz/anchor";
 
 import { config } from "./config.js";
 import type { MarketSnapshot } from "./market.js";
@@ -218,12 +219,113 @@ export class ClawpumpAdapter implements ExecutionAdapter {
   }
 }
 
-export function selectAdapter(): ExecutionAdapter {
+/**
+ * Direct execution against the agent's own Meteora DBC pool.
+ *
+ * On mainnet the arb trades the underlying PreStock through Jupiter. On devnet
+ * there is no such market, so the agent trades its own `$AGENT / wPreStock`
+ * curve instead — a real swap, signed by the agent's app-owned key and settled
+ * on chain, so the logged row is a trade rather than a model.
+ *
+ * Venue note: `ArbVenue` has no Dynamic-Bonding-Curve variant, so the row is
+ * labelled `Other`. Add a `MeteoraDbc` variant (and upgrade the program) if the
+ * label matters.
+ */
+export class DbcAdapter implements ExecutionAdapter {
+  readonly name = "dbc";
+  constructor(private readonly agentMint: PublicKey) {}
+
+  ready() {
+    return Boolean(this.agentMint);
+  }
+
+  async execute(
+    _snap: MarketSnapshot,
+    decision: Decision,
+    notional: bigint,
+    ctx?: ExecutionContext,
+  ): Promise<ExecuteResult> {
+    if (!ctx) throw new Error("the dbc backend needs a signer");
+
+    const sdk: any = await import("@meteora-ag/dynamic-bonding-curve-sdk");
+    const client = sdk.DynamicBondingCurveClient.create(ctx.connection, "confirmed");
+
+    const found = await client.state.getPoolByBaseMint(this.agentMint);
+    if (!found) throw new Error(`no Meteora DBC pool for ${this.agentMint.toBase58()}`);
+    const virtualPool: any = found.account ?? found;
+    const pool: PublicKey = found.publicKey ?? virtualPool.publicKey;
+    const configAddr: PublicKey = virtualPool.poolState?.config ?? virtualPool.config;
+    const configState = await client.state.getPoolConfig(configAddr);
+
+    // `buy_prestock` spends the quote (wPreStock) for the base ($AGENT); a sell
+    // is the reverse. The pool is `$AGENT / wPreStock`.
+    const swapBaseForQuote = decision.direction === "sell_prestock";
+    const amountIn = new BN(notional.toString());
+
+    const quote = client.pool.swapQuote2({
+      virtualPool,
+      config: configState,
+      swapBaseForQuote,
+      swapMode: sdk.SwapMode.ExactIn,
+      amountIn,
+      slippageBps: 100,
+      hasReferral: false,
+      eligibleForFirstSwapWithMinFee: false,
+      currentPoint: new BN(Math.floor(Date.now() / 1000)),
+    });
+
+    const tx: any = await client.pool.swap2({
+      owner: ctx.signer.publicKey,
+      pool,
+      swapBaseForQuote,
+      referralTokenAccount: null,
+      swapMode: sdk.SwapMode.ExactIn,
+      amountIn,
+      minimumAmountOut: quote.minimumAmountOut,
+    });
+    tx.feePayer = ctx.signer.publicKey;
+    tx.recentBlockhash = (await ctx.connection.getLatestBlockhash("confirmed")).blockhash;
+    tx.sign(ctx.signer);
+
+    const signature = await ctx.connection.sendRawTransaction(tx.serialize(), {
+      skipPreflight: false,
+      maxRetries: 3,
+    });
+    await ctx.connection.confirmTransaction(signature, "confirmed");
+
+    // Report both legs in the quote token so `log_arb`'s same-unit profit stays
+    // honest: a single-leg swap nets ~0 after the curve fee, never a fake gain.
+    const fee =
+      BigInt(quote.tradingFee?.toString() ?? "0") + BigInt(quote.protocolFee?.toString() ?? "0");
+    const quoteOut = BigInt(quote.outputAmount.toString());
+    const logIn = swapBaseForQuote ? quoteOut + fee : notional;
+    const logOut = swapBaseForQuote ? quoteOut : notional > fee ? notional - fee : 0n;
+
+    return {
+      backend: this.name,
+      executed: true,
+      amountIn: logIn,
+      amountOut: logOut,
+      venue: "Other",
+      signature,
+      detail:
+        `Meteora DBC ${swapBaseForQuote ? "sell" : "buy"} ` +
+        (swapBaseForQuote
+          ? `${notional} base -> ${quoteOut} quote`
+          : `${notional} quote -> ${quoteOut} base`),
+    };
+  }
+}
+
+export function selectAdapter(agentMint?: PublicKey): ExecutionAdapter {
   switch (config.execution) {
     case "clawpump":
       return new ClawpumpAdapter();
     case "jupiter":
       return new JupiterAdapter();
+    case "dbc":
+      if (!agentMint) throw new Error("the dbc backend needs an agent mint");
+      return new DbcAdapter(agentMint);
     default:
       return new DryRunAdapter();
   }
