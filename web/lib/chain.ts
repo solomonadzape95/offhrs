@@ -105,6 +105,7 @@ const VENUES = [
   "Orca",
   "Clawpump",
   "Other",
+  "MeteoraDbc",
 ] as const;
 const REGIMES = ["Live", "Frozen"] as const;
 

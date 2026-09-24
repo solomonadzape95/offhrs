@@ -4,8 +4,15 @@
 # background worker (no public URL, runs continuously) that sweeps every on-chain
 # agent on an interval.
 #
-# The worker is read-only until signer keys exist: the runner decides, but it does
-# not send. See agent/src/runner.ts.
+# It runs the DBC execution backend in EXECUTE mode: each agent trades its own
+# Meteora curve with its app-owned signer, so the run writes real on-chain
+# executions. Two things must be true first:
+#   1. `AGENT_MASTER_SECRET` (dashboard) matches the web app's, so the derived
+#      signer is the one registered on chain.
+#   2. Each agent's signer holds a little SOL + wPreStock — run
+#      `web/scripts/fund-signers.ts` from a funded wallet.
+# `ANGEL_FORCE=buy` keeps the demo producing rows on a quiet market; drop it to
+# trade only when the signal actually clears its cost.
 #
 # Render's free tier is web services only (they spin down). A background worker is
 # a paid instance — the credits cover it. `plan: starter` is the smallest.
@@ -19,7 +26,7 @@ services:
     # `corepack pnpm` runs pnpm from the cache instead, and the start command uses
     # the installed binary directly so it does not need pnpm on PATH at all.
     buildCommand: corepack pnpm install --frozen-lockfile --prod=false
-    startCommand: node_modules/.bin/tsx agent/src/runner.ts --loop
+    startCommand: node_modules/.bin/tsx agent/src/runner.ts --loop --execute
     autoDeploy: true
     envVars:
       - key: RPC_URL
@@ -30,6 +37,12 @@ services:
         value: FoVBZRFCamH1HNMiVpNZV2QJxk9bSxWtQvKgmqZ1rVLw
       - key: AGENT_SWEEP_SECONDS
         value: "120"
+      - key: ANGEL_EXECUTION
+        value: dbc # execute on each agent's own Meteora DBC pool
+      - key: ANGEL_FORCE
+        value: buy # demo: always act, even when the signal says hold
+      - key: ANGEL_MAX_STALENESS_SECS
+        value: "10000000" # the equity reference is legitimately frozen for long stretches
       - key: AGENT_COOLDOWN_SECONDS
         value: "300"
       - key: AGENT_KEYPAIR

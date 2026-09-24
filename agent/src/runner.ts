@@ -159,6 +159,13 @@ async function sweep(
       console.log(`  skip    acted ${now - lastAt}s ago (cooldown ${cooldown}s)`);
       continue;
     }
+    // The runner signs as the agent, so it can only trade agents whose registered
+    // signer is the app-owned key. Legacy registrations (signer = operator) are
+    // skipped rather than failing on an Unauthorized error.
+    if (execute && account.agentSigner.toBase58() !== agentSignerFor(agentMint).publicKey.toBase58()) {
+      console.log("  skip    registered signer is not the app-owned key (legacy registration)");
+      continue;
+    }
 
     try {
       // Each agent signs with its own app-owned key, derived from the master
@@ -167,7 +174,10 @@ async function sweep(
       const pass = await runAgentPass({
         program: agentProgram,
         conn,
-        marketConn,
+        // The attested Pyth account must live on the same cluster as the program.
+        // On devnet that means a devnet feed (the equity feed there is stale, which
+        // is exactly the frozen reference the strategy wants), not the mainnet one.
+        marketConn: isDevnet ? conn : marketConn,
         agentMint: new PublicKey(agentMint),
         symbol,
         execute,

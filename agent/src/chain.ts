@@ -219,6 +219,7 @@ const VENUES = [
   "orca",
   "clawpump",
   "other",
+  "meteoraDbc",
 ] as const;
 
 export type VenueName = (typeof VENUES)[number];
@@ -259,6 +260,7 @@ export const venueFromAdapter = (v: string): VenueName => {
     Orca: "orca",
     Clawpump: "clawpump",
     Other: "other",
+    MeteoraDbc: "meteoraDbc",
   };
   return map[v] ?? "other";
 };

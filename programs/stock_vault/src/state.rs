@@ -210,6 +210,7 @@ pub enum ArbVenue {
     Orca,
     Clawpump,
     Other,
+    MeteoraDbc,
 }
 
 /// One logged arbitrage execution.

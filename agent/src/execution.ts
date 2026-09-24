@@ -20,7 +20,7 @@ export type ExecuteResult = {
   executed: boolean;
   amountIn: bigint;
   amountOut: bigint;
-  venue: "Jupiter" | "Raydium" | "MeteoraDlmm" | "MeteoraDammV2" | "Orca" | "Clawpump" | "Other";
+  venue: "Jupiter" | "Raydium" | "MeteoraDlmm" | "MeteoraDammV2" | "Orca" | "Clawpump" | "Other" | "MeteoraDbc";
   signature?: string;
   detail: string;
 };
@@ -226,10 +226,6 @@ export class ClawpumpAdapter implements ExecutionAdapter {
  * there is no such market, so the agent trades its own `$AGENT / wPreStock`
  * curve instead — a real swap, signed by the agent's app-owned key and settled
  * on chain, so the logged row is a trade rather than a model.
- *
- * Venue note: `ArbVenue` has no Dynamic-Bonding-Curve variant, so the row is
- * labelled `Other`. Add a `MeteoraDbc` variant (and upgrade the program) if the
- * label matters.
  */
 export class DbcAdapter implements ExecutionAdapter {
   readonly name = "dbc";
@@ -306,7 +302,7 @@ export class DbcAdapter implements ExecutionAdapter {
       executed: true,
       amountIn: logIn,
       amountOut: logOut,
-      venue: "Other",
+      venue: "MeteoraDbc",
       signature,
       detail:
         `Meteora DBC ${swapBaseForQuote ? "sell" : "buy"} ` +
