@@ -275,6 +275,70 @@ export async function buildBuyTransaction(
 export type { SellPayout };
 
 /**
+ * Buy an exact `$AGENT` amount, paying whatever wPreStock the curve asks.
+ *
+ * The trade box spends a chosen amount (ExactIn); the launch studio instead
+ * picks a share of the supply and wants that many tokens (ExactOut). Auto-stake
+ * still lands in the same transaction.
+ */
+export async function buildBuyExactOutTransaction(
+  owner: string,
+  agentTokenMint: string,
+  baseOutRaw: string,
+  autoStake: boolean,
+  blockhash: string,
+  slippageBps = 100,
+): Promise<Transaction> {
+  const amountOut = BigInt(baseOutRaw);
+  if (amountOut <= 0n) throw new Error("Amount must be greater than zero.");
+
+  const { sdk, client } = await dbc();
+  const ctx = await loadPool(agentTokenMint);
+  if (!ctx) throw new Error("This agent has no Meteora DBC pool on this cluster yet.");
+
+  const quote = client.pool.swapQuote2({
+    virtualPool: ctx.virtualPool,
+    config: ctx.configState,
+    swapBaseForQuote: false,
+    swapMode: sdk.SwapMode.ExactOut,
+    amountOut: new BN(baseOutRaw),
+    slippageBps,
+    hasReferral: false,
+    eligibleForFirstSwapWithMinFee: false,
+    currentPoint: new BN(Math.floor(Date.now() / 1000)),
+  });
+
+  const maxIn = BigInt((quote.maximumAmountIn ?? 0n).toString());
+  if (maxIn <= 0n) throw new Error("That allocation is larger than the curve can fill in one trade.");
+
+  const ownerKey = new PublicKey(owner);
+  const tx: Transaction = await client.pool.swap2({
+    owner: ownerKey,
+    pool: new PublicKey(ctx.pool),
+    swapBaseForQuote: false,
+    referralTokenAccount: null,
+    swapMode: sdk.SwapMode.ExactOut,
+    amountOut: new BN(baseOutRaw),
+    maximumAmountIn: new BN(maxIn.toString()),
+  });
+
+  if (autoStake) {
+    const agent = await fetchAgentByPda(agentPda(agentTokenMint));
+    if (!agent) throw new Error("No agent registered for that token on this cluster.");
+    tx.add(
+      stakeInstruction(
+        ownerKey,
+        new PublicKey(agent.vault),
+        new PublicKey(agentTokenMint),
+        amountOut,
+      ),
+    );
+  }
+
+  return finalise(tx, ownerKey, blockhash);
+}
+
+/**
  * Sell `$AGENT` for `wPreStock`, and — when the chosen payout is `prestock` or
  * `usdc` — unwrap the proceeds in the same transaction. The USDC leg itself is a
  * Jupiter swap built client-side and executed after this lands.

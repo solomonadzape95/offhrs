@@ -10,7 +10,7 @@ import {
 } from "@solana/kit";
 
 import {
-  buildBuyAgentTx,
+  buildBuyAgentExactOutTx,
   buildCreateAgentCurveTx,
   buildInitializeVaultTx,
   buildRegisterAgentTx,
@@ -19,6 +19,7 @@ import {
 import { CurvePreview } from "@/components/app/curve-preview";
 import { DitherAvatar } from "@/components/site/dither-avatar";
 import { Info } from "@/components/ui/info";
+import { Presets } from "@/components/ui/presets";
 import { agentPda, preflight, type Check } from "@/lib/deploy";
 import { LEAD_ASSETS, orderByLead } from "@/lib/agents";
 import { usd } from "@/lib/format";
@@ -36,6 +37,10 @@ import { describeWalletError, useWalletUi } from "@/lib/wallet";
  */
 const STEPS = ["Agent", "Token", "Dividend asset", "Curve fee", "Deploy"] as const;
 
+/** Every agent token is minted with a 1,000,000,000 supply, 6 decimals. */
+const SUPPLY = 1_000_000_000;
+const AGENT_DECIMALS = 6;
+
 /** Which deploy step is active, and what it is doing. Drives the progress rail. */
 type DeployState =
   | { k: "idle" }
@@ -47,7 +52,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
   const [step, setStep] = useState(0);
 
   const [agentTokenMint, setAgentTokenMint] = useState("");
-  const [creatorBuy, setCreatorBuy] = useState("1");
+  const [creatorBuy, setCreatorBuy] = useState("10000000");
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [asset, setAsset] = useState(
@@ -98,16 +103,17 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
 
   /** The steps the deploy will run, in order, for the chosen source. */
   const wSymbol = `w${asset}`;
-  const creatorBuyNum = Number(creatorBuy);
-  const creatorBuyRaw =
-    Number.isFinite(creatorBuyNum) && creatorBuyNum > 0
-      ? BigInt(Math.round(creatorBuyNum * 1e9))
+  const allocationNum = Number(creatorBuy);
+  const allocationRaw =
+    Number.isFinite(allocationNum) && allocationNum > 0
+      ? BigInt(Math.round(allocationNum * 10 ** AGENT_DECIMALS))
       : 0n;
+  const allocationPct = ((Number.isFinite(allocationNum) ? allocationNum : 0) / SUPPLY) * 100;
   const deploySteps = [
     ...(source === "self" ? ["Create config + pool"] : []),
     "Register agent",
     "Create vault",
-    ...(creatorBuyRaw > 0n ? ["Buy your allocation"] : []),
+    ...(allocationRaw > 0n ? ["Buy your allocation"] : []),
   ];
 
   /**
@@ -170,9 +176,9 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
 
       // The creator's opening allocation. A DBC first buy, sent straight to the
       // wallet — so launching leaves you holding your own token, not just a pool.
-      if (creatorBuyRaw > 0n) {
+      if (allocationRaw > 0n) {
         setDeploy({ k: "busy", step, phase: "building" });
-        const buy = await buildBuyAgentTx(address, pda, creatorBuyRaw.toString(), false);
+        const buy = await buildBuyAgentExactOutTx(address, pda, allocationRaw.toString(), false);
         if ("error" in buy) throw new Error(buy.error);
         await signAndSend(buy.tx, step);
         step += 1;
@@ -264,18 +270,27 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
                 </p>
               )}
               <Field
-                label="Buy at launch"
-                hint={`${wSymbol} · your opening allocation, bought on the curve`}
+                label="Your allocation"
+                hint="$AGENT · your opening stake, bought from the curve"
               >
-                <input
-                  value={creatorBuy}
-                  onChange={(e) => setCreatorBuy(e.target.value.replace(/[^0-9.]/g, ""))}
-                  inputMode="decimal"
-                  className="tabular w-full border-b border-edge bg-transparent pb-2 font-mono text-sm text-ink outline-none focus:border-signal"
-                />
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <input
+                    value={creatorBuy}
+                    onChange={(e) => setCreatorBuy(e.target.value.replace(/[^0-9]/g, ""))}
+                    inputMode="numeric"
+                    placeholder="10000000"
+                    className="tabular min-w-0 flex-1 border-b border-edge bg-transparent pb-2 font-mono text-sm text-ink outline-none focus:border-signal"
+                  />
+                  <Presets
+                    onPick={(pct) => setCreatorBuy(String(Math.round((SUPPLY * pct) / 100)))}
+                    values={[1, 2, 5, 10]}
+                  />
+                </div>
                 <span className="font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
-                  The rest of the supply goes on the curve. This buys yours at the opening price and
-                  sends it straight to your wallet, so you launch holding your own token.
+                  {SUPPLY.toLocaleString()} $AGENT is created, all of it on the curve. This buys your
+                  opening stake at the opening price and sends it straight to your wallet — you
+                  launch holding your own token. Right now that is{" "}
+                  <span className="text-signal">{allocationPct.toFixed(2)}%</span> of the supply.
                 </span>
               </Field>
             </>
@@ -424,7 +439,10 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
                 <SummaryCell k="Token" v={name && symbol ? `${name} ($${symbol})` : "—"} />
                 <SummaryCell k="Dividend asset" v={asset} />
                 <SummaryCell k="Curve fee" v={`${(feeBps / 100).toFixed(1)}%`} />
-                <SummaryCell k="Your allocation" v={`${creatorBuy || "0"} ${wSymbol}`} />
+                <SummaryCell
+            k="Your allocation"
+            v={`${allocationNum > 0 ? allocationNum.toLocaleString() : "0"} $${symbol || "AGENT"}`}
+          />
                 <SummaryCell k="Pool currency" v={`w${asset}`} hint="zero-fee wrapper" />
               </dl>
 

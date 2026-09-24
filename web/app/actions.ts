@@ -42,7 +42,7 @@ import {
   buildUnwrapTransaction,
   buildWrapTransaction,
 } from "@/lib/program-tx";
-import { buildBuyTransaction, buildSellTransaction, loadPool, quoteTrade } from "@/lib/trade";
+import { buildBuyExactOutTransaction, buildBuyTransaction, buildSellTransaction, loadPool, quoteTrade } from "@/lib/trade";
 import { agentSignerAddress, agentSignerFor, agentSignerSecret } from "@/lib/agent-keys";
 import { buildCreateAgentCurve } from "@/lib/launch";
 import { faucet } from "@/lib/faucet";
@@ -618,6 +618,30 @@ export async function buildBuyAgentTx(
       owner,
       agent.agentTokenMint,
       amountRaw,
+      autoStake,
+      blockhash,
+    );
+    return { tx: serialize(tx) };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Buy an exact `$AGENT` allocation at launch (ExactOut), paying the quoted wPreStock. */
+export async function buildBuyAgentExactOutTx(
+  owner: string,
+  agentId: string,
+  baseOutRaw: string,
+  autoStake: boolean,
+): Promise<BuildTxResult> {
+  try {
+    const { blockhash } = await rpc().getLatestBlockhash("confirmed");
+    const agent = await fetchAgentByPda(agentId);
+    if (!agent) throw new Error("That agent is not registered on this cluster.");
+    const tx = await buildBuyExactOutTransaction(
+      owner,
+      agent.agentTokenMint,
+      baseOutRaw,
       autoStake,
       blockhash,
     );

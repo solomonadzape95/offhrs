@@ -19,6 +19,7 @@ import {
   submitTx,
 } from "@/app/actions";
 import { Icon } from "@/components/ui/icon";
+import { Presets } from "@/components/ui/presets";
 import { compactNumber } from "@/lib/format";
 import { useServerData } from "@/lib/use-server-data";
 import { describeWalletError, useWalletUi } from "@/lib/wallet";
@@ -295,14 +296,15 @@ export function AgentTrade({
     });
   }, [address, agentId, amount, data, payout, raw, runRoute, sendBuilt, sendJupiter, ticker, wSymbol, asset]);
 
-  const onMax = () => {
+  /** Fill the amount with a share of whatever the wallet is spending. */
+  const onPct = (pct: number) => {
     if (!data) return;
     if (side === "sell") {
-      setAmount(
-        String(human(BigInt(data.balances.liquidAgent) + BigInt(data.balances.stakedAgent), data.baseDecimals)),
-      );
+      const bal = BigInt(data.balances.liquidAgent) + BigInt(data.balances.stakedAgent);
+      setAmount(String(human((bal * BigInt(pct)) / 100n, data.baseDecimals)));
     } else if (payWith === "wprestock") {
-      setAmount(String(human(BigInt(data.balances.wrapped), data.quoteDecimals)));
+      const bal = BigInt(data.balances.wrapped);
+      setAmount(String(human((bal * BigInt(pct)) / 100n, data.quoteDecimals)));
     }
   };
 
@@ -369,13 +371,13 @@ export function AgentTrade({
         )}
 
         <label className="flex flex-col gap-2">
-          <span className="flex items-center justify-between">
+          <span className="flex items-center justify-between gap-3">
             <span className="label">
               You pay ({side === "buy" ? (payWith === "usdc" ? "USDC" : wSymbol) : ticker})
             </span>
-            <button onClick={onMax} className="label text-signal hover:text-ink">
-              Max
-            </button>
+            {!(side === "buy" && payWith === "usdc") && (
+              <Presets onPick={onPct} disabled={busy || !data} />
+            )}
           </span>
           <input
             value={amount}

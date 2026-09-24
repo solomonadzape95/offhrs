@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { buildClaimTx, buildStakeTx, buildUnstakeTx, getUserPosition } from "@/app/actions";
 import { Stat } from "@/components/site/stat";
 import { Icon } from "@/components/ui/icon";
+import { Presets } from "@/components/ui/presets";
 import { useServerData } from "@/lib/use-server-data";
 import { useWriteTx } from "@/lib/use-write-tx";
 import { useWalletUi } from "@/lib/wallet";
@@ -42,6 +43,14 @@ export function VaultPanel() {
   }, [rows, selected]);
 
   const target = selected || rows[0]?.agentId || "";
+  const selectedRow = rows.find((r) => r.agentId === target);
+
+  /** Fill the stake amount with a share of the wallet's liquid $AGENT. */
+  const onPct = (pct: number) => {
+    const bal = Number(selectedRow?.liquid ?? 0);
+    if (!Number.isFinite(bal) || bal <= 0) return;
+    setAmount(String(+(bal * (pct / 100)).toFixed(6)));
+  };
 
   const onStake = () => {
     if (!address || !target) return;
@@ -165,6 +174,13 @@ export function VaultPanel() {
                 <span className="shrink-0 font-mono text-xs tracking-wider text-ink-faint uppercase">
                   $AGENT
                 </span>
+              </div>
+
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                <span className="font-mono text-[0.6875rem] text-ink-faint">
+                  Liquid {selectedRow?.liquid ?? "0"} · Staked {selectedRow?.staked ?? "0"}
+                </span>
+                <Presets onPick={onPct} disabled={busy} />
               </div>
 
               <div className="mt-5 flex gap-3">
