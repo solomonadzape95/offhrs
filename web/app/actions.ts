@@ -238,13 +238,18 @@ export async function getLiveAgents(): Promise<LiveAgent[]> {
   return fetchLiveAgents(await universe());
 }
 
-export async function getUserExecutions(owner: string, limit = 50): Promise<ExecutionView[]> {
+/**
+ * The platform execution log: every `ArbExecution` across every live agent, newest
+ * first. It is public on-chain data, so it does not depend on who is connected —
+ * which is what makes the Activity feed useful even for a wallet that has not
+ * launched or traded anything yet.
+ */
+export async function getExecutions(limit = 50): Promise<ExecutionView[]> {
   try {
     const live = await fetchLiveAgents(await universe());
-    const mine = live.filter((l) => l.creator === owner || l.agentSigner === owner);
 
     const out: ExecutionView[] = [];
-    for (const a of mine) {
+    for (const a of live) {
       const execs = await fetchExecutions(a.pda, limit);
       for (const e of execs) {
         out.push({

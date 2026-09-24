@@ -2,17 +2,16 @@
 
 import Link from "next/link";
 
-import { getUserExecutions } from "@/app/actions";
+import { getExecutions } from "@/app/actions";
 import { RequireWallet } from "@/components/app/require-wallet";
 import { Terminal, type TerminalRow } from "@/components/app/terminal";
 import { useServerData } from "@/lib/use-server-data";
-import { useWalletUi } from "@/lib/wallet";
 
 /**
  * Activity — the execution log.
  *
- * Reads the agent's `ArbExecution` accounts on chain through the
- * `getUserExecutions` server action and renders them in the same terminal the
+ * Reads every agent's `ArbExecution` accounts on chain through the
+ * `getExecutions` server action and renders them in the same terminal the
  * public agent page uses. Each row carries the Pyth read that justified it,
  * copied onto the record by the program — so a fill cannot be shown without the
  * oracle data behind it.
@@ -28,8 +27,7 @@ const SCHEMA = [
 ];
 
 export default function ActivityPage() {
-  const { address } = useWalletUi();
-  const execs = useServerData(address, () => getUserExecutions(address as string));
+  const execs = useServerData("executions", () => getExecutions());
 
   const rows: TerminalRow[] = (execs.status === "ready" ? execs.data : []).map((e) => ({
     t: e.executedAt,
@@ -43,7 +41,7 @@ export default function ActivityPage() {
     <section className="mx-auto max-w-app px-5 py-10 sm:px-8 sm:py-14">
       <RequireWallet
         title="Connect to see executions"
-        body="Executions are logged against your wallet's agent registrations, so there is nothing to read until one is connected."
+        body="The execution log is public on-chain data. Connect a wallet to read it."
       >
         <div className="flex flex-col gap-8">
           <div className="flex flex-col gap-3">
@@ -71,8 +69,8 @@ export default function ActivityPage() {
             </dl>
             <p className="max-w-2xl font-mono text-[0.6875rem] leading-relaxed text-ink-faint">
               {execs.status === "ready" && execs.data.length > 0
-                ? `${execs.data.length} execution${execs.data.length === 1 ? "" : "s"} logged for your agents on this cluster.`
-                : "No executions logged for your agents on this cluster yet. Written and tested in " +
+                ? `${execs.data.length} execution${execs.data.length === 1 ? "" : "s"} logged on this cluster.`
+                : "No executions logged on this cluster yet. Written and tested in " +
                   "programs/stock_vault/src/execution.rs, with 7 integration tests covering the " +
                   "attestation copy, the index ordering and the authorisation."}
             </p>
