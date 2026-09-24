@@ -27,6 +27,7 @@ export function VaultPanel() {
   const [nonce, setNonce] = useState(0);
   const [amount, setAmount] = useState("");
   const [selected, setSelected] = useState("");
+  const [pickedPct, setPickedPct] = useState<number | null>(null);
 
   const pos = useServerData(address ? `${address}:${nonce}` : null, () =>
     getUserPosition(address as string),
@@ -50,6 +51,7 @@ export function VaultPanel() {
     const bal = Number(selectedRow?.liquid ?? 0);
     if (!Number.isFinite(bal) || bal <= 0) return;
     setAmount(String(+(bal * (pct / 100)).toFixed(6)));
+    setPickedPct(pct);
   };
 
   const onStake = () => {
@@ -165,7 +167,10 @@ export function VaultPanel() {
               <div className="mt-3 flex items-center gap-3 border border-edge bg-void px-4 py-3.5">
                 <input
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+                  onChange={(e) => {
+                    setAmount(e.target.value.replace(/[^0-9.]/g, ""));
+                    setPickedPct(null);
+                  }}
                   inputMode="decimal"
                   placeholder="0.00"
                   aria-label="Amount to stake"
@@ -180,7 +185,7 @@ export function VaultPanel() {
                 <span className="font-mono text-[0.6875rem] text-ink-faint">
                   Liquid {selectedRow?.liquid ?? "0"} · Staked {selectedRow?.staked ?? "0"}
                 </span>
-                <Presets onPick={onPct} disabled={busy} />
+                <Presets value={pickedPct} onPick={onPct} disabled={busy} />
               </div>
 
               <div className="mt-5 flex gap-3">

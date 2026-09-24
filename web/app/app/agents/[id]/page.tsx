@@ -3,31 +3,39 @@ import { notFound } from "next/navigation";
 import { AgentManage, type ManageData } from "@/components/app/agent-manage";
 import { RequireWallet } from "@/components/app/require-wallet";
 import { AGENTS, findAgent } from "@/lib/agents";
-import { fetchAgentByPda, fetchLiveAgentByPda, fetchWrappers } from "@/lib/chain";
+import { fetchAgentByPda, fetchLiveAgentByPda, fetchLiveAgents, fetchWrappers } from "@/lib/chain";
 import { fetchUniverse } from "@/lib/universe";
+import { underlyingSymbol } from "@/lib/mock";
 
 export function generateStaticParams() {
   return AGENTS.map((a) => ({ id: a.id }));
 }
 
 /**
- * A manage route is either a seeded slug or an on-chain agent PDA. On-chain
- * records carry the fields this page actually operates on: the wrapper's paused
- * flag, the lifetime routed profit, and the execution count.
+ * A manage route is either a seeded slug or an on-chain agent PDA. A real
+ * registration for the seed's asset wins, so the manage desk never shows a
+ * phantom when the real agent exists. On-chain records carry the fields this
+ * page actually operates on: the wrapper's paused flag, the lifetime routed
+ * profit, and the execution count.
  */
 async function resolve(id: string): Promise<{ agent: any; onchain: ManageData | null } | null> {
-  const seed = findAgent(id);
-  if (seed) return { agent: seed, onchain: null };
-
   const stocks = await fetchUniverse().catch(() => []);
-  const live = await fetchLiveAgentByPda(
-    id,
-    stocks.map((s) => ({ symbol: s.symbol, mint: s.mint })),
-  ).catch(() => null);
+  const assets = stocks.map((s) => ({ symbol: s.symbol, mint: s.mint }));
+
+  const seed = findAgent(id);
+  let pda = id;
+  if (seed) {
+    const liveList = await fetchLiveAgents(assets).catch(() => []);
+    const match = liveList.find((a) => underlyingSymbol(a.asset) === seed.asset);
+    if (!match) return { agent: seed, onchain: null };
+    pda = match.id;
+  }
+
+  const live = await fetchLiveAgentByPda(pda, assets).catch(() => null);
   if (!live) return null;
 
   const [raw, wrappers] = await Promise.all([
-    fetchAgentByPda(id).catch(() => null),
+    fetchAgentByPda(pda).catch(() => null),
     fetchWrappers().catch(() => []),
   ]);
   const wrapper = wrappers.find((w) => w.wrappedMint === live.wrappedMint);

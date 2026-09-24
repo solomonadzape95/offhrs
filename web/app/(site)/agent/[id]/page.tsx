@@ -8,7 +8,7 @@ import { MarkVsMarket } from "@/components/app/mark-vs-market";
 import { Swap } from "@/components/app/swap";
 import { Terminal, type TerminalRow } from "@/components/app/terminal";
 import { AGENTS, findAgent } from "@/lib/agents";
-import { fetchLiveAgentByPda } from "@/lib/chain";
+import { fetchLiveAgentByPda, fetchLiveAgents } from "@/lib/chain";
 import { compactNumber, shortAddr, usd } from "@/lib/format";
 import { FROZEN_AFTER_SECS, fetchMarket } from "@/lib/market";
 import { poolProgress } from "@/lib/trade";
@@ -22,17 +22,25 @@ export function generateStaticParams() {
 }
 
 /**
- * A route id is either a seeded agent slug or an on-chain agent PDA. Seeds win so
- * the staged demo keeps working; anything else is looked up on chain.
+ * A route id is either a seeded agent slug or an on-chain agent PDA.
+ *
+ * A real registration always wins over a seeded placeholder: the seed set is a
+ * staged preview, so once an agent for the same asset is on chain, that is the
+ * one the route should show. Otherwise a live "Consensus" and the seeded
+ * "Consensus" would both exist, one of them a phantom.
  */
 async function resolveAgent(id: string) {
-  const seed = findAgent(id);
-  if (seed) return seed;
   const stocks = await fetchUniverse().catch(() => []);
-  return fetchLiveAgentByPda(
-    id,
-    stocks.map((s) => ({ symbol: s.symbol, mint: s.mint })),
-  ).catch(() => null);
+  const assets = stocks.map((s) => ({ symbol: s.symbol, mint: s.mint }));
+
+  const seed = findAgent(id);
+  if (seed) {
+    const live = await fetchLiveAgents(assets).catch(() => []);
+    const match = live.find((a) => underlyingSymbol(a.asset) === seed.asset);
+    if (match) return fetchLiveAgentByPda(match.id, assets).catch(() => seed);
+    return seed;
+  }
+  return fetchLiveAgentByPda(id, assets).catch(() => null);
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -165,16 +173,18 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
 
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3">
+            <div className="flex items-start gap-2">
               <h1 className="font-display text-3xl leading-none text-ink sm:text-4xl">
                 {agent.name}
               </h1>
-              <span className="font-mono text-lg tracking-[0.16em] text-ink-dim uppercase">
-                ${agent.ticker}
-              </span>
-              <span className="border border-signal-dim/60 px-2 py-1 font-mono text-[0.625rem] tracking-[0.14em] text-signal uppercase">
-                yields {agent.asset}
-              </span>
+              <div className="flex flex-col items-start gap-1">
+                <span className="font-mono text-lg leading-none tracking-[0.16em] text-ink-dim uppercase">
+                  ${agent.ticker}
+                </span>
+                <span className="border border-signal-dim/60 px-2 py-0.5 font-mono text-[0.625rem] tracking-[0.14em] text-signal uppercase">
+                  yields {agent.asset}
+                </span>
+              </div>
             </div>
             <p className="max-w-xl text-sm leading-relaxed text-ink-dim">{agent.thesis}</p>
             {isMock(agent.asset) && (

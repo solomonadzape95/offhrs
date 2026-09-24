@@ -108,6 +108,7 @@ export function AgentTrade({
   const [payout, setPayout] = useState<SellPayout>("wprestock");
   const [autoStake, setAutoStake] = useState(true);
   const [amount, setAmount] = useState("");
+  const [pickedPct, setPickedPct] = useState<number | null>(null);
   const [quote, setQuote] = useState<QuoteState>({ k: "idle" });
   const [route, setRoute] = useState<RouteState>({ k: "idle" });
 
@@ -306,6 +307,7 @@ export function AgentTrade({
       const bal = BigInt(data.balances.wrapped);
       setAmount(String(human((bal * BigInt(pct)) / 100n, data.quoteDecimals)));
     }
+    setPickedPct(pct);
   };
 
   const routeStepState = (i: number): "pending" | "done" | "failed" | "active" => {
@@ -329,6 +331,7 @@ export function AgentTrade({
             onClick={() => {
               setSide(s);
               setAmount("");
+              setPickedPct(null);
             }}
             className={`py-3 font-mono text-xs tracking-[0.18em] uppercase transition-colors ${
               side === s ? "bg-raised text-signal" : "text-ink-faint hover:text-ink"
@@ -352,7 +355,10 @@ export function AgentTrade({
         {side === "buy" ? (
           <Segmented
             value={payWith}
-            onChange={(v) => setPayWith(v as PayWith)}
+            onChange={(v) => {
+              setPayWith(v as PayWith);
+              setPickedPct(null);
+            }}
             options={[
               { value: "wprestock", label: `Pay ${wSymbol}` },
               { value: "usdc", label: "Pay USDC" },
@@ -361,7 +367,10 @@ export function AgentTrade({
         ) : (
           <Segmented
             value={payout}
-            onChange={(v) => setPayout(v as SellPayout)}
+            onChange={(v) => {
+              setPayout(v as SellPayout);
+              setPickedPct(null);
+            }}
             options={[
               { value: "wprestock", label: `Hold ${wSymbol}` },
               { value: "prestock", label: `Get ${asset}` },
@@ -370,54 +379,70 @@ export function AgentTrade({
           />
         )}
 
-        <label className="flex flex-col gap-2">
-          <span className="flex items-center justify-between gap-3">
-            <span className="label">
-              You pay ({side === "buy" ? (payWith === "usdc" ? "USDC" : wSymbol) : ticker})
-            </span>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="trade-amount" className="label">
+            You pay ({side === "buy" ? (payWith === "usdc" ? "USDC" : wSymbol) : ticker})
+          </label>
+          <div className="flex items-center gap-3">
+            <input
+              id="trade-amount"
+              value={amount}
+              disabled={busy}
+              onChange={(e) => {
+                setAmount(e.target.value.replace(/[^0-9.]/g, ""));
+                setPickedPct(null);
+              }}
+              inputMode="decimal"
+              placeholder="0"
+              className="tabular min-w-0 flex-1 border-b border-edge bg-transparent pb-2 font-mono text-2xl text-ink outline-none focus:border-signal disabled:opacity-60"
+            />
             {!(side === "buy" && payWith === "usdc") && (
-              <Presets onPick={onPct} disabled={busy || !data} />
+              <Presets value={pickedPct} onPick={onPct} disabled={busy || !data} />
             )}
-          </span>
-          <input
-            value={amount}
-            disabled={busy}
-            onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
-            inputMode="decimal"
-            placeholder="0"
-            className="tabular w-full border-b border-edge bg-transparent pb-2 font-mono text-2xl text-ink outline-none focus:border-signal disabled:opacity-60"
-          />
-        </label>
-
-        <div className="flex items-baseline justify-between gap-4">
-          <span className="label">You receive ({outLabel})</span>
-          <span className="tabular truncate font-mono text-lg text-signal">
-            {quote.k === "ready"
-              ? fmt(quote.quote.outAmount, outDecimals)
-              : quote.k === "loading"
-                ? "…"
-                : "0"}
-          </span>
+          </div>
         </div>
 
-        {quote.k === "ready" && (
-          <>
-            <Row k="Price" v={`${quote.quote.price.toLocaleString(undefined, { maximumSignificantDigits: 6 })} ${wSymbol} / ${ticker}`} />
-            {quote.usdcRoute && (
-              <Row k="USDC route" v={quote.usdcRoute.join(" → ") || "n/a"} />
-            )}
-            {side === "sell" && payout !== "wprestock" && (
-              <Row k="Settlement" v={`unwrapped to ${asset} in the same transaction`} />
-            )}
-            {side === "buy" && autoStake && (
-              <Row k="Auto-stake" v="on, staked in the same transaction" />
-            )}
-            <Row
-              k="Curve fee"
-              v={fmt(quote.quote.tradingFee, quote.quote.quoteDecimals)}
-            />
-          </>
-        )}
+        <div className="flex flex-col gap-px border border-edge bg-edge">
+          <InfoCell
+            k={`You receive (${outLabel})`}
+            tone="signal"
+            v={
+              quote.k === "ready"
+                ? fmt(quote.quote.outAmount, outDecimals)
+                : quote.k === "loading"
+                  ? "…"
+                  : "0"
+            }
+          />
+          <InfoCell
+            k="Price"
+            v={
+              quote.k === "ready"
+                ? `${quote.quote.price.toLocaleString(undefined, { maximumSignificantDigits: 6 })} ${wSymbol} / ${ticker}`
+                : "—"
+            }
+          />
+          <InfoCell
+            k="Curve fee"
+            v={quote.k === "ready" ? fmt(quote.quote.tradingFee, quote.quote.quoteDecimals) : "—"}
+          />
+          <InfoCell
+            k={side === "buy" ? (payWith === "usdc" ? "USDC route" : "Auto-stake") : "Settlement"}
+            v={
+              side === "buy"
+                ? payWith === "usdc"
+                  ? (quote.k === "ready" ? quote.usdcRoute?.join(" → ") || "n/a" : "—")
+                  : autoStake
+                    ? "on, in the same transaction"
+                    : "off"
+                : payout === "wprestock"
+                  ? `held in ${wSymbol}`
+                  : payout === "prestock"
+                    ? `unwrapped to ${asset}`
+                    : "routed to USDC"
+            }
+          />
+        </div>
 
         {quote.k === "error" && (
           <p className="font-mono text-[0.6875rem] leading-relaxed text-ember">{quote.error}</p>
@@ -581,11 +606,26 @@ function Segmented({
   );
 }
 
-function Row({ k, v }: { k: string; v: string }) {
+/** A stacked bordered cell: label top-left, value bottom-right, one line each. */
+function InfoCell({
+  k,
+  v,
+  tone = "default",
+}: {
+  k: string;
+  v: string;
+  tone?: "default" | "signal";
+}) {
   return (
-    <div className="flex items-baseline justify-between gap-4">
-      <span className="label shrink-0">{k}</span>
-      <span className="truncate font-mono text-xs text-ink-faint">{v}</span>
+    <div className="flex flex-col gap-2 bg-void px-4 py-3">
+      <span className="label">{k}</span>
+      <span
+        className={`tabular self-end text-right font-mono text-sm break-all ${
+          tone === "signal" ? "text-signal" : "text-ink"
+        }`}
+      >
+        {v}
+      </span>
     </div>
   );
 }

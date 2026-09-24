@@ -53,6 +53,7 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
 
   const [agentTokenMint, setAgentTokenMint] = useState("");
   const [creatorBuy, setCreatorBuy] = useState("10000000");
+  const [pickedPct, setPickedPct] = useState<number | null>(null);
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [asset, setAsset] = useState(
@@ -276,13 +277,20 @@ export function LaunchStudio({ assets }: { assets: PreStock[] }) {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <input
                     value={creatorBuy}
-                    onChange={(e) => setCreatorBuy(e.target.value.replace(/[^0-9]/g, ""))}
+                    onChange={(e) => {
+                      setCreatorBuy(e.target.value.replace(/[^0-9]/g, ""));
+                      setPickedPct(null);
+                    }}
                     inputMode="numeric"
                     placeholder="10000000"
                     className="tabular min-w-0 flex-1 border-b border-edge bg-transparent pb-2 font-mono text-sm text-ink outline-none focus:border-signal"
                   />
                   <Presets
-                    onPick={(pct) => setCreatorBuy(String(Math.round((SUPPLY * pct) / 100)))}
+                    value={pickedPct}
+                    onPick={(pct) => {
+                      setCreatorBuy(String(Math.round((SUPPLY * pct) / 100)));
+                      setPickedPct(pct);
+                    }}
                     values={[1, 2, 5, 10]}
                   />
                 </div>
